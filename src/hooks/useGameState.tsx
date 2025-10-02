@@ -126,6 +126,38 @@ export function GameProvider({ children }: { children: ReactNode }) {
             }
             setProgress(progressMap);
           }
+        } else {
+          // 新規ユーザーの場合、デフォルトで全課題を解放
+          const defaultUserId = `user_${Date.now()}`;
+          const defaultUser: UserProfile = {
+            id: defaultUserId,
+            shogun_name: 'ゲスト将軍',
+            level: 1,
+            total_xp: 0,
+            title: '足軽',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          setUser(defaultUser);
+          
+          // すべての課題を解放
+          const progressMap: Record<string, UserRegionProgress> = {};
+          for (const region of regionsData) {
+            progressMap[region.id] = {
+              id: `progress_${region.id}`,
+              user_id: defaultUserId,
+              region_id: region.id,
+              is_unlocked: true,
+              is_completed: false,
+              best_accuracy: 0,
+              stars: 0,
+              attempts: 0,
+              first_completed_at: null,
+              last_attempt_at: null,
+              created_at: new Date().toISOString()
+            };
+          }
+          setProgress(progressMap);
         }
       } catch (error) {
         console.error('Failed to load game data:', error);
