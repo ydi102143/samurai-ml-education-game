@@ -87,6 +87,9 @@ export function DataExplorer({ dataset }: Props) {
             <div>
               <div className="font-bold">読み取りポイント</div>
               <div>山型＝自然な分布。片寄りや二峰性のときは前処理（正規化/標準化）を検討しよう。</div>
+              <div className="text-xs text-gray-600 mt-1">
+                💡 新問題例：毛利氏の風速は正規分布、加賀の信者数は偏りがある、長宗我部氏の戦果は3つのクラスに分かれる
+              </div>
             </div>
           </div>
         )}
@@ -105,6 +108,9 @@ export function DataExplorer({ dataset }: Props) {
             <div>
               <div className="font-bold">読み取りポイント</div>
               <div>直線/曲線の形が見えたら、それに合うモデル（線形/非線形）を選ぼう。</div>
+              <div className="text-xs text-gray-600 mt-1">
+                💡 新問題例：毛利氏の海戦では風速と船数、加賀の布教では人口密度と経済状況、長宗我部氏の戦略では兵力と装備の関係を確認しよう
+              </div>
             </div>
           </div>
         )}

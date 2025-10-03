@@ -7,7 +7,7 @@ interface Props {
   dataset: Dataset;
 }
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const COLORS = ['#1e40af', '#dc2626', '#059669', '#d97706', '#7c3aed', '#db2777'];
 
 export function ScatterPlotMatrix({ dataset }: Props) {
   // 生データがあればそれを使用して散布図を描画
@@ -25,15 +25,19 @@ export function ScatterPlotMatrix({ dataset }: Props) {
   const topPairs = featurePairs.slice(0, 6);
 
   return (
-    <div className="bg-white/90 rounded-lg p-6 shadow-lg border-2 border-pink-600">
+    <div className="bg-white/90 rounded-lg p-6 shadow-lg border-2" style={{ borderColor: 'var(--gold)' }}>
       <div className="flex items-center space-x-2 mb-4">
-        <Maximize2 className="w-5 h-5 text-pink-900" />
-        <h3 className="text-lg font-bold text-pink-900">散布図行列（主要な特徴量ペア）</h3>
+        <Maximize2 className="w-5 h-5" style={{ color: 'var(--accent-strong)' }} />
+        <h3 className="text-lg font-bold" style={{ color: 'var(--accent-strong)' }}>散布図行列（主要な特徴量ペア）</h3>
       </div>
 
-      <div className="text-sm text-pink-800 mb-4">
+      <div className="text-sm mb-4" style={{ color: 'var(--accent-strong)' }}>
         特徴量間の関係性を視覚的に確認できます。
         {dataset.classes && '色分けはクラスを表しています。'}
+        <br />
+        <span className="text-xs text-gray-600">
+          💡 直線的な関係があれば線形モデル、曲線的な関係があれば非線形モデルが適しています
+        </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -49,8 +53,8 @@ export function ScatterPlotMatrix({ dataset }: Props) {
             : [0];
 
           return (
-            <div key={index} className="bg-pink-50 p-3 rounded border border-pink-300">
-              <h4 className="text-xs font-bold text-pink-900 mb-2 text-center">
+            <div key={index} className="bg-blue-50 p-3 rounded border" style={{ borderColor: 'var(--gold)' }}>
+              <h4 className="text-xs font-bold mb-2 text-center" style={{ color: 'var(--accent-strong)' }}>
                 {dataset.featureNames[i]} vs {dataset.featureNames[j]}
               </h4>
               <ResponsiveContainer width="100%" height={180}>
@@ -75,15 +79,15 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
                         return (
-                          <div className="bg-white p-2 border border-pink-300 rounded shadow text-xs">
-                            <p className="text-pink-900">
+                          <div className="bg-white p-3 border rounded shadow-lg text-xs" style={{ borderColor: 'var(--gold)' }}>
+                            <p className="font-medium" style={{ color: 'var(--accent-strong)' }}>
                               {dataset.featureNames[i]}: {formatNumber(data.x)}
                             </p>
-                            <p className="text-pink-900">
+                            <p className="font-medium" style={{ color: 'var(--accent-strong)' }}>
                               {dataset.featureNames[j]}: {formatNumber(data.y)}
                             </p>
                             {dataset.classes && (
-                              <p className="text-pink-900 font-bold">
+                              <p className="font-bold" style={{ color: 'var(--gold)' }}>
                                 クラス: {dataset.classes[data.label]}
                               </p>
                             )}
@@ -109,7 +113,7 @@ export function ScatterPlotMatrix({ dataset }: Props) {
       </div>
 
       {featurePairs.length > 6 && (
-        <div className="mt-4 text-center text-sm text-pink-700">
+        <div className="mt-4 text-center text-sm" style={{ color: 'var(--accent-strong)' }}>
           主要な{topPairs.length}組の特徴量ペアを表示しています
           （全{featurePairs.length}組）
         </div>
