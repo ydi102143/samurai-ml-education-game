@@ -86,9 +86,17 @@ export function DataExplorer({ dataset }: Props) {
             <BarChart className="w-4 h-4 mt-0.5" />
             <div>
               <div className="font-bold">読み取りポイント</div>
-              <div>山型＝自然な分布。片寄りや二峰性のときは前処理（正規化/標準化）を検討しよう。</div>
+              <div>
+                {dataset.classes && dataset.classes.length > 0 
+                  ? '山型＝自然な分布。片寄りや二峰性のときは前処理（正規化/標準化）を検討しよう。'
+                  : '目的変数が正規分布に近いと回帰モデルの精度が向上しやすくなります。'
+                }
+              </div>
               <div className="text-xs text-gray-600 mt-1">
-                💡 新問題例：毛利氏の風速は正規分布、加賀の信者数は偏りがある、長宗我部氏の戦果は3つのクラスに分かれる
+                💡 {dataset.classes && dataset.classes.length > 0 
+                  ? '新問題例：毛利氏の風速は正規分布、加賀の信者数は偏りがある、長宗我部氏の戦果は3つのクラスに分かれる'
+                  : '回帰問題例：甲斐の産出量、越後の収穫量、出羽の輸送効率など、目的変数の分布を確認しよう'
+                }
               </div>
             </div>
           </div>
@@ -107,9 +115,17 @@ export function DataExplorer({ dataset }: Props) {
             <Maximize2 className="w-4 h-4 mt-0.5" />
             <div>
               <div className="font-bold">読み取りポイント</div>
-              <div>直線/曲線の形が見えたら、それに合うモデル（線形/非線形）を選ぼう。</div>
+              <div>
+                {dataset.classes && dataset.classes.length > 0 
+                  ? '直線/曲線の形が見えたら、それに合うモデル（線形/非線形）を選ぼう。'
+                  : '特徴量と目的変数の関係を確認し、予測に有効な特徴量を見つけよう。'
+                }
+              </div>
               <div className="text-xs text-gray-600 mt-1">
-                💡 新問題例：毛利氏の海戦では風速と船数、加賀の布教では人口密度と経済状況、長宗我部氏の戦略では兵力と装備の関係を確認しよう
+                💡 {dataset.classes && dataset.classes.length > 0 
+                  ? '新問題例：毛利氏の海戦では風速と船数、加賀の布教では人口密度と経済状況、長宗我部氏の戦略では兵力と装備の関係を確認しよう'
+                  : '回帰問題例：甲斐の産出量では労働者数と気温、越後の収穫量では降水量と日照時間、出羽の輸送効率では距離と標高の関係を確認しよう'
+                }
               </div>
             </div>
           </div>

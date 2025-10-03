@@ -14,6 +14,7 @@ export function ScatterPlotMatrix({ dataset }: Props) {
   const rawSource = dataset.raw?.train?.length ? dataset.raw.train : dataset.train;
   const sampleSize = Math.min(rawSource.length, 200);
   const sampledData = rawSource.slice(0, sampleSize) as { features: number[]; label: number | string }[];
+  const isClassification = dataset.classes && dataset.classes.length > 0;
 
   const featurePairs: [number, number][] = [];
   for (let i = 0; i < dataset.featureNames.length; i++) {
@@ -33,10 +34,13 @@ export function ScatterPlotMatrix({ dataset }: Props) {
 
       <div className="text-sm mb-4" style={{ color: 'var(--accent-strong)' }}>
         特徴量間の関係性を視覚的に確認できます。
-        {dataset.classes && '色分けはクラスを表しています。'}
+        {isClassification ? '色分けはクラスを表しています。' : '色の濃さは目的変数の値を表しています。'}
         <br />
         <span className="text-xs text-gray-600">
-          💡 直線的な関係があれば線形モデル、曲線的な関係があれば非線形モデルが適しています
+          💡 {isClassification 
+            ? '直線的な関係があれば線形モデル、曲線的な関係があれば非線形モデルが適しています'
+            : '特徴量と目的変数の関係を確認し、予測に有効な特徴量を見つけましょう'
+          }
         </span>
       </div>
 
@@ -45,10 +49,11 @@ export function ScatterPlotMatrix({ dataset }: Props) {
           const data = sampledData.map(point => ({
             x: point.features[i] as number,
             y: point.features[j] as number,
-            label: Number(point.label),
+            label: isClassification ? Number(point.label) : point.label as number,
+            value: point.label as number, // 回帰用の値
           }));
 
-          const labelGroups = dataset.classes
+          const labelGroups = isClassification
             ? [...new Set(data.map(d => d.label))].sort()
             : [0];
 
@@ -86,9 +91,13 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                             <p className="font-medium" style={{ color: 'var(--accent-strong)' }}>
                               {dataset.featureNames[j]}: {formatNumber(data.y)}
                             </p>
-                            {dataset.classes && (
+                            {isClassification ? (
                               <p className="font-bold" style={{ color: 'var(--gold)' }}>
-                                クラス: {dataset.classes[data.label]}
+                                クラス: {dataset.classes![data.label]}
+                              </p>
+                            ) : (
+                              <p className="font-bold" style={{ color: 'var(--gold)' }}>
+                                {dataset.labelName}: {formatNumber(data.value)}
                               </p>
                             )}
                           </div>
@@ -97,14 +106,22 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                       return null;
                     }}
                   />
-                  {labelGroups.map((label, idx) => (
+                  {isClassification ? (
+                    labelGroups.map((label, idx) => (
+                      <Scatter
+                        key={label}
+                        name={dataset.classes ? dataset.classes[label] : `グループ ${label}`}
+                        data={data.filter(d => d.label === label)}
+                        fill={COLORS[idx % COLORS.length]}
+                      />
+                    ))
+                  ) : (
                     <Scatter
-                      key={label}
-                      name={dataset.classes ? dataset.classes[label] : `グループ ${label}`}
-                      data={data.filter(d => d.label === label)}
-                      fill={COLORS[idx % COLORS.length]}
+                      data={data}
+                      fill="#1e40af"
+                      fillOpacity={0.6}
                     />
-                  ))}
+                  )}
                 </ScatterChart>
               </ResponsiveContainer>
             </div>

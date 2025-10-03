@@ -42,7 +42,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
 
     // タイミング（ms）をまとめて定義し、倍率を適用
     // 0: フェードイン開始, 1: タイプライタ開始(英日同時)
-    const times = [700, 3200].map((t, i) => Math.round(t * durationScale));
+    const times = [700, 3200].map(t => Math.round(t * durationScale));
     setT(() => setIsVisible(true), times[0]);
     setT(() => setCurrentStep(1), times[1]);
 

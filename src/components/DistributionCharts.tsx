@@ -12,6 +12,7 @@ const COLORS = ['#1e40af', '#dc2626', '#059669', '#d97706', '#7c3aed', '#db2777'
 
 export function DistributionCharts({ dataset }: Props) {
   const classDistribution = calculateClassDistribution(dataset);
+  const isClassification = dataset.classes && dataset.classes.length > 0;
   
   const isDiscrete = (vals: (number | string)[]): boolean => {
     const unique = Array.from(new Set(vals.map(v => typeof v === 'number' ? Number(v) : String(v))));
@@ -26,7 +27,7 @@ export function DistributionCharts({ dataset }: Props) {
 
   return (
     <div className="space-y-6">
-      {dataset.classes && classDistribution.length > 0 && (
+      {isClassification && classDistribution.length > 0 && (
         <div className="bg-white/90 rounded-lg p-6 shadow-lg border-2" style={{ borderColor: 'var(--gold)' }}>
           <div className="flex items-center space-x-2 mb-4">
             <BarChart3 className="w-5 h-5" style={{ color: 'var(--accent-strong)' }} />
@@ -90,6 +91,89 @@ export function DistributionCharts({ dataset }: Props) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {!isClassification && (
+        <div className="bg-white/90 rounded-lg p-6 shadow-lg border-2" style={{ borderColor: 'var(--gold)' }}>
+          <div className="flex items-center space-x-2 mb-4">
+            <BarChart3 className="w-5 h-5" style={{ color: 'var(--accent-strong)' }} />
+            <h3 className="text-lg font-bold" style={{ color: 'var(--accent-strong)' }}>目的変数の分布</h3>
+          </div>
+          <div className="text-sm mb-4" style={{ color: 'var(--accent-strong)' }}>
+            予測したい値（目的変数）の分布を確認できます。
+            <br />
+            <span className="text-xs text-gray-600">
+              💡 正規分布に近い形だと回帰モデルの精度が向上しやすくなります
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="text-sm font-bold mb-3 text-center" style={{ color: 'var(--accent-strong)' }}>
+                {dataset.labelName}の分布
+              </h4>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={(() => {
+                  // 生データから目的変数の分布を作成
+                  const rawLabels = dataset.raw?.train?.map(d => d.label) ?? dataset.train.map(d => d.label);
+                  const numericLabels = rawLabels.filter(l => typeof l === 'number') as number[];
+                  if (numericLabels.length === 0) return [];
+                  
+                  const histogram = createHistogram(numericLabels, 15);
+                  return histogram;
+                })()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="bin" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 10 }} />
+                  <YAxis />
+                  <Tooltip formatter={(v: any) => formatNumber(v)} />
+                  <Bar dataKey="count" fill="#1e40af" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-bold mb-3 text-center" style={{ color: 'var(--accent-strong)' }}>
+                基本統計
+              </h4>
+              <div className="space-y-3">
+                {(() => {
+                  const rawLabels = dataset.raw?.train?.map(d => d.label) ?? dataset.train.map(d => d.label);
+                  const numericLabels = rawLabels.filter(l => typeof l === 'number') as number[];
+                  if (numericLabels.length === 0) return null;
+                  
+                  const sorted = numericLabels.sort((a, b) => a - b);
+                  const mean = sorted.reduce((a, b) => a + b, 0) / sorted.length;
+                  const median = sorted[Math.floor(sorted.length / 2)];
+                  const min = sorted[0];
+                  const max = sorted[sorted.length - 1];
+                  
+                  return (
+                    <>
+                      <div className="bg-blue-50 p-3 rounded border" style={{ borderColor: 'var(--gold)' }}>
+                        <div className="text-xs mb-1" style={{ color: 'var(--accent-strong)' }}>平均値</div>
+                        <div className="text-lg font-bold" style={{ color: 'var(--accent-strong)' }}>
+                          {formatNumber(mean)}
+                        </div>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded border" style={{ borderColor: 'var(--gold)' }}>
+                        <div className="text-xs mb-1" style={{ color: 'var(--accent-strong)' }}>中央値</div>
+                        <div className="text-lg font-bold" style={{ color: 'var(--accent-strong)' }}>
+                          {formatNumber(median)}
+                        </div>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded border" style={{ borderColor: 'var(--gold)' }}>
+                        <div className="text-xs mb-1" style={{ color: 'var(--accent-strong)' }}>範囲</div>
+                        <div className="text-lg font-bold" style={{ color: 'var(--accent-strong)' }}>
+                          {formatNumber(min)} - {formatNumber(max)}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
       )}
