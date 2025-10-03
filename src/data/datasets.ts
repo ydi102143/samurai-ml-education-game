@@ -49,6 +49,7 @@ export function generateKyotoDataset(): Dataset {
     test: shuffled.slice(splitIdx),
     featureNames: ['年代', '職人技', '材質', '古色'],
     classes: ['贋作', '本物'],
+    labelName: '真贋',
   };
 }
 
@@ -90,15 +91,15 @@ export function generateSakaiDataset(): Dataset {
         break;
     }
 
-      data.push({
+    data.push({
       features: [
         material, // 材質
         decoration, // 装飾
         craftsmanship, // 職人技
         price // 価格
       ],
-        label: originIdx,
-      });
+      label: originIdx,
+    });
   }
 
   const shuffled = shuffle(data);
@@ -109,6 +110,7 @@ export function generateSakaiDataset(): Dataset {
     test: shuffled.slice(splitIdx),
     featureNames: ['材質', '装飾', '職人技', '価格'],
     classes: origins,
+    labelName: '産地',
   };
 }
 
@@ -153,6 +155,7 @@ export function generateKaiDataset(): Dataset {
     test: shuffled.slice(splitIdx),
     featureNames: ['労働者数', '経験値', '気温', '降水量', '機具の質', '鉱石の品質'],
     classes: [],
+    labelName: '産出量',
   };
 }
 
@@ -195,6 +198,7 @@ export function generateEchigoDataset(): Dataset {
     test: shuffled.slice(splitIdx),
     featureNames: ['気温', '降水量', '日照時間', '土壌の質', '種子の質', '肥料の量'],
     classes: [],
+    labelName: '収穫量',
   };
 }
 
@@ -223,7 +227,7 @@ export function generateOwariDataset(): Dataset {
     else if (totalScore > 0.5) role = 2; // 鉄砲隊
     else if (totalScore > 0.3) role = 1; // 弓兵
 
-      data.push({
+    data.push({
       features: [
         age / 60, // 年齢（正規化）
         strength, // 筋力
@@ -244,6 +248,7 @@ export function generateOwariDataset(): Dataset {
     test: shuffled.slice(splitIdx),
     featureNames: ['年齢', '筋力', '敏捷性', '知力', '戦闘経験', '社会階級'],
     classes: ['槍兵', '弓兵', '鉄砲隊', '騎馬隊'],
+    labelName: '役職',
   };
 }
 
@@ -287,6 +292,7 @@ export function generateSatsumaDataset(): Dataset {
     test: shuffled.slice(splitIdx),
     featureNames: ['鉄の品質', '鋼の品質', '鍛造技術', '組み立て精度', '検査の厳密さ', '製造温度'],
     classes: ['不良品', '良品'],
+    labelName: '品質',
   };
 }
 
@@ -311,7 +317,7 @@ export function generateHizenDataset(): Dataset {
     if (qualityScore > 0.8) grade = 2; // 上級
     else if (qualityScore > 0.6) grade = 1; // 中級
 
-      data.push({
+    data.push({
       features: [
         clayQuality, // 粘土の品質
         glazeQuality, // 釉薬の品質
@@ -332,6 +338,7 @@ export function generateHizenDataset(): Dataset {
     test: shuffled.slice(splitIdx),
     featureNames: ['粘土の品質', '釉薬の品質', '焼成温度', '陶工の技能', '装飾の美しさ', '厚さの均一性'],
     classes: ['下級', '中級', '上級'],
+    labelName: '等級',
   };
 }
 
@@ -375,6 +382,7 @@ export function generateSagamiDataset(): Dataset {
     test: shuffled.slice(splitIdx),
     featureNames: ['人口', '商業の発達度', '農業の発達度', '統治の質', '政治安定性', '立地の良さ'],
     classes: ['低い', '中程度', '高い'],
+    labelName: '繁栄度',
   };
 }
 
@@ -399,7 +407,7 @@ export function generateDewaDataset(): Dataset {
     
     const efficiency = distanceEffect * elevationEffect * weatherEffect * roadEffect * seasonEffect * cargoValue;
 
-      data.push({
+    data.push({
       features: [
         distance / 100, // 距離（正規化）
         elevation / 1000, // 標高（正規化）
@@ -420,6 +428,7 @@ export function generateDewaDataset(): Dataset {
     test: shuffled.slice(splitIdx),
     featureNames: ['距離', '標高', '天候の良さ', '道路の質', '荷物の価値', '季節'],
     classes: [],
+    labelName: '輸送効率',
   };
 }
 
