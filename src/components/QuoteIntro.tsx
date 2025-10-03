@@ -22,6 +22,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
   const [typedEng, setTypedEng] = useState(['', '']);
   const [typedJpn, setTypedJpn] = useState(['', '']);
   const [showAuthor, setShowAuthor] = useState(false);
+  const [typingCompleted, setTypingCompleted] = useState(false);
 
   useEffect(() => {
     // 視覚効果を減らす設定に配慮
@@ -39,15 +40,11 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
       timerIds.push(id);
     };
 
-    // タイミング（ms）をまとめて定義し、倍率を適用（少しだけ早く）
-    // 0: フェードイン開始, 1: タイプライタ開始(英日同時), 2:（未使用）, 3: 次セクション, 4: ローディング, 5: 完了
-    const times = [700, 3200, 0, 8000, 12000, 16000].map((t, i) => i === 2 ? 0 : Math.round(t * durationScale));
+    // タイミング（ms）をまとめて定義し、倍率を適用
+    // 0: フェードイン開始, 1: タイプライタ開始(英日同時)
+    const times = [700, 3200].map((t, i) => Math.round(t * durationScale));
     setT(() => setIsVisible(true), times[0]);
     setT(() => setCurrentStep(1), times[1]);
-    // step2（日本語単独）はスキップ
-    setT(() => setCurrentStep(3), times[3]);
-    setT(() => setCurrentStep(4), times[4]);
-    setT(() => onComplete(), times[5]);
 
     return () => {
       timerIds.forEach(id => clearTimeout(id));
@@ -75,6 +72,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
           i++;
         } else {
           clearInterval(timer);
+          setTypingCompleted(true);
           // タイプライタ完了後に著者名を表示（少し早めに表示）
           setTimeout(() => setShowAuthor(true), 1000);
         }
@@ -82,6 +80,26 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
     }, Math.max(50, 80 * durationScale));
     return () => clearInterval(timer);
   }, [currentStep, durationScale, english, japanese]);
+
+  // タイプライタ完了後の画面遷移制御
+  useEffect(() => {
+    if (!typingCompleted) return;
+    
+    const timerIds: number[] = [];
+    const setT = (fn: () => void, ms: number) => {
+      const id = window.setTimeout(fn, ms);
+      timerIds.push(id);
+    };
+
+    // タイプライタ完了後の流れ
+    setT(() => setCurrentStep(3), 2000); // 著者名表示後2秒待機
+    setT(() => setCurrentStep(4), 4000); // さらに2秒待機
+    setT(() => onComplete(), 6000); // 最終的に6秒後に完了
+
+    return () => {
+      timerIds.forEach(id => clearTimeout(id));
+    };
+  }, [typingCompleted, onComplete]);
 
   // Escキーでスキップ
   useEffect(() => {
