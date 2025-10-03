@@ -6,12 +6,13 @@ import { createModel } from '../utils/mlModels';
 import { updateRegionProgress, saveAttempt, unlockRegion } from '../lib/database';
 import type { Dataset, ModelResult, TrainingProgress, DataPoint } from '../types/ml';
 import { DataExplorer } from './DataExplorer';
+import { PreprocessingTab } from './PreprocessingTab';
 import { FeatureSelector } from './FeatureSelector';
 import { ModelSelector } from './ModelSelector';
 import { TrainingProgress as TrainingProgressComponent } from './TrainingProgress';
 import { ResultsDashboard } from './ResultsDashboard';
 
-type Step = 'data' | 'features' | 'model' | 'train' | 'result';
+type Step = 'data' | 'preprocess' | 'features' | 'model' | 'train' | 'result';
 
 export function ChallengeView() {
   const { user, regions, progress, selectedRegion, setCurrentView, refreshProgress } = useGameState();
@@ -155,6 +156,7 @@ export function ChallengeView() {
 
   const steps = [
     { id: 'data' as Step, label: 'データを見る', icon: Eye, completed: currentStep !== 'data' },
+    { id: 'preprocess' as Step, label: '前処理する', icon: Filter, completed: currentStep === 'features' || currentStep === 'model' || currentStep === 'train' || currentStep === 'result' },
     { id: 'features' as Step, label: '特徴を選ぶ', icon: Filter, completed: currentStep === 'model' || currentStep === 'train' || currentStep === 'result' },
     { id: 'model' as Step, label: 'モデルを選ぶ', icon: Sparkles, completed: currentStep === 'train' || currentStep === 'result' },
     { id: 'train' as Step, label: '学習する', icon: Play, completed: currentStep === 'result' },
@@ -245,11 +247,32 @@ export function ChallengeView() {
                 <DataExplorer dataset={originalDataset} />
                 <div className="flex justify-end">
                   <button
-                    onClick={() => setCurrentStep('features')}
+                    onClick={() => setCurrentStep('preprocess')}
                     className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg transition-all"
                   >
-                    <span>次へ：特徴を選ぶ</span>
+                    <span>次へ：前処理する</span>
                     <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {currentStep === 'preprocess' && (
+              <div className="space-y-6">
+                <PreprocessingTab
+                  dataset={originalDataset}
+                  onApply={(processed) => {
+                    setDataset(processed);
+                    setCurrentStep('features');
+                  }}
+                />
+                <div className="flex justify-between">
+                  <button
+                    onClick={() => setCurrentStep('data')}
+                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 px-6 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                    <span>戻る：データを見る</span>
                   </button>
                 </div>
               </div>

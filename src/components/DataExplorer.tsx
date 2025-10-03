@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Database, BarChart, Grid3x3 as Grid3X3, Maximize2, TrendingUp, AlertTriangle, Lightbulb, Target } from 'lucide-react';
+import { Database, BarChart, Grid3x3 as Grid3X3, Maximize2, TrendingUp, AlertTriangle, Lightbulb, Target, Eye } from 'lucide-react';
 import type { Dataset } from '../types/ml';
 import { StatisticsPanel } from './StatisticsPanel';
 import { DistributionCharts } from './DistributionCharts';
@@ -23,11 +23,11 @@ export function DataExplorer({ dataset }: Props) {
 
   const tabs: { id: Tab; label: string; icon: typeof Database; description: string }[] = [
     { id: 'overview', label: 'データの中身', icon: Database, description: '実際のデータを見てみよう' },
-    { id: 'statistics', label: '数値の特徴', icon: TrendingUp, description: '平均値や最大値などを確認' },
-    { id: 'distribution', label: '値の広がり', icon: BarChart, description: 'どの値が多いかグラフで確認' },
-    { id: 'correlation', label: '関係性', icon: Grid3X3, description: 'データ同士の関係を見つけよう' },
-    { id: 'scatter', label: '散らばり具合', icon: Maximize2, description: 'データの分布を2次元で確認' },
-    { id: 'insights', label: 'アドバイス', icon: Lightbulb, description: 'AIからの学習のヒント' },
+    { id: 'statistics', label: '数値の特徴', icon: TrendingUp, description: '平均・最大・ばらつきを確認' },
+    { id: 'distribution', label: '値の広がり', icon: BarChart, description: 'どの値が多いかヒストグラムで確認' },
+    { id: 'correlation', label: '関係性', icon: Grid3X3, description: '特徴同士の相関を見る' },
+    { id: 'scatter', label: '散らばり具合', icon: Maximize2, description: '2つの特徴の関係を見る' },
+    { id: 'insights', label: 'アドバイス', icon: Lightbulb, description: '次の一手のヒント' },
   ];
 
   return (
@@ -63,6 +63,64 @@ export function DataExplorer({ dataset }: Props) {
             );
           })}
         </div>
+      </div>
+
+      {/* タブ別ヒント */}
+      <div className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-blue-200">
+        {activeTab === 'overview' && (
+          <div className="text-sm text-indigo-800 flex items-start space-x-2">
+            <Eye className="w-4 h-4 mt-0.5" />
+            <div>
+              <div className="font-bold">見方のコツ</div>
+              <div>単位や桁を確認し、常識的な値かをチェック。生データ（raw）があれば比較して理解を深めよう。</div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'distribution' && (
+          <div className="text-sm text-orange-800 flex items-start space-x-2">
+            <BarChart className="w-4 h-4 mt-0.5" />
+            <div>
+              <div className="font-bold">読み取りポイント</div>
+              <div>山型＝自然な分布。片寄りや二峰性のときは前処理（正規化/標準化）を検討しよう。</div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'correlation' && (
+          <div className="text-sm text-purple-800 flex items-start space-x-2">
+            <Grid3X3 className="w-4 h-4 mt-0.5" />
+            <div>
+              <div className="font-bold">読み取りポイント</div>
+              <div>相関の高い特徴は有力候補。同じ情報の重複は減らしてシンプルに。</div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'scatter' && (
+          <div className="text-sm text-pink-800 flex items-start space-x-2">
+            <Maximize2 className="w-4 h-4 mt-0.5" />
+            <div>
+              <div className="font-bold">読み取りポイント</div>
+              <div>直線/曲線の形が見えたら、それに合うモデル（線形/非線形）を選ぼう。</div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'statistics' && (
+          <div className="text-sm text-blue-800 flex items-start space-x-2">
+            <TrendingUp className="w-4 h-4 mt-0.5" />
+            <div>
+              <div className="font-bold">読み取りポイント</div>
+              <div>平均±標準偏差の範囲が常識的か、外れ値が多すぎないかを確認しよう。</div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'insights' && (
+          <div className="text-sm text-green-800 flex items-start space-x-2">
+            <Lightbulb className="w-4 h-4 mt-0.5" />
+            <div>
+              <div className="font-bold">次の一手</div>
+              <div>必要に応じて前処理タブで正規化/標準化を試し、相関の高い特徴を中心に選んでみよう。</div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-6">

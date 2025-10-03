@@ -1,12 +1,32 @@
 import { GameProvider, useGameState } from './hooks/useGameState';
+import { QuoteIntro } from './components/QuoteIntro';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ShogunRoom } from './components/ShogunRoom';
 import { JapanMap } from './components/JapanMap';
 import { ChallengeView } from './components/ChallengeView';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 function GameContent() {
   const { user, currentView, loading, error, initializeUser } = useGameState();
+  const [showQuoteIntro, setShowQuoteIntro] = useState(true);
+
+  useEffect(() => {
+    // 初回のみクォートイントロを表示
+    const hasSeenIntro = localStorage.getItem('samurai_has_seen_intro');
+    if (hasSeenIntro) {
+      setShowQuoteIntro(false);
+    }
+  }, []);
+
+  const handleQuoteIntroComplete = () => {
+    setShowQuoteIntro(false);
+    localStorage.setItem('samurai_has_seen_intro', 'true');
+  };
+
+  if (showQuoteIntro) {
+    return <QuoteIntro onComplete={handleQuoteIntroComplete} />;
+  }
 
   if (loading) {
     return (

@@ -29,6 +29,7 @@ export function WelcomeScreen({ onStart }: Props) {
             </p>
           </div>
 
+
           <div className="p-12">
             <div className="mb-8 text-center">
               <p className="text-lg text-amber-900 leading-relaxed">

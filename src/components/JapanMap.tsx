@@ -70,19 +70,19 @@ export function JapanMap() {
               </p>
             </div>
 
-            {/* 日本地図 */}
-            <div className="relative bg-gradient-to-br from-blue-100 via-cyan-50 to-emerald-50 rounded-2xl border-4 border-blue-300 shadow-2xl overflow-hidden mb-8">
-              {/* 海の波模様 */}
-              <div className="absolute inset-0 opacity-20">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-200/30 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 w-full h-20 bg-gradient-to-t from-blue-300/40 to-transparent"></div>
-                {/* 波の模様 */}
-                <div className="absolute top-20 left-10 w-40 h-2 bg-blue-300/30 rounded-full blur-sm"></div>
-                <div className="absolute top-32 left-20 w-32 h-2 bg-blue-300/30 rounded-full blur-sm"></div>
-                <div className="absolute top-44 left-5 w-36 h-2 bg-blue-300/30 rounded-full blur-sm"></div>
-                <div className="absolute bottom-32 right-10 w-44 h-2 bg-blue-300/30 rounded-full blur-sm"></div>
-                <div className="absolute bottom-20 right-20 w-28 h-2 bg-blue-300/30 rounded-full blur-sm"></div>
-              </div>
+            {/* 日本地図（古地図風） */}
+            <div className="relative rounded-2xl border-4 border-[#8b6914] shadow-2xl overflow-hidden mb-8 bg-[#f4e8d0]">
+              {/* 古紙の格子模様 */}
+              <div className="absolute inset-0 opacity-30 pointer-events-none"
+                   style={{
+                     backgroundImage:
+                       'linear-gradient(0deg, transparent 24%, rgba(139,105,20,0.08) 25%, rgba(139,105,20,0.08) 26%, transparent 27%, transparent 74%, rgba(139,105,20,0.08) 75%, rgba(139,105,20,0.08) 76%, transparent 77%, transparent),\
+                        linear-gradient(90deg, transparent 24%, rgba(139,105,20,0.08) 25%, rgba(139,105,20,0.08) 26%, transparent 27%, transparent 74%, rgba(139,105,20,0.08) 75%, rgba(139,105,20,0.08) 76%, transparent 77%, transparent)'
+                     , backgroundSize: '50px 50px'
+                   }} />
+              {/* 古紙の濃淡 */}
+              <div className="absolute inset-0 opacity-15 pointer-events-none"
+                   style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(139,105,20,0.35), transparent 60%)' }} />
 
               {/* 正確な日本列島のシルエット */}
               <div className="relative w-full h-96 md:h-[500px]">
@@ -175,7 +175,7 @@ export function JapanMap() {
                   <div className="w-2 h-2 bg-green-300 rounded-full shadow-sm"></div>
                 </div>
 
-                {/* 地域ピン */}
+                      {/* 地域ピン */}
                 {regions.map((region) => {
                   const position = regionPositions[region.id as keyof typeof regionPositions];
                   if (!position) return null;
@@ -311,6 +311,46 @@ export function JapanMap() {
                               <span className="text-lg font-bold text-gray-700">
                                 {(accuracy * 100).toFixed(0)}%
                               </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 動きのある問題説明（地域別） */}
+                        <div className="mb-4">
+                          {region.id === 'kyoto' && (
+                            <div className="relative bg-gradient-to-r from-amber-100 to-yellow-100 p-4 md:p-5 rounded-xl border-2 border-amber-300 shadow overflow-hidden">
+                              <div className="absolute inset-0 bg-gradient-to-r from-amber-200/40 to-transparent animate-pulse" />
+                              <div className="relative z-10">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <div className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-bounce" />
+                                  <h4 className="text-lg font-bold text-amber-900">🏺 茶器の真贋判定チャレンジ</h4>
+                                </div>
+                                <p className="text-amber-800 text-sm md:text-base">戦国の京都では高価な茶器の贋作が横行。<span className="px-1.5 py-0.5 bg-amber-200 rounded font-bold text-amber-900">機械学習</span>で本物を見抜こう！</p>
+                              </div>
+                            </div>
+                          )}
+                          {region.id === 'sakai' && (
+                            <div className="relative bg-gradient-to-r from-blue-100 to-cyan-100 p-4 md:p-5 rounded-xl border-2 border-blue-300 shadow overflow-hidden">
+                              <div className="absolute inset-0 bg-gradient-to-r from-blue-200/40 to-transparent animate-pulse" />
+                              <div className="relative z-10">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-bounce" />
+                                  <h4 className="text-lg font-bold text-blue-900">🌍 貿易品の産地を当てよう</h4>
+                                </div>
+                                <p className="text-blue-800 text-sm md:text-base">堺に届く世界の品。特徴から<span className="px-1.5 py-0.5 bg-blue-200 rounded font-bold text-blue-900">産地分類</span>に挑戦！</p>
+                              </div>
+                            </div>
+                          )}
+                          {region.id === 'kai' && (
+                            <div className="relative bg-gradient-to-r from-emerald-100 to-green-100 p-4 md:p-5 rounded-xl border-2 border-emerald-300 shadow overflow-hidden">
+                              <div className="absolute inset-0 bg-gradient-to-r from-emerald-200/40 to-transparent animate-pulse" />
+                              <div className="relative z-10">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-bounce" />
+                                  <h4 className="text-lg font-bold text-emerald-900">⛏️ 金山の産出量を予測</h4>
+                                </div>
+                                <p className="text-emerald-800 text-sm md:text-base">気象と労働力から、より多く採れる条件を見つけよう。</p>
+                              </div>
                             </div>
                           )}
                         </div>
