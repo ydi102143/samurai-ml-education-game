@@ -9,33 +9,54 @@ function shuffle<T>(array: T[]): T[] {
   return shuffled;
 }
 
+// 正規分布を生成する関数
+function normalRandom(mean: number, std: number): number {
+  const u1 = Math.random();
+  const u2 = Math.random();
+  const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return z0 * std + mean;
+}
+
+
 export function generateKyotoDataset(): Dataset {
   const data = [];
 
   for (let i = 0; i < 300; i++) {
     const isReal = i < 150;
     
-    // シンプルな特徴量（中学生にも分かりやすい）
-    const age = isReal ? 50 + Math.random() * 200 : 5 + Math.random() * 50;
-    const craftsmanship = isReal ? 0.6 + Math.random() * 0.4 : 0.2 + Math.random() * 0.6;
-    const materialQuality = isReal ? 0.7 + Math.random() * 0.3 : 0.3 + Math.random() * 0.5;
-    const patina = isReal ? Math.min(1, age / 300) + Math.random() * 0.2 : Math.random() * 0.3;
+    // 現実的な特徴量分布
+    const age = isReal 
+      ? Math.max(50, normalRandom(150, 50)) // 本物は古い年代に集中
+      : Math.max(5, normalRandom(30, 20));  // 贋作は新しい年代に集中
     
-    // シンプルな真贋判定
+    const craftsmanship = isReal 
+      ? Math.min(1, Math.max(0, normalRandom(0.75, 0.15))) // 本物は高い職人技
+      : Math.min(1, Math.max(0, normalRandom(0.4, 0.2)));  // 贋作は低い職人技
+    
+    const materialQuality = isReal 
+      ? Math.min(1, Math.max(0, normalRandom(0.8, 0.1)))   // 本物は高品質材質
+      : Math.min(1, Math.max(0, normalRandom(0.5, 0.2)));  // 贋作は低品質材質
+    
+    const patina = isReal 
+      ? Math.min(1, Math.max(0, age / 300 + normalRandom(0, 0.1))) // 年代に応じた古色
+      : Math.min(1, Math.max(0, normalRandom(0.2, 0.15)));         // 贋作は薄い古色
+    
+    // 現実的な真贋判定（重み付きスコア）
     const authenticityScore = 
       craftsmanship * 0.4 +
       materialQuality * 0.3 +
-      patina * 0.3 +
-      (Math.random() - 0.5) * 0.2;
+      patina * 0.2 +
+      (age > 100 ? 0.1 : 0) + // 年代ボーナス
+      normalRandom(0, 0.1);   // ノイズ
 
-    const isAuthentic = authenticityScore > 0.5;
+    const isAuthentic = authenticityScore > 0.6;
 
     data.push({
       features: [
-        age / 300, // 年代（正規化）
-        craftsmanship, // 職人技
-        materialQuality, // 材質
-        patina // 古色
+        Math.min(1, age / 300), // 年代（正規化）
+        craftsmanship,          // 職人技
+        materialQuality,        // 材質
+        patina                  // 古色
       ],
       label: isAuthentic ? 1 : 0,
     });
@@ -60,43 +81,43 @@ export function generateSakaiDataset(): Dataset {
   for (let i = 0; i < 300; i++) {
     const originIdx = Math.floor(Math.random() * 4);
     
-    // シンプルな産地別の特徴
+    // 産地別の現実的な特徴パターン
     let material, decoration, craftsmanship, price;
     
     switch (originIdx) {
-      case 0: // 中国
-        material = 0.7 + Math.random() * 0.3;
-        decoration = 0.8 + Math.random() * 0.2;
-        craftsmanship = 0.6 + Math.random() * 0.3;
-        price = 0.4 + Math.random() * 0.4;
+      case 0: // 中国 - 高品質、高装飾、中価格
+        material = Math.min(1, Math.max(0, normalRandom(0.8, 0.1)));
+        decoration = Math.min(1, Math.max(0, normalRandom(0.85, 0.1)));
+        craftsmanship = Math.min(1, Math.max(0, normalRandom(0.7, 0.15)));
+        price = Math.min(1, Math.max(0, normalRandom(0.6, 0.2)));
         break;
-      case 1: // 南蛮
-        material = 0.5 + Math.random() * 0.4;
-        decoration = 0.3 + Math.random() * 0.5;
-        craftsmanship = 0.4 + Math.random() * 0.4;
-        price = 0.6 + Math.random() * 0.3;
+      case 1: // 南蛮 - 中品質、低装飾、高価格（希少性）
+        material = Math.min(1, Math.max(0, normalRandom(0.6, 0.15)));
+        decoration = Math.min(1, Math.max(0, normalRandom(0.3, 0.2)));
+        craftsmanship = Math.min(1, Math.max(0, normalRandom(0.5, 0.2)));
+        price = Math.min(1, Math.max(0, normalRandom(0.8, 0.15)));
         break;
-      case 2: // 朝鮮
-        material = 0.6 + Math.random() * 0.3;
-        decoration = 0.5 + Math.random() * 0.4;
-        craftsmanship = 0.7 + Math.random() * 0.3;
-        price = 0.3 + Math.random() * 0.4;
+      case 2: // 朝鮮 - 高品質、中装飾、低価格
+        material = Math.min(1, Math.max(0, normalRandom(0.75, 0.1)));
+        decoration = Math.min(1, Math.max(0, normalRandom(0.6, 0.15)));
+        craftsmanship = Math.min(1, Math.max(0, normalRandom(0.8, 0.1)));
+        price = Math.min(1, Math.max(0, normalRandom(0.4, 0.15)));
         break;
-      case 3: // 日本
+      case 3: // 日本 - 中品質、高装飾、中価格
       default:
-        material = 0.4 + Math.random() * 0.4;
-        decoration = 0.6 + Math.random() * 0.3;
-        craftsmanship = 0.5 + Math.random() * 0.4;
-        price = 0.2 + Math.random() * 0.3;
+        material = Math.min(1, Math.max(0, normalRandom(0.6, 0.15)));
+        decoration = Math.min(1, Math.max(0, normalRandom(0.7, 0.15)));
+        craftsmanship = Math.min(1, Math.max(0, normalRandom(0.65, 0.15)));
+        price = Math.min(1, Math.max(0, normalRandom(0.5, 0.15)));
         break;
     }
 
     data.push({
       features: [
-        material, // 材質
-        decoration, // 装飾
+        material,      // 材質
+        decoration,    // 装飾
         craftsmanship, // 職人技
-        price // 価格
+        price          // 価格
       ],
       label: originIdx,
     });
@@ -118,30 +139,31 @@ export function generateKaiDataset(): Dataset {
   const data = [];
 
   for (let i = 0; i < 300; i++) {
-    // シンプルな特徴量
-    const workers = 30 + Math.random() * 120;
-    const experience = Math.random(); // 労働者の経験値
-    const temp = 5 + Math.random() * 25; // 気温
-    const rainfall = 50 + Math.random() * 200; // 降水量
-    const equipment = 0.2 + Math.random() * 0.8; // 採掘機具の質
-    const oreQuality = 0.2 + Math.random() * 0.8; // 鉱石の品質
+    // 現実的な鉱山の特徴量
+    const workers = Math.max(20, Math.min(150, normalRandom(80, 25))); // 労働者数
+    const experience = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 経験値
+    const temp = Math.max(-5, Math.min(35, normalRandom(15, 8))); // 気温（現実的な範囲）
+    const rainfall = Math.max(0, Math.min(300, normalRandom(100, 40))); // 降水量
+    const equipment = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 機具の質
+    const oreQuality = Math.min(1, Math.max(0, normalRandom(0.5, 0.25))); // 鉱石の品質
     
-    // シンプルな産出量計算
-    const workerEffect = workers * experience / 100;
-    const weatherEffect = Math.max(0.1, 1 - Math.abs(temp - 15) / 30) * (1 - rainfall / 300);
-    const techEffect = equipment;
-    const geologicalEffect = oreQuality;
+    // 現実的な産出量計算（非線形関係を含む）
+    const workerEffect = Math.log(workers) * experience / 10; // 対数効果
+    const weatherEffect = Math.max(0.1, 1 - Math.abs(temp - 15) / 30) * (1 - rainfall / 400);
+    const techEffect = Math.pow(equipment, 1.5); // 非線形効果
+    const geologicalEffect = Math.pow(oreQuality, 2); // 非線形効果
     
-    const output = workerEffect * weatherEffect * techEffect * geologicalEffect * (0.8 + Math.random() * 0.4);
+    const baseOutput = workerEffect * weatherEffect * techEffect * geologicalEffect;
+    const output = Math.max(0, baseOutput * (0.8 + Math.random() * 0.4));
 
     data.push({
       features: [
-        workers / 150, // 労働者数（正規化）
-        experience, // 経験値
-        temp / 40, // 気温（正規化）
-        rainfall / 300, // 降水量（正規化）
-        equipment, // 機具の質
-        oreQuality // 鉱石の品質
+        workers / 150,        // 労働者数（正規化）
+        experience,           // 経験値
+        (temp + 5) / 40,      // 気温（正規化）
+        rainfall / 300,       // 降水量（正規化）
+        equipment,            // 機具の質
+        oreQuality            // 鉱石の品質
       ],
       label: output,
     });
@@ -163,28 +185,34 @@ export function generateEchigoDataset(): Dataset {
   const data = [];
 
   for (let i = 0; i < 300; i++) {
-    // シンプルな特徴量
-    const temperature = 5 + Math.random() * 25; // 気温
-    const rainfall = 50 + Math.random() * 200; // 降水量
-    const sunshine = 100 + Math.random() * 200; // 日照時間
-    const soilQuality = 0.2 + Math.random() * 0.8; // 土壌の質
-    const seedQuality = 0.3 + Math.random() * 0.7; // 種子の質
-    const fertilizer = 0.2 + Math.random() * 0.8; // 肥料の量
+    // 現実的な農業の特徴量
+    const temperature = Math.max(-10, Math.min(35, normalRandom(20, 8))); // 気温
+    const rainfall = Math.max(0, Math.min(400, normalRandom(150, 50))); // 降水量
+    const sunshine = Math.max(50, Math.min(300, normalRandom(200, 40))); // 日照時間
+    const soilQuality = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 土壌の質
+    const seedQuality = Math.min(1, Math.max(0, normalRandom(0.7, 0.15))); // 種子の質
+    const fertilizer = Math.min(1, Math.max(0, normalRandom(0.5, 0.25))); // 肥料の量
     
-    // シンプルな収穫量計算
-    const weatherEffect = Math.max(0.1, 1 - Math.abs(temperature - 20) / 30) * (1 - rainfall / 400) * (sunshine / 300);
-    const soilEffect = soilQuality * seedQuality * fertilizer;
+    // 現実的な収穫量計算（最適条件からの偏差）
+    const tempOptimal = 20;
+    const rainOptimal = 150;
+    const sunOptimal = 200;
     
-    const harvestYield = weatherEffect * soilEffect * (0.8 + Math.random() * 0.4);
+    const tempEffect = Math.exp(-Math.pow(temperature - tempOptimal, 2) / 100);
+    const rainEffect = Math.exp(-Math.pow(rainfall - rainOptimal, 2) / 5000);
+    const sunEffect = Math.min(1, sunshine / sunOptimal);
+    const soilEffect = Math.pow(soilQuality * seedQuality * fertilizer, 0.8);
+    
+    const harvestYield = tempEffect * rainEffect * sunEffect * soilEffect * (0.7 + Math.random() * 0.6);
 
     data.push({
       features: [
-        temperature / 40, // 気温（正規化）
-        rainfall / 300, // 降水量（正規化）
-        sunshine / 300, // 日照時間（正規化）
-        soilQuality, // 土壌の質
-        seedQuality, // 種子の質
-        fertilizer // 肥料の量
+        (temperature + 10) / 45, // 気温（正規化）
+        rainfall / 400,          // 降水量（正規化）
+        sunshine / 300,          // 日照時間（正規化）
+        soilQuality,             // 土壌の質
+        seedQuality,             // 種子の質
+        fertilizer               // 肥料の量
       ],
       label: harvestYield,
     });
@@ -206,35 +234,40 @@ export function generateOwariDataset(): Dataset {
   const data = [];
 
   for (let i = 0; i < 300; i++) {
-    // シンプルな特徴量
-    const age = 18 + Math.random() * 40; // 年齢
-    const strength = Math.random(); // 筋力
-    const agility = Math.random(); // 敏捷性
-    const intelligence = Math.random(); // 知力
-    const experience = Math.random(); // 戦闘経験
-    const socialClass = Math.random(); // 社会階級
+    // 現実的な兵士の特徴量
+    const age = Math.max(18, Math.min(60, normalRandom(30, 10))); // 年齢
+    const strength = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 筋力
+    const agility = Math.min(1, Math.max(0, normalRandom(0.5, 0.2))); // 敏捷性
+    const intelligence = Math.min(1, Math.max(0, normalRandom(0.5, 0.2))); // 知力
+    const experience = Math.min(1, Math.max(0, normalRandom(0.4, 0.25))); // 戦闘経験
+    const socialClass = Math.min(1, Math.max(0, normalRandom(0.5, 0.3))); // 社会階級
     
-    // シンプルな役職判定
-    const physicalScore = (strength + agility) / 2;
+    // 年齢による能力の調整
+    const ageEffect = age < 25 ? 1.1 : age > 45 ? 0.9 : 1.0;
+    const adjustedStrength = Math.min(1, strength * ageEffect);
+    const adjustedAgility = Math.min(1, agility * ageEffect);
+    
+    // 現実的な役職判定（重み付きスコア）
+    const physicalScore = (adjustedStrength + adjustedAgility) / 2;
     const mentalScore = intelligence;
     const experienceScore = experience;
     const socialScore = socialClass;
     
-    const totalScore = physicalScore * 0.4 + mentalScore * 0.3 + experienceScore * 0.2 + socialScore * 0.1;
+    const totalScore = physicalScore * 0.35 + mentalScore * 0.25 + experienceScore * 0.25 + socialScore * 0.15;
     
-    let role = 0; // 槍兵
-    if (totalScore > 0.7) role = 3; // 騎馬隊
-    else if (totalScore > 0.5) role = 2; // 鉄砲隊
-    else if (totalScore > 0.3) role = 1; // 弓兵
+    let role = 0; // 槍兵（デフォルト）
+    if (totalScore > 0.75) role = 3; // 騎馬隊（最高）
+    else if (totalScore > 0.55) role = 2; // 鉄砲隊（高）
+    else if (totalScore > 0.35) role = 1; // 弓兵（中）
 
     data.push({
       features: [
-        age / 60, // 年齢（正規化）
-        strength, // 筋力
-        agility, // 敏捷性
-        intelligence, // 知力
-        experience, // 戦闘経験
-        socialClass // 社会階級
+        age / 60,              // 年齢（正規化）
+        adjustedStrength,      // 筋力
+        adjustedAgility,       // 敏捷性
+        intelligence,          // 知力
+        experience,            // 戦闘経験
+        socialClass            // 社会階級
       ],
       label: role,
     });
@@ -256,29 +289,30 @@ export function generateSatsumaDataset(): Dataset {
   const data = [];
 
   for (let i = 0; i < 300; i++) {
-    // シンプルな特徴量
-    const ironQuality = 0.2 + Math.random() * 0.8; // 鉄の品質
-    const steelQuality = 0.2 + Math.random() * 0.8; // 鋼の品質
-    const forging = 0.3 + Math.random() * 0.7; // 鍛造技術
-    const assembly = 0.3 + Math.random() * 0.7; // 組み立て精度
-    const testing = 0.4 + Math.random() * 0.6; // 検査の厳密さ
-    const temperature = 800 + Math.random() * 400; // 製造温度
+    // 現実的な鉄砲製造の特徴量
+    const ironQuality = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 鉄の品質
+    const steelQuality = Math.min(1, Math.max(0, normalRandom(0.7, 0.15))); // 鋼の品質
+    const forging = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 鍛造技術
+    const assembly = Math.min(1, Math.max(0, normalRandom(0.65, 0.18))); // 組み立て精度
+    const testing = Math.min(1, Math.max(0, normalRandom(0.7, 0.15))); // 検査の厳密さ
+    const temperature = Math.max(800, Math.min(1400, normalRandom(1100, 150))); // 製造温度
     
-    // シンプルな品質判定
+    // 現実的な品質判定（複合条件）
     const materialScore = (ironQuality + steelQuality) / 2;
     const processScore = (forging + assembly) / 2;
     const qualityScore = materialScore * 0.4 + processScore * 0.4 + testing * 0.2;
     
-    const isGood = qualityScore > 0.6 && temperature > 1000;
+    // 温度条件と品質スコアの両方を満たす必要
+    const isGood = qualityScore > 0.65 && temperature > 1000 && temperature < 1300;
 
     data.push({
       features: [
-        ironQuality, // 鉄の品質
-        steelQuality, // 鋼の品質
-        forging, // 鍛造技術
-        assembly, // 組み立て精度
-        testing, // 検査の厳密さ
-        temperature / 1500 // 製造温度（正規化）
+        ironQuality,           // 鉄の品質
+        steelQuality,          // 鋼の品質
+        forging,               // 鍛造技術
+        assembly,              // 組み立て精度
+        testing,               // 検査の厳密さ
+        temperature / 1500     // 製造温度（正規化）
       ],
       label: isGood ? 1 : 0,
     });
@@ -300,18 +334,19 @@ export function generateHizenDataset(): Dataset {
   const data = [];
 
   for (let i = 0; i < 300; i++) {
-    // シンプルな特徴量
-    const clayQuality = 0.2 + Math.random() * 0.8; // 粘土の品質
-    const glazeQuality = 0.3 + Math.random() * 0.7; // 釉薬の品質
-    const firingTemp = 800 + Math.random() * 400; // 焼成温度
-    const potterSkill = 0.3 + Math.random() * 0.7; // 陶工の技能
-    const decoration = 0.2 + Math.random() * 0.8; // 装飾の美しさ
-    const thickness = 0.1 + Math.random() * 0.9; // 厚さの均一性
+    // 現実的な陶器製造の特徴量
+    const clayQuality = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 粘土の品質
+    const glazeQuality = Math.min(1, Math.max(0, normalRandom(0.7, 0.15))); // 釉薬の品質
+    const firingTemp = Math.max(800, Math.min(1400, normalRandom(1200, 100))); // 焼成温度
+    const potterSkill = Math.min(1, Math.max(0, normalRandom(0.65, 0.2))); // 陶工の技能
+    const decoration = Math.min(1, Math.max(0, normalRandom(0.5, 0.25))); // 装飾の美しさ
+    const thickness = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 厚さの均一性
     
-    // シンプルな品質判定
+    // 現実的な等級判定（複合スコア）
     const materialScore = (clayQuality + glazeQuality) / 2;
     const processScore = (potterSkill + decoration) / 2;
-    const qualityScore = materialScore * 0.3 + processScore * 0.3 + (firingTemp / 1500) * 0.2 + thickness * 0.2;
+    const tempScore = Math.exp(-Math.pow(firingTemp - 1200, 2) / 20000); // 最適温度からの偏差
+    const qualityScore = materialScore * 0.3 + processScore * 0.3 + tempScore * 0.2 + thickness * 0.2;
     
     let grade = 0; // 下級
     if (qualityScore > 0.8) grade = 2; // 上級
@@ -319,12 +354,12 @@ export function generateHizenDataset(): Dataset {
 
     data.push({
       features: [
-        clayQuality, // 粘土の品質
-        glazeQuality, // 釉薬の品質
-        firingTemp / 1500, // 焼成温度（正規化）
-        potterSkill, // 陶工の技能
-        decoration, // 装飾の美しさ
-        thickness // 厚さの均一性
+        clayQuality,           // 粘土の品質
+        glazeQuality,          // 釉薬の品質
+        firingTemp / 1500,     // 焼成温度（正規化）
+        potterSkill,           // 陶工の技能
+        decoration,            // 装飾の美しさ
+        thickness              // 厚さの均一性
       ],
       label: grade,
     });
@@ -346,29 +381,33 @@ export function generateSagamiDataset(): Dataset {
   const data = [];
 
   for (let i = 0; i < 300; i++) {
-    // シンプルな特徴量
-    const population = 1000 + Math.random() * 9000; // 人口
-    const commerce = 0.2 + Math.random() * 0.8; // 商業の発達度
-    const agriculture = 0.3 + Math.random() * 0.7; // 農業の発達度
-    const governance = 0.2 + Math.random() * 0.8; // 統治の質
-    const stability = 0.3 + Math.random() * 0.7; // 政治安定性
-    const location = 0.2 + Math.random() * 0.8; // 立地の良さ
+    // 現実的な地域繁栄の特徴量
+    const population = Math.max(1000, Math.min(10000, normalRandom(5000, 2000))); // 人口
+    const commerce = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 商業の発達度
+    const agriculture = Math.min(1, Math.max(0, normalRandom(0.7, 0.15))); // 農業の発達度
+    const governance = Math.min(1, Math.max(0, normalRandom(0.5, 0.25))); // 統治の質
+    const stability = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 政治安定性
+    const location = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 立地の良さ
     
-    // シンプルな繁栄度計算
-    const prosperity = (commerce + agriculture + governance + stability + location) / 5;
+    // 現実的な繁栄度計算（相互依存関係を含む）
+    const baseProsperity = (commerce + agriculture + governance + stability + location) / 5;
+    const populationEffect = Math.log(population / 1000) / 10; // 人口の対数効果
+    const interactionEffect = commerce * agriculture * 0.1; // 商業と農業の相互作用
+    
+    const prosperity = Math.min(1, Math.max(0, baseProsperity + populationEffect + interactionEffect));
     
     let level = 0; // 低い
-    if (prosperity > 0.7) level = 2; // 高い
+    if (prosperity > 0.75) level = 2; // 高い
     else if (prosperity > 0.5) level = 1; // 中程度
 
     data.push({
       features: [
-        population / 10000, // 人口（正規化）
-        commerce, // 商業の発達度
-        agriculture, // 農業の発達度
-        governance, // 統治の質
-        stability, // 政治安定性
-        location // 立地の良さ
+        population / 10000,    // 人口（正規化）
+        commerce,              // 商業の発達度
+        agriculture,           // 農業の発達度
+        governance,            // 統治の質
+        stability,             // 政治安定性
+        location               // 立地の良さ
       ],
       label: level,
     });
@@ -390,31 +429,31 @@ export function generateDewaDataset(): Dataset {
   const data = [];
 
   for (let i = 0; i < 300; i++) {
-    // シンプルな特徴量
-    const distance = 10 + Math.random() * 90; // 距離
-    const elevation = 100 + Math.random() * 400; // 標高
-    const weather = 0.2 + Math.random() * 0.8; // 天候の良さ
-    const roadQuality = 0.3 + Math.random() * 0.7; // 道路の質
-    const cargoValue = 0.2 + Math.random() * 0.8; // 荷物の価値
-    const season = Math.random(); // 季節
+    // 現実的な輸送の特徴量
+    const distance = Math.max(10, Math.min(100, normalRandom(50, 20))); // 距離
+    const elevation = Math.max(100, Math.min(500, normalRandom(300, 100))); // 標高
+    const weather = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 天候の良さ
+    const roadQuality = Math.min(1, Math.max(0, normalRandom(0.5, 0.25))); // 道路の質
+    const cargoValue = Math.min(1, Math.max(0, normalRandom(0.6, 0.2))); // 荷物の価値
+    const season = Math.random(); // 季節（0-1の範囲）
     
-    // シンプルな輸送効率計算
-    const distanceEffect = 1 - distance / 100;
-    const elevationEffect = 1 - elevation / 1000;
+    // 現実的な輸送効率計算（非線形関係を含む）
+    const distanceEffect = Math.exp(-distance / 50); // 距離の指数効果
+    const elevationEffect = Math.exp(-elevation / 1000); // 標高の指数効果
     const weatherEffect = weather;
-    const roadEffect = roadQuality;
-    const seasonEffect = 1 - Math.abs(season - 0.5) * 0.3;
+    const roadEffect = Math.pow(roadQuality, 1.5); // 道路品質の非線形効果
+    const seasonEffect = 1 - Math.abs(season - 0.5) * 0.3; // 季節効果（春・秋が最適）
     
     const efficiency = distanceEffect * elevationEffect * weatherEffect * roadEffect * seasonEffect * cargoValue;
 
     data.push({
       features: [
-        distance / 100, // 距離（正規化）
-        elevation / 1000, // 標高（正規化）
-        weather, // 天候の良さ
-        roadQuality, // 道路の質
-        cargoValue, // 荷物の価値
-        season // 季節
+        distance / 100,        // 距離（正規化）
+        elevation / 1000,      // 標高（正規化）
+        weather,               // 天候の良さ
+        roadQuality,           // 道路の質
+        cargoValue,            // 荷物の価値
+        season                 // 季節
       ],
       label: efficiency,
     });
