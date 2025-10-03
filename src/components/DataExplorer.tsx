@@ -6,6 +6,7 @@ import { DistributionCharts } from './DistributionCharts';
 import { CorrelationMatrix } from './CorrelationMatrix';
 import { ScatterPlotMatrix } from './ScatterPlotMatrix';
 import { calculateDataInsights, suggestDataImprovements, detectAnomalies } from '../utils/dataAnalysis';
+import { formatNumber } from '../utils/format';
 
 interface Props {
   dataset: Dataset;
@@ -15,7 +16,7 @@ type Tab = 'overview' | 'statistics' | 'distribution' | 'correlation' | 'scatter
 
 export function DataExplorer({ dataset }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const sampleData = dataset.train.slice(0, 5);
+  // 表は正規化後の比較用として残すが、統計や分布は別コンポーネント側でraw優先
 
   const insights = useMemo(() => calculateDataInsights(dataset), [dataset]);
   const anomalies = useMemo(() => detectAnomalies(dataset), [dataset]);
@@ -31,16 +32,16 @@ export function DataExplorer({ dataset }: Props) {
   ];
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border-2 border-blue-300 overflow-hidden">
-      <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-4 rounded-t-xl">
+    <div className="bg-white rounded-xl shadow-lg border-2 overflow-hidden" style={{ borderColor: 'var(--gold)' }}>
+      <div className="p-4 rounded-t-xl" style={{ background: 'linear-gradient(to right, #1e3a8a, #1e40af)' }}>
         <div className="flex items-center space-x-2 mb-2">
-          <Database className="w-5 h-5 text-white" />
+          <Database className="w-5 h-5" style={{ color: 'var(--gold)' }} />
           <h3 className="text-lg font-bold text-white">データを調べよう</h3>
         </div>
-        <p className="text-blue-100 text-sm">データをよく観察して、パターンや特徴を見つけよう！</p>
+        <p className="text-sm text-white/85">データをよく観察して、パターンや特徴を見つけよう！</p>
       </div>
 
-      <div className="border-b border-blue-200 bg-blue-50">
+      <div className="border-b" style={{ borderColor: 'var(--gold)', background: 'rgba(30,58,138,0.06)' }}>
         <div className="flex space-x-2 p-3 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -48,17 +49,21 @@ export function DataExplorer({ dataset }: Props) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg transition-all whitespace-nowrap min-w-[120px] ${
+                className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg transition-all whitespace-nowrap min-w-[120px] border-2 ${
                   activeTab === tab.id
-                    ? 'bg-white text-blue-600 shadow-md scale-105 font-bold'
-                    : 'text-blue-700 hover:bg-blue-100'
+                    ? 'bg-white shadow-md scale-105 font-bold'
+                    : 'bg-white/40 hover:bg-white/60 border-white/50'
                 }`}
+                style={{ 
+                  color: activeTab === tab.id ? '#1e3a8a' : '#1e3a8a',
+                  borderColor: activeTab === tab.id ? 'var(--gold)' : 'rgba(30,58,138,0.3)'
+                }}
               >
                 <div className="flex items-center space-x-2">
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4" style={{ color: activeTab === tab.id ? '#1e3a8a' : '#1e3a8a' }} />
                   <span className="text-sm font-medium">{tab.label}</span>
                 </div>
-                <span className="text-xs text-gray-600">{tab.description}</span>
+                <span className="text-xs" style={{ color: activeTab === tab.id ? '#374151' : '#1e3a8a' }}>{tab.description}</span>
               </button>
             );
           })}
@@ -66,9 +71,9 @@ export function DataExplorer({ dataset }: Props) {
       </div>
 
       {/* タブ別ヒント */}
-      <div className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-blue-200">
+      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-gray-50 border-b" style={{ borderColor: 'var(--gold)' }}>
         {activeTab === 'overview' && (
-          <div className="text-sm text-indigo-800 flex items-start space-x-2">
+          <div className="text-sm text-slate-800 flex items-start space-x-2">
             <Eye className="w-4 h-4 mt-0.5" />
             <div>
               <div className="font-bold">見方のコツ</div>
@@ -77,7 +82,7 @@ export function DataExplorer({ dataset }: Props) {
           </div>
         )}
         {activeTab === 'distribution' && (
-          <div className="text-sm text-orange-800 flex items-start space-x-2">
+          <div className="text-sm text-slate-800 flex items-start space-x-2">
             <BarChart className="w-4 h-4 mt-0.5" />
             <div>
               <div className="font-bold">読み取りポイント</div>
@@ -86,7 +91,7 @@ export function DataExplorer({ dataset }: Props) {
           </div>
         )}
         {activeTab === 'correlation' && (
-          <div className="text-sm text-purple-800 flex items-start space-x-2">
+          <div className="text-sm text-slate-800 flex items-start space-x-2">
             <Grid3X3 className="w-4 h-4 mt-0.5" />
             <div>
               <div className="font-bold">読み取りポイント</div>
@@ -95,7 +100,7 @@ export function DataExplorer({ dataset }: Props) {
           </div>
         )}
         {activeTab === 'scatter' && (
-          <div className="text-sm text-pink-800 flex items-start space-x-2">
+          <div className="text-sm text-slate-800 flex items-start space-x-2">
             <Maximize2 className="w-4 h-4 mt-0.5" />
             <div>
               <div className="font-bold">読み取りポイント</div>
@@ -113,7 +118,7 @@ export function DataExplorer({ dataset }: Props) {
           </div>
         )}
         {activeTab === 'insights' && (
-          <div className="text-sm text-green-800 flex items-start space-x-2">
+          <div className="text-sm text-slate-800 flex items-start space-x-2">
             <Lightbulb className="w-4 h-4 mt-0.5" />
             <div>
               <div className="font-bold">次の一手</div>
@@ -161,35 +166,47 @@ export function DataExplorer({ dataset }: Props) {
               </div>
             )}
 
-            <div className="bg-blue-50 p-3 rounded border border-blue-300">
-              <div className="text-sm font-medium text-blue-900 mb-2">サンプルデータ</div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-blue-300">
-                      {dataset.featureNames.map((name, i) => (
-                        <th key={i} className="px-1 py-1 text-left text-blue-900">{name.slice(0, 4)}</th>
-                      ))}
-                      <th className="px-1 py-1 text-left text-blue-900">ラベル</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sampleData.map((point, i) => (
-                      <tr key={i} className="border-b border-blue-200">
-                        {point.features.map((val, j) => (
-                          <td key={j} className="px-1 py-1 text-blue-800">
-                            {typeof val === 'number' ? val.toFixed(2) : val}
-                          </td>
+            {/* 生データ（前処理前） */}
+            {dataset.raw && (
+              <div className="bg-green-50 p-3 rounded border border-green-300">
+                <div className="text-sm font-medium text-green-900 mb-2">生データ（前処理前）</div>
+                <div className="overflow-x-auto bg-white rounded border border-green-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-green-100">
+                      <tr className="border-b border-green-300">
+                        {dataset.featureNames.map((name, i) => (
+                          <th key={i} className="px-2 py-2 text-left text-green-900 font-semibold">
+                            {name}
+                            {dataset.raw?.featureUnits?.[i] && (
+                              <span className="text-green-700 ml-1">({dataset.raw.featureUnits[i]})</span>
+                            )}
+                          </th>
                         ))}
-                        <td className="px-1 py-1 text-blue-800 font-medium">
-                          {typeof point.label === 'number' ? point.label.toFixed(2) : point.label}
-                        </td>
+                        <th className="px-2 py-2 text-left text-green-900 font-semibold">ラベル</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white">
+                      {dataset.raw.train.slice(0, 5).map((point, i) => (
+                        <tr key={i} className="border-b border-green-200 hover:bg-green-50">
+                          {point.features.map((val, j) => (
+                            <td key={j} className="px-2 py-2 text-green-900">
+                              {typeof val === 'number' ? formatNumber(val) : val}
+                            </td>
+                          ))}
+                          <td className="px-2 py-2 text-green-900 font-medium">
+                            {Array.isArray(dataset.classes) && typeof point.label === 'number'
+                              ? dataset.classes[point.label] ?? point.label
+                              : point.label}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* 正規化テーブルは前処理タブで対応するため非表示 */}
           </div>
         )}
 

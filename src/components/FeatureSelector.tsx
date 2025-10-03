@@ -1,4 +1,5 @@
 import { CheckCircle, Circle, Lightbulb } from 'lucide-react';
+import { formatNumber } from '../utils/format';
 import type { Dataset } from '../types/ml';
 
 interface Props {
@@ -30,23 +31,23 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border-2 border-green-300 overflow-hidden">
-      <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-4">
+    <div className="bg-white rounded-xl shadow-lg border-2 overflow-hidden" style={{ borderColor: 'var(--gold)' }}>
+      <div className="p-4" style={{ background: 'linear-gradient(to right, #1e3a8a, #1e40af)' }}>
         <h3 className="text-lg font-bold text-white">使う特徴を選ぼう</h3>
-        <p className="text-sm text-green-50 mt-1">
+        <p className="text-sm mt-1 text-white/85">
           予測に役立ちそうな特徴を選びます。最低1つは選んでください。
         </p>
       </div>
 
       <div className="p-6">
-        <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg border-2 border-blue-200">
+        <div className="mb-6 p-4 rounded-lg border-2" style={{ background: 'rgba(30,58,138,0.06)', borderColor: 'var(--gold)' }}>
           <div className="flex items-start space-x-3">
-            <Lightbulb className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <Lightbulb className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--gold)' }} />
             <div>
-              <p className="text-sm text-gray-700 leading-relaxed mb-2">
+              <p className="text-sm leading-relaxed mb-2 text-gray-800">
                 <span className="font-bold">特徴選択のポイント：</span>
               </p>
-              <ul className="text-sm text-gray-700 space-y-1">
+              <ul className="text-sm space-y-1 text-gray-700">
                 <li>• 値のばらつき（標準偏差）が大きい特徴は予測に役立つことが多い</li>
                 <li>• すべての特徴を使うと、逆に精度が下がることもある</li>
                 <li>• まずは全部使ってみて、少しずつ減らして試してみよう</li>
@@ -56,12 +57,13 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
         </div>
 
         <div className="flex justify-between items-center mb-4">
-          <div className="text-sm text-gray-600">
-            選択中: <span className="font-bold text-green-600">{selectedFeatures.length}</span> / {dataset.featureNames.length}
+          <div className="text-sm" style={{ color: 'var(--ink)' }}>
+            選択中: <span className="font-bold" style={{ color: 'var(--accent-strong)' }}>{selectedFeatures.length}</span> / {dataset.featureNames.length}
           </div>
           <button
             onClick={selectAll}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            className="text-sm font-medium transition-colors"
+            style={{ color: 'var(--accent-strong)' }}
           >
             すべて選択
           </button>
@@ -76,16 +78,13 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
               <button
                 key={index}
                 onClick={() => toggleFeature(index)}
-                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                  isSelected
-                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-400 shadow-md'
-                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                }`}
+                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${isSelected ? 'bg-white shadow-md' : 'bg-gray-50 hover:border-gray-300'}`}
+                style={{ borderColor: isSelected ? 'var(--gold)' : '#e5e7eb' }}
               >
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0 mt-1">
                     {isSelected ? (
-                      <CheckCircle className="w-6 h-6 text-green-600" />
+                      <CheckCircle className="w-6 h-6" style={{ color: 'var(--gold)' }} />
                     ) : (
                       <Circle className="w-6 h-6 text-gray-400" />
                     )}
@@ -95,24 +94,20 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
                       <h4 className={`font-bold ${isSelected ? 'text-gray-900' : 'text-gray-600'}`}>
                         {name}
                       </h4>
-                      {isSelected && (
-                        <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full font-medium">
-                          使用中
-                        </span>
-                      )}
+                      {isSelected && (<span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'var(--accent)', color: 'white' }}>使用中</span>)}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                       <div className={isSelected ? 'text-gray-700' : 'text-gray-500'}>
-                        <span className="font-medium">平均:</span> {stats.mean.toFixed(2)}
+                        <span className="font-medium">平均:</span> {formatNumber(stats.mean)}
                       </div>
                       <div className={isSelected ? 'text-gray-700' : 'text-gray-500'}>
-                        <span className="font-medium">ばらつき:</span> {stats.std.toFixed(2)}
+                        <span className="font-medium">ばらつき:</span> {formatNumber(stats.std)}
                       </div>
                       <div className={isSelected ? 'text-gray-700' : 'text-gray-500'}>
-                        <span className="font-medium">最小:</span> {stats.min.toFixed(2)}
+                        <span className="font-medium">最小:</span> {formatNumber(stats.min)}
                       </div>
                       <div className={isSelected ? 'text-gray-700' : 'text-gray-500'}>
-                        <span className="font-medium">最大:</span> {stats.max.toFixed(2)}
+                        <span className="font-medium">最大:</span> {formatNumber(stats.max)}
                       </div>
                     </div>
                   </div>

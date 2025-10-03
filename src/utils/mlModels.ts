@@ -4,6 +4,7 @@ import { calculateFeatureImportance } from './dataAnalysis';
 
 export class LogisticRegressionModel {
   private model: tf.Sequential | null = null;
+  private lastTrainingMs: number = 0;
 
   async train(
     dataset: Dataset,
@@ -28,6 +29,7 @@ export class LogisticRegressionModel {
     const trainX = tf.tensor2d(dataset.train.map(d => d.features));
     const trainY = tf.tensor2d(dataset.train.map(d => [Number(d.label)]));
 
+    const start = Date.now();
     await this.model.fit(trainX, trainY, {
       epochs: max_iterations,
       callbacks: {
@@ -42,6 +44,7 @@ export class LogisticRegressionModel {
         }
       }
     });
+    this.lastTrainingMs = Date.now() - start;
 
     trainX.dispose();
     trainY.dispose();
@@ -95,7 +98,7 @@ export class LogisticRegressionModel {
       confusion_matrix: [[tn, fp], [fn, tp]],
       predictions,
       actual,
-      training_time: Math.floor((Date.now() - startTime) / 1000),
+      training_time: Math.floor(this.lastTrainingMs / 1000),
       feature_importance
     };
   }
@@ -103,6 +106,7 @@ export class LogisticRegressionModel {
 
 export class LinearRegressionModel {
   private model: tf.Sequential | null = null;
+  private lastTrainingMs: number = 0;
 
   async train(
     dataset: Dataset,
@@ -126,6 +130,7 @@ export class LinearRegressionModel {
     const trainX = tf.tensor2d(dataset.train.map(d => d.features));
     const trainY = tf.tensor2d(dataset.train.map(d => [Number(d.label)]));
 
+    const start = Date.now();
     await this.model.fit(trainX, trainY, {
       epochs: max_iterations,
       callbacks: {
@@ -140,6 +145,7 @@ export class LinearRegressionModel {
         }
       }
     });
+    this.lastTrainingMs = Date.now() - start;
 
     trainX.dispose();
     trainY.dispose();
@@ -177,7 +183,7 @@ export class LinearRegressionModel {
       accuracy: Math.max(0, r2),
       predictions,
       actual,
-      training_time: Math.floor((Date.now() - startTime) / 1000)
+      training_time: Math.floor(this.lastTrainingMs / 1000)
     };
   }
 }
@@ -185,12 +191,14 @@ export class LinearRegressionModel {
 export class KNNModel {
   private trainData: { features: number[]; label: number }[] = [];
   private k: number = 5;
+  private lastTrainingMs: number = 0;
 
   async train(
     dataset: Dataset,
     parameters: ModelParameters,
     onProgress?: (progress: TrainingProgress) => void
   ): Promise<void> {
+    const start = Date.now();
     this.k = parameters.k || 5;
     this.trainData = dataset.train.map(d => ({
       features: d.features,
@@ -202,6 +210,7 @@ export class KNNModel {
     }
 
     await new Promise(resolve => setTimeout(resolve, 100));
+    this.lastTrainingMs = Date.now() - start;
   }
 
   predict(features: number[]): number {
@@ -264,7 +273,7 @@ export class KNNModel {
         confusion_matrix,
         predictions,
         actual,
-        training_time: Math.floor((Date.now() - startTime) / 1000),
+        training_time: Math.floor(this.lastTrainingMs / 1000),
         feature_importance
       };
     }
@@ -285,7 +294,7 @@ export class KNNModel {
       confusion_matrix,
       predictions,
       actual,
-      training_time: Math.floor((Date.now() - startTime) / 1000),
+      training_time: Math.floor(this.lastTrainingMs / 1000),
       feature_importance
     };
   }
@@ -293,6 +302,7 @@ export class KNNModel {
 
 export class MultiClassNeuralNetworkModel {
   private model: tf.Sequential | null = null;
+  private lastTrainingMs: number = 0;
 
   async train(
     dataset: Dataset,
@@ -321,6 +331,7 @@ export class MultiClassNeuralNetworkModel {
     const trainX = tf.tensor2d(dataset.train.map(d => d.features));
     const trainY = tf.tensor1d(dataset.train.map(d => Number(d.label)), 'int32');
 
+    const start = Date.now();
     await this.model.fit(trainX, trainY, {
       epochs: max_iterations,
       callbacks: {
@@ -335,6 +346,7 @@ export class MultiClassNeuralNetworkModel {
         }
       }
     });
+    this.lastTrainingMs = Date.now() - start;
 
     trainX.dispose();
     trainY.dispose();
@@ -392,7 +404,7 @@ export class MultiClassNeuralNetworkModel {
       confusion_matrix,
       predictions,
       actual,
-      training_time: Math.floor((Date.now() - startTime) / 1000),
+      training_time: Math.floor(this.lastTrainingMs / 1000),
       feature_importance
     };
   }

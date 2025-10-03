@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 紺・金・銀の統一カラーパレット */
+@layer base {
+  :root {
+    /* 紺・金・銀の統一テーマ */
+    --paper: radial-gradient(circle at 20% 40%, rgba(12,22,46,0.25), transparent 60%), #0a1224; /* 紺の地 */
+    --ink: #e6f0ff;            /* 明るい青白（文字） */
+    --land-light: #a5c8ff;     /* 地図補助色（淡青） */
+    --land-dark: #3b82f6;      /* アクセント青 */
+    --accent: #1e3a8a;         /* 紺 */
+    --accent-strong: #0b275a;  /* 濃紺 */
+    --gold: #d6c171;           /* 金 */
+    --silver: #c0c0c0;         /* 銀 */
+    --silver-light: #e8e8e8;   /* 薄銀 */
+    --silver-dark: #a0a0a0;    /* 濃銀 */
+  }
+}

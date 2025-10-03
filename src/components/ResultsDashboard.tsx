@@ -21,6 +21,8 @@ export function ResultsDashboard({ result, dataset, requiredAccuracy, modelType 
     actual: Number(result.actual[i]),
   }));
 
+  const selectedFeatures = dataset.featureNames;
+
   return (
     <div className="space-y-6">
       <div
@@ -78,6 +80,27 @@ export function ResultsDashboard({ result, dataset, requiredAccuracy, modelType 
               }`}
               style={{ width: `${Math.min(result.accuracy * 100, 100)}%` }}
             />
+          </div>
+        </div>
+      </div>
+
+      {/* 学習条件の要約 */}
+      <div className="bg-white/90 rounded-lg p-6 shadow-lg border-2 border-indigo-600">
+        <h4 className="text-lg font-bold text-indigo-900 mb-3">学習条件の要約</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <div className="text-gray-600">モデル</div>
+            <div className="font-semibold text-gray-900">{modelType || '—'}</div>
+          </div>
+          <div>
+            <div className="text-gray-600">使用した特徴量</div>
+            <div className="font-semibold text-gray-900 truncate" title={selectedFeatures.join(', ')}>
+              {selectedFeatures.join(', ')}
+            </div>
+          </div>
+          <div>
+            <div className="text-gray-600">訓練時間</div>
+            <div className="font-semibold text-gray-900">{result.training_time}秒</div>
           </div>
         </div>
       </div>

@@ -47,11 +47,12 @@ export function ConfusionMatrixView({ confusionMatrix, classes }: Props) {
 
       <div className="overflow-x-auto">
         <div className="inline-block min-w-full">
+          {/* ヘッダー行 */}
           <div className="flex items-end mb-2">
-            <div className="w-24" />
+            <div className="w-20" />
             <div className="flex-1 text-center">
               <div className="text-sm font-bold text-blue-900 mb-1">予測値</div>
-              <div className="flex justify-center">
+              <div className="flex justify-center space-x-1">
                 {classes.map((cls, i) => (
                   <div key={i} className="w-20 text-xs font-medium text-blue-800 px-1">
                     {cls}
@@ -61,16 +62,19 @@ export function ConfusionMatrixView({ confusionMatrix, classes }: Props) {
             </div>
           </div>
 
+          {/* 混合行列本体 */}
           <div className="flex">
+            {/* 実際の値ラベル（縦） */}
             <div className="flex flex-col justify-center mr-2">
               <div className="text-sm font-bold text-blue-900 mb-1 -rotate-90 origin-center whitespace-nowrap" style={{ width: '80px', transform: 'rotate(-90deg) translateX(-20px)' }}>
                 実際の値
               </div>
             </div>
 
+            {/* 混合行列のセル */}
             <div className="flex flex-col space-y-1">
               {confusionMatrix.map((row, i) => (
-                <div key={i} className="flex items-center space-x-2">
+                <div key={i} className="flex items-center space-x-1">
                   <div className="w-16 text-xs font-medium text-blue-800 text-right pr-2">
                     {classes[i]}
                   </div>

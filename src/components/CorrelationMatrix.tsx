@@ -34,7 +34,12 @@ export function CorrelationMatrix({ dataset }: Props) {
       </div>
 
       <div className="mb-4 text-sm text-teal-800">
-        <p>特徴量間の相関係数を表示しています。</p>
+        <p>特徴量間の相関係数を表示しています。色が濃いほど強い関係があることを表します。</p>
+        <ul className="list-disc pl-5 mt-2 space-y-1 text-xs">
+          <li>0.7以上は強い正の相関：一方が大きいともう一方も大きくなりやすい</li>
+          <li>-0.7以下は強い負の相関：一方が大きいともう一方は小さくなりやすい</li>
+          <li>-0.1〜0.1はほぼ相関なし：関係は弱い（例外もあります）</li>
+        </ul>
         <div className="flex items-center space-x-4 mt-2">
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-red-600 rounded"></div>

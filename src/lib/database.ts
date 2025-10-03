@@ -115,6 +115,215 @@ const mockRegions: Region[] = [
     },
     created_at: new Date().toISOString()
   }
+  ,
+  {
+    id: 'hizen',
+    name: '肥前',
+    daimyo: '鍋島直茂',
+    description: '有田焼など陶磁器で名高い肥前。焼成条件から等級を見極める。',
+    problem_type: 'classification',
+    problem_description: '陶器の製造データから等級（上・中・下）を分類する。',
+    required_accuracy: 0.8,
+    unlock_condition: null,
+    difficulty: 3,
+    reward_xp: 180,
+    order_index: 7,
+    dataset_info: {
+      features: ['粘土の品質', '釉薬の品質', '焼成温度', '陶工の技能', '装飾の美しさ', '厚さの均一性'],
+      classes: ['下級', '中級', '上級'],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'sagami',
+    name: '相模',
+    daimyo: '北条氏康',
+    description: '小田原を擁する北条領。政治・経済指標から地域の繁栄度を判断する。',
+    problem_type: 'classification',
+    problem_description: '地域指標から繁栄レベル（低・中・高）を分類する。',
+    required_accuracy: 0.75,
+    unlock_condition: null,
+    difficulty: 2,
+    reward_xp: 150,
+    order_index: 8,
+    dataset_info: {
+      features: ['人口', '商業の発達度', '農業の発達度', '統治の質', '政治安定性', '立地の良さ'],
+      classes: ['低い', '中程度', '高い'],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'dewa',
+    name: '出羽',
+    daimyo: '最上義光',
+    description: '山形の険しい地形での物流網最適化。条件から輸送効率を予測する。',
+    problem_type: 'regression',
+    problem_description: '距離や標高、天候などから輸送効率を予測する。',
+    required_accuracy: 0.7,
+    unlock_condition: null,
+    difficulty: 3,
+    reward_xp: 200,
+    order_index: 9,
+    dataset_info: {
+      features: ['距離', '標高', '天候の良さ', '道路の質', '荷物の価値', '季節'],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'morioka',
+    name: '盛岡',
+    daimyo: '南部信直',
+    description: '南部藩の中心地。馬の品種改良データから最適な繁殖条件を予測する。',
+    problem_type: 'regression',
+    problem_description: '馬の血統と環境条件から繁殖成功率を予測する。',
+    required_accuracy: 0.75,
+    unlock_condition: null,
+    difficulty: 2,
+    reward_xp: 150,
+    order_index: 10,
+    dataset_info: {
+      features: ['血統スコア', '年齢', '健康状態', '飼育環境', '季節', '交配回数'],
+      classes: [],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'sendai',
+    name: '仙台',
+    daimyo: '伊達政宗',
+    description: '東北最大の藩。米の収穫量を気象データから予測し、年貢を最適化する。',
+    problem_type: 'regression',
+    problem_description: '気象条件から米の収穫量を予測する。',
+    required_accuracy: 0.8,
+    unlock_condition: null,
+    difficulty: 3,
+    reward_xp: 200,
+    order_index: 11,
+    dataset_info: {
+      features: ['気温', '降水量', '日照時間', '土壌水分', '肥料量', '植え付け時期'],
+      classes: [],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'kanazawa',
+    name: '金沢',
+    daimyo: '前田利家',
+    description: '加賀百万石。金箔の品質を製造条件から判定し、最高級品を選別する。',
+    problem_type: 'classification',
+    problem_description: '金箔の製造データから品質等級を分類する。',
+    required_accuracy: 0.85,
+    unlock_condition: null,
+    difficulty: 4,
+    reward_xp: 250,
+    order_index: 12,
+    dataset_info: {
+      features: ['金の純度', '温度', '湿度', '圧延回数', '職人経験', '作業時間'],
+      classes: ['下級', '中級', '上級', '最高級'],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'takamatsu',
+    name: '高松',
+    daimyo: '生駒親正',
+    description: '四国の要衝。海運の安全を天候と海流データから予測する。',
+    problem_type: 'classification',
+    problem_description: '天候と海流から航海の安全性を判定する。',
+    required_accuracy: 0.8,
+    unlock_condition: null,
+    difficulty: 3,
+    reward_xp: 180,
+    order_index: 13,
+    dataset_info: {
+      features: ['風速', '波高', '海流速度', '雲量', '気圧', '潮汐'],
+      classes: ['危険', '注意', '安全'],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'kumamoto',
+    name: '熊本',
+    daimyo: '加藤清正',
+    description: '肥後熊本藩。城の石垣の強度を材料と工法から予測する。',
+    problem_type: 'regression',
+    problem_description: '石の材質と積み方から石垣の強度を予測する。',
+    required_accuracy: 0.75,
+    unlock_condition: null,
+    difficulty: 2,
+    reward_xp: 150,
+    order_index: 14,
+    dataset_info: {
+      features: ['石の硬さ', '石の大きさ', '積み方', 'モルタル量', '角度', '基礎の深さ'],
+      classes: [],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'yamaguchi',
+    name: '長門',
+    daimyo: '毛利元就',
+    description: '中国地方の雄。水軍の戦術データから最適な戦略を予測する。',
+    problem_type: 'classification',
+    problem_description: '海戦の条件から勝利確率を予測する。',
+    required_accuracy: 0.8,
+    unlock_condition: null,
+    difficulty: 3,
+    reward_xp: 200,
+    order_index: 15,
+    dataset_info: {
+      features: ['風速', '波高', '船数', '兵数', '距離', '時間'],
+      classes: ['敗北', '引き分け', '勝利'],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'kaga',
+    name: '加賀',
+    daimyo: '一向一揆',
+    description: '一向宗の自治領。信者の分布データから布教戦略を最適化する。',
+    problem_type: 'regression',
+    problem_description: '地域の特性から信者獲得数を予測する。',
+    required_accuracy: 0.75,
+    unlock_condition: null,
+    difficulty: 2,
+    reward_xp: 150,
+    order_index: 16,
+    dataset_info: {
+      features: ['人口密度', '経済状況', '教育レベル', '既存宗教', '交通便', '季節'],
+      classes: [],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'tosa',
+    name: '土佐',
+    daimyo: '長宗我部元親',
+    description: '四国の統一者。領土拡大の戦略をデータから最適化する。',
+    problem_type: 'classification',
+    problem_description: '戦略条件から成功確率を予測する。',
+    required_accuracy: 0.8,
+    unlock_condition: null,
+    difficulty: 3,
+    reward_xp: 180,
+    order_index: 17,
+    dataset_info: {
+      features: ['兵力', '装備', '地形', '天候', '敵兵力', '補給'],
+      classes: ['失敗', '部分成功', '完全成功'],
+      samples: 300
+    },
+    created_at: new Date().toISOString()
+  }
 ];
 
 // ローカルストレージを使用したモックデータベース

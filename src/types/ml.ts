@@ -6,6 +6,7 @@ export interface DataPoint {
 export interface RawDataset {
   train: DataPoint[];
   test: DataPoint[];
+  featureNames: string[];
   featureUnits?: string[];
 }
 

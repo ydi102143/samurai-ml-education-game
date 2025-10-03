@@ -1,5 +1,6 @@
 import { Maximize2 } from 'lucide-react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ZAxis } from 'recharts';
+import { formatNumber } from '../utils/format';
 import type { Dataset } from '../types/ml';
 
 interface Props {
@@ -9,8 +10,10 @@ interface Props {
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export function ScatterPlotMatrix({ dataset }: Props) {
-  const sampleSize = Math.min(dataset.train.length, 200);
-  const sampledData = dataset.train.slice(0, sampleSize);
+  // 生データがあればそれを使用して散布図を描画
+  const rawSource = dataset.raw?.train?.length ? dataset.raw.train : dataset.train;
+  const sampleSize = Math.min(rawSource.length, 200);
+  const sampledData = rawSource.slice(0, sampleSize) as { features: number[]; label: number | string }[];
 
   const featurePairs: [number, number][] = [];
   for (let i = 0; i < dataset.featureNames.length; i++) {
@@ -36,8 +39,8 @@ export function ScatterPlotMatrix({ dataset }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {topPairs.map(([i, j], index) => {
           const data = sampledData.map(point => ({
-            x: point.features[i],
-            y: point.features[j],
+            x: point.features[i] as number,
+            y: point.features[j] as number,
             label: Number(point.label),
           }));
 
@@ -74,10 +77,10 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                         return (
                           <div className="bg-white p-2 border border-pink-300 rounded shadow text-xs">
                             <p className="text-pink-900">
-                              {dataset.featureNames[i]}: {data.x.toFixed(3)}
+                              {dataset.featureNames[i]}: {formatNumber(data.x)}
                             </p>
                             <p className="text-pink-900">
-                              {dataset.featureNames[j]}: {data.y.toFixed(3)}
+                              {dataset.featureNames[j]}: {formatNumber(data.y)}
                             </p>
                             {dataset.classes && (
                               <p className="text-pink-900 font-bold">

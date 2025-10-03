@@ -4,7 +4,7 @@ import type { Dataset, DataPoint } from '../types/ml';
 
 interface Props {
   dataset: Dataset;
-  onApply: (processed: Dataset) => void;
+  onPreprocessedDataset: (processed: Dataset) => void;
 }
 
 function normalizeDataset(ds: Dataset): Dataset {
@@ -40,71 +40,85 @@ function normalizeDataset(ds: Dataset): Dataset {
   };
 }
 
-function standardizeDataset(ds: Dataset): Dataset {
-  const numFeatures = ds.featureNames.length;
-  const means = Array(numFeatures).fill(0);
-  const stds = Array(numFeatures).fill(0);
-  const source = ds.raw?.train?.length ? ds.raw : { train: ds.train, test: ds.test };
+// 標準化は仕様変更により廃止
 
-  // mean
-  source!.train.forEach(p => {
-    for (let i = 0; i < numFeatures; i++) {
-      means[i] += (p.features[i] as number);
-    }
-  });
-  for (let i = 0; i < numFeatures; i++) {
-    means[i] /= source!.train.length || 1;
+export function PreprocessingTab({ dataset, onPreprocessedDataset }: Props) {
+  const [method, setMethod] = useState<'none' | 'normalize' | 'encode'>('none');
+  const [encodeTargets, setEncodeTargets] = useState<number[]>([]);
+
+  function encodeSelected(ds: Dataset, featureIndexes: number[]): Dataset {
+    const mapCache: Record<number, Map<string, number>> = {};
+    ds.train.forEach(p => {
+      p.features.forEach((v, i) => {
+        if (!featureIndexes.includes(i)) return;
+        const key = String(v);
+        if (!mapCache[i]) mapCache[i] = new Map();
+        if (!mapCache[i].has(key)) mapCache[i].set(key, mapCache[i].size);
+      });
+    });
+    const transformPoint = (p: DataPoint): DataPoint => ({
+      features: p.features.map((v, i) => featureIndexes.includes(i) ? (mapCache[i].get(String(v)) ?? 0) : v),
+      label: p.label,
+    });
+    return {
+      ...ds,
+      train: ds.train.map(transformPoint),
+      test: ds.test.map(transformPoint),
+    };
   }
-  // std
-  source!.train.forEach(p => {
-    for (let i = 0; i < numFeatures; i++) {
-      const diff = (p.features[i] as number) - means[i];
-      stds[i] += diff * diff;
-    }
-  });
-  for (let i = 0; i < numFeatures; i++) {
-    stds[i] = Math.sqrt(stds[i] / (source!.train.length || 1)) || 1;
-  }
-
-  const transform = (p: DataPoint): DataPoint => ({
-    features: p.features.map((v, i) => (((v as number) - means[i]) / stds[i])),
-    label: p.label,
-  });
-
-  return {
-    train: source!.train.map(transform),
-    test: source!.test.map(transform),
-    featureNames: ds.featureNames,
-    labelName: ds.labelName,
-    classes: ds.classes,
-    raw: ds.raw,
-  };
-}
-
-export function PreprocessingTab({ dataset, onApply }: Props) {
-  const [method, setMethod] = useState<'none' | 'normalize' | 'standardize'>('none');
 
   const preview = useMemo(() => {
+    if (method === 'encode') return encodeSelected(dataset, encodeTargets);
     if (method === 'normalize') return normalizeDataset(dataset);
-    if (method === 'standardize') return standardizeDataset(dataset);
     return dataset;
-  }, [method, dataset]);
+  }, [method, dataset, encodeTargets]);
+
+  // プレビュー用のデータを取得
+  const previewData = useMemo(() => {
+    console.log('previewData calculation:', { method, hasDataset: !!dataset, hasRaw: !!dataset?.raw });
+    
+    if (method === 'none') {
+      // 前処理なしの場合は生データを表示
+      const rawData = dataset.raw || dataset;
+      console.log('Using raw data:', { hasRaw: !!rawData, trainLength: rawData?.train?.length });
+      return rawData;
+    }
+    // 前処理ありの場合は処理済みデータを表示
+    console.log('Using processed data:', { hasPreview: !!preview, trainLength: preview?.train?.length });
+    return preview;
+  }, [method, dataset, preview]);
+
+  // プレビューデータが存在しない場合のフォールバック
+  const safePreviewData = previewData || dataset;
+
+  // デバッグ用ログ
+  console.log('PreprocessingTab Debug:', {
+    method,
+    hasDataset: !!dataset,
+    hasRaw: !!dataset.raw,
+    hasPreview: !!preview,
+    previewDataKeys: previewData ? Object.keys(previewData) : 'no previewData',
+    safePreviewDataKeys: safePreviewData ? Object.keys(safePreviewData) : 'no safePreviewData',
+    safePreviewDataTrain: safePreviewData?.train?.length || 0,
+    datasetTrain: dataset?.train?.length || 0
+  });
+
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border-2 border-orange-300 overflow-hidden">
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 p-4 rounded-t-xl">
+    <div className="bg-white rounded-xl shadow-lg border-2 overflow-hidden" style={{ borderColor: 'var(--gold)' }}>
+      <div className="p-4 rounded-t-xl" style={{ background: 'linear-gradient(to right, #1e3a8a, #1e40af)' }}>
         <div className="flex items-center space-x-2 mb-2">
-          <Settings className="w-5 h-5 text-white" />
+          <Settings className="w-5 h-5" style={{ color: 'var(--gold)' }} />
           <h3 className="text-lg font-bold text-white">データの前処理</h3>
         </div>
-        <p className="text-orange-100 text-sm">生データを機械学習に適した形に整えよう（EDAで生データも確認できます）</p>
+        <p className="text-sm text-white/85">生データを機械学習に適した形に整えよう（EDAで生データも確認できます）</p>
       </div>
 
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <button
             onClick={() => setMethod('none')}
-            className={`flex items-center justify-between p-4 rounded-lg border-2 ${method==='none'?'border-emerald-500 bg-emerald-50':'border-gray-200 hover:border-gray-300'}`}
+            className={`flex items-center justify-between p-4 rounded-lg border-2 ${method==='none'?'border-yellow-500 bg-yellow-50':'border-gray-200 hover:border-gray-300'}`}
           >
             <div className="flex items-center space-x-3">
               <SlidersHorizontal className="w-5 h-5 text-gray-800" />
@@ -113,11 +127,25 @@ export function PreprocessingTab({ dataset, onApply }: Props) {
                 <div className="text-xs text-gray-600">元のスケールのまま使う</div>
               </div>
             </div>
-            {method==='none' && <Check className="w-5 h-5 text-emerald-600" />}
+            {method==='none' && <Check className="w-5 h-5 text-yellow-600" />}
+          </button>
+          
+          <button
+            onClick={() => setMethod('encode')}
+            className={`flex items-center justify-between p-4 rounded-lg border-2 ${method==='encode'?'border-yellow-500 bg-yellow-50':'border-gray-200 hover:border-gray-300'}`}
+          >
+            <div className="flex items-center space-x-3">
+              <SlidersHorizontal className="w-5 h-5 text-gray-800" />
+              <div>
+                <div className="font-bold text-gray-900">カテゴリ数値化</div>
+                <div className="text-xs text-gray-600">カテゴリを整数IDに符号化（ラベルエンコード）</div>
+              </div>
+            </div>
+            {method==='encode' && <Check className="w-5 h-5 text-yellow-600" />}
           </button>
           <button
             onClick={() => setMethod('normalize')}
-            className={`flex items-center justify-between p-4 rounded-lg border-2 ${method==='normalize'?'border-emerald-500 bg-emerald-50':'border-gray-200 hover:border-gray-300'}`}
+            className={`flex items-center justify-between p-4 rounded-lg border-2 ${method==='normalize'?'border-yellow-500 bg-yellow-50':'border-gray-200 hover:border-gray-300'}`}
           >
             <div className="flex items-center space-x-3">
               <SlidersHorizontal className="w-5 h-5 text-gray-800" />
@@ -126,53 +154,73 @@ export function PreprocessingTab({ dataset, onApply }: Props) {
                 <div className="text-xs text-gray-600">各特徴量を0〜1に揃える</div>
               </div>
             </div>
-            {method==='normalize' && <Check className="w-5 h-5 text-emerald-600" />}
-          </button>
-          <button
-            onClick={() => setMethod('standardize')}
-            className={`flex items-center justify-between p-4 rounded-lg border-2 ${method==='standardize'?'border-emerald-500 bg-emerald-50':'border-gray-200 hover:border-gray-300'}`}
-          >
-            <div className="flex items-center space-x-3">
-              <SlidersHorizontal className="w-5 h-5 text-gray-800" />
-              <div>
-                <div className="font-bold text-gray-900">標準化（Zスコア）</div>
-                <div className="text-xs text-gray-600">平均0・標準偏差1に揃える</div>
-              </div>
-            </div>
-            {method==='standardize' && <Check className="w-5 h-5 text-emerald-600" />}
+            {method==='normalize' && <Check className="w-5 h-5 text-yellow-600" />}
           </button>
         </div>
 
-        <div className="text-sm text-gray-700">
-          <div className="font-semibold mb-2">プレビュー（先頭5件）</div>
-          <div className="overflow-x-auto bg-orange-50 border border-orange-200 rounded">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-orange-200">
-                  {preview.featureNames.map((n, i) => (
-                    <th key={i} className="px-2 py-2 text-left text-orange-900">{n}</th>
-                  ))}
-                  <th className="px-2 py-2 text-left text-orange-900">ラベル</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.train.slice(0, 5).map((p, r) => (
-                  <tr key={r} className="border-b border-orange-100">
-                    {p.features.map((v, c) => (
-                      <td key={c} className="px-2 py-2 text-orange-800">{typeof v === 'number' ? v.toFixed(3) : v}</td>
-                    ))}
-                    <td className="px-2 py-2 text-orange-800 font-medium">{typeof p.label === 'number' ? p.label.toFixed(3) : p.label}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {method==='encode' && (
+          <div className="text-sm text-gray-700">
+            <div className="font-semibold mb-2">数値化する特徴量を選択（カテゴリ → 整数）</div>
+            <div className="flex flex-wrap gap-2">
+              {dataset.featureNames.map((name, i) => (
+                <button
+                  key={i}
+                  onClick={() => setEncodeTargets(prev => prev.includes(i) ? prev.filter(x=>x!==i) : [...prev, i])}
+                  className={`px-3 py-1 rounded border ${encodeTargets.includes(i)?'bg-emerald-100 border-emerald-400 text-emerald-800':'bg-white border-gray-300 text-gray-700'}`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
           </div>
+        )}
+
+        <div className="text-sm">
+          <div className="font-semibold mb-2 text-gray-900">プレビュー（先頭5件）</div>
+          {safePreviewData && safePreviewData.train && safePreviewData.train.length > 0 ? (
+            <div className="overflow-x-auto rounded bg-white border-2 border-gray-200 shadow-sm">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr className="border-b border-gray-200">
+                    {safePreviewData.featureNames.map((n, i) => (
+                      <th key={i} className="px-3 py-3 text-left font-semibold text-gray-900">{n}</th>
+                    ))}
+                    <th className="px-3 py-3 text-left font-semibold text-gray-900">ラベル</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {safePreviewData.train.slice(0, 5).map((p, r) => (
+                    <tr key={r} className="border-b border-gray-100 hover:bg-gray-50">
+                      {p.features.map((v, c) => (
+                        <td key={c} className="px-3 py-3 text-gray-800">{typeof v === 'number' ? v.toFixed(3) : v}</td>
+                      ))}
+                      <td className="px-3 py-3 font-medium text-gray-900">{typeof p.label === 'number' ? p.label.toFixed(3) : p.label}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-4 bg-gray-100 rounded border-2 border-gray-200 text-center text-gray-600">
+              <div className="mb-2">データを読み込み中...</div>
+              <div className="text-xs text-gray-500 space-y-1">
+                <div>デバッグ情報:</div>
+                <div>dataset存在: {dataset ? 'Yes' : 'No'}</div>
+                <div>raw存在: {dataset?.raw ? 'Yes' : 'No'}</div>
+                <div>preview存在: {preview ? 'Yes' : 'No'}</div>
+                <div>safePreviewData存在: {safePreviewData ? 'Yes' : 'No'}</div>
+                <div>train配列長: {safePreviewData?.train?.length || 0}</div>
+                <div>method: {method}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end">
           <button
-            onClick={() => onApply(preview)}
-            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg transition-all"
+            onClick={() => onPreprocessedDataset(preview)}
+            className="text-white px-8 py-3 rounded-lg font-bold shadow-lg transition-all"
+            style={{ background: 'linear-gradient(to right, var(--accent), var(--accent-strong))' }}
           >
             前処理を適用して次へ
           </button>

@@ -12,11 +12,8 @@ function GameContent() {
   const [showQuoteIntro, setShowQuoteIntro] = useState(true);
 
   useEffect(() => {
-    // 初回のみクォートイントロを表示
-    const hasSeenIntro = localStorage.getItem('samurai_has_seen_intro');
-    if (hasSeenIntro) {
-      setShowQuoteIntro(false);
-    }
+    // 毎回クォートイントロを表示
+    setShowQuoteIntro(true);
   }, []);
 
   const handleQuoteIntroComplete = () => {
@@ -25,7 +22,7 @@ function GameContent() {
   };
 
   if (showQuoteIntro) {
-    return <QuoteIntro onComplete={handleQuoteIntroComplete} />;
+    return <QuoteIntro onComplete={handleQuoteIntroComplete} durationScale={1.3} />;
   }
 
   if (loading) {

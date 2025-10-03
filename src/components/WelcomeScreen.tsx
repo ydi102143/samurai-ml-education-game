@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Swords } from 'lucide-react';
+import { Swords, MapPin, Brain, Target, Award, Users, BookOpen, Zap } from 'lucide-react';
 
 interface Props {
   onStart: (name: string) => void;
@@ -16,146 +16,149 @@ export function WelcomeScreen({ onStart }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-900 via-amber-900 to-red-900 flex items-center justify-center p-8">
-      <div className="max-w-2xl w-full">
-        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg shadow-2xl border-4 border-amber-700 overflow-hidden">
-          <div className="bg-gradient-to-r from-red-800 to-red-900 p-8 text-center">
-            <Swords className="w-20 h-20 mx-auto text-yellow-300 mb-4" />
-            <h1 className="text-5xl font-bold text-yellow-100 tracking-wide mb-2">
-              samurAI
-            </h1>
-            <p className="text-2xl text-yellow-200">
-              機械学習で天下統一
-            </p>
-          </div>
-
-
-          <div className="p-12">
-            <div className="mb-8 text-center">
-              <p className="text-lg text-amber-900 leading-relaxed">
-                戦国時代の日本。各地の藩が抱える課題を、
-                <br />
-                <span className="font-bold text-red-800">機械学習の力</span>で解決し、天下統一を目指せ！
-              </p>
-            </div>
-
-            {/* 機械学習とは何か？ */}
-            <div className="bg-blue-50 rounded-lg p-6 border-2 border-blue-300 mb-6">
-              <h2 className="text-xl font-bold text-blue-900 mb-4 flex items-center">
-                <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">?</span>
-                機械学習って何？
-              </h2>
-              <p className="text-blue-800 leading-relaxed mb-3">
-                機械学習は、コンピューターがデータからパターンを見つけて、予測や判断をする技術です。
-              </p>
-              <div className="bg-white rounded-lg p-4 border border-blue-200">
-                <p className="text-sm text-blue-700">
-                  <strong>例：</strong>「過去の天気データから明日の天気を予測する」「写真を見て猫か犬かを判断する」
+    <div className="min-h-screen" style={{ background: 'radial-gradient(circle at 20% 40%, rgba(201,176,100,0.12), transparent 60%), var(--paper)' }}>
+      <div className="max-w-6xl mx-auto p-8">
+        {/* メインヘッダー */}
+        <div className="text-center mb-12">
+          <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-3xl shadow-2xl p-12 mb-8">
+            <div className="flex items-center justify-center mb-6">
+              <Swords className="w-24 h-24 text-yellow-300 mr-6" />
+              <div>
+                <h1 className="text-6xl md:text-8xl font-bold text-white tracking-wider mb-4">
+                  samurAI
+                </h1>
+                <p className="text-2xl md:text-3xl text-yellow-200 font-light">
+                  機械学習で天下統一
                 </p>
               </div>
             </div>
-
-            <div className="bg-amber-50 rounded-lg p-6 border-2 border-amber-600 mb-8">
-              <h2 className="text-xl font-bold text-amber-900 mb-4">ゲームの流れ（ステップバイステップ）</h2>
-              <ol className="space-y-4 text-amber-800">
-                <li className="flex items-start">
-                  <span className="font-bold mr-3 text-red-800 bg-red-100 rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
-                  <div>
-                    <span className="font-semibold">日本地図から地域を選択</span>
-                    <p className="text-sm text-amber-700 mt-1">地図上のピンをクリックして、挑戦したい地域を選ぼう</p>
-                  </div>
-                </li>
-                <li className="flex items-start">
-                  <span className="font-bold mr-3 text-red-800 bg-red-100 rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
-                  <div>
-                    <span className="font-semibold">データを探索する</span>
-                    <p className="text-sm text-amber-700 mt-1">グラフや表を見て、データの特徴や傾向を発見しよう</p>
-                  </div>
-                </li>
-                <li className="flex items-start">
-                  <span className="font-bold mr-3 text-red-800 bg-red-100 rounded-full w-6 h-6 flex items-center justify-center text-sm">3</span>
-                  <div>
-                    <span className="font-semibold">重要な特徴を選ぶ</span>
-                    <p className="text-sm text-amber-700 mt-1">どのデータが答えに関係しそうか考えて選択しよう</p>
-                  </div>
-                </li>
-                <li className="flex items-start">
-                  <span className="font-bold mr-3 text-red-800 bg-red-100 rounded-full w-6 h-6 flex items-center justify-center text-sm">4</span>
-                  <div>
-                    <span className="font-semibold">AIモデルを選ぶ</span>
-                    <p className="text-sm text-amber-700 mt-1">問題に合ったAIの種類を選んで、設定を調整しよう</p>
-                  </div>
-                </li>
-                <li className="flex items-start">
-                  <span className="font-bold mr-3 text-red-800 bg-red-100 rounded-full w-6 h-6 flex items-center justify-center text-sm">5</span>
-                  <div>
-                    <span className="font-semibold">結果を確認する</span>
-                    <p className="text-sm text-amber-700 mt-1">AIの予測がどれくらい正確かチェックして、改善しよう</p>
-                  </div>
-                </li>
-              </ol>
-            </div>
-
-            {/* 学習のヒント */}
-            <div className="bg-green-50 rounded-lg p-6 border-2 border-green-300 mb-8">
-              <h2 className="text-xl font-bold text-green-900 mb-4 flex items-center">
-                <span className="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">💡</span>
-                学習のコツ
-              </h2>
-              <ul className="space-y-2 text-green-800">
-                <li className="flex items-start">
-                  <span className="text-green-600 mr-2">•</span>
-                  <span>まずはデータをじっくり観察しよう</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-green-600 mr-2">•</span>
-                  <span>間違えても大丈夫！何度でも挑戦できるよ</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-green-600 mr-2">•</span>
-                  <span>いろいろな設定を試してみよう</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-green-600 mr-2">•</span>
-                  <span>グラフや表をよく見て、パターンを見つけよう</span>
-                </li>
-              </ul>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-lg font-bold text-amber-900 mb-2"
-                >
-                  あなたの将軍名を入力してください
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="例: 織田信長"
-                  className="w-full px-4 py-3 border-2 border-amber-600 rounded-lg text-lg focus:outline-none focus:border-red-600 bg-white"
-                  required
-                  minLength={2}
-                  maxLength={20}
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-red-700 to-red-900 hover:from-red-800 hover:to-red-950 text-white py-4 rounded-lg text-xl font-bold shadow-lg border-4 border-yellow-600 transition-all transform hover:scale-105"
-              >
-                天下統一の旅を始める
-              </button>
-            </form>
+            <p className="text-xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
+              戦国時代の日本。各地の藩が抱える課題を、
+              <span className="font-bold text-yellow-300">機械学習の力</span>で解決し、天下統一を目指せ！
+            </p>
           </div>
         </div>
 
-        <div className="mt-6 text-center text-yellow-100 text-sm">
-          <p>このゲームでは実際の機械学習アルゴリズムを使用します</p>
-          <p className="mt-1">中学生でも理解できるよう、分かりやすく説明します</p>
+        {/* ゲームの特徴 */}
+        <div className="grid md:grid-cols-3 gap-8 mb-12">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-xl border-2" style={{ borderColor: 'var(--gold)' }}>
+            <div className="text-center">
+              <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <Brain className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">機械学習学習</h3>
+              <p className="text-gray-700 leading-relaxed">
+                データ分析からモデル選択まで、実際の機械学習の流れを体験できます
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-xl border-2" style={{ borderColor: 'var(--gold)' }}>
+            <div className="text-center">
+              <div className="bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <MapPin className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">全国17地域</h3>
+              <p className="text-gray-700 leading-relaxed">
+                京都、薩摩、毛利氏など、有名な藩の課題に挑戦して天下統一を目指そう
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-xl border-2" style={{ borderColor: 'var(--gold)' }}>
+            <div className="text-center">
+              <div className="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <Target className="w-8 h-8 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">段階的学習</h3>
+              <p className="text-gray-700 leading-relaxed">
+                簡単な課題から始めて、徐々に高度な機械学習技術を身につけよう
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 学習フロー */}
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl p-8 mb-12 border-2 border-blue-200">
+          <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">学習の流れ</h2>
+          <div className="grid md:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="bg-blue-500 text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3 text-xl font-bold">1</div>
+              <h3 className="font-bold text-gray-900 mb-2">データ探索</h3>
+              <p className="text-sm text-gray-700">データを観察して特徴を見つける</p>
+            </div>
+            <div className="text-center">
+              <div className="bg-green-500 text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3 text-xl font-bold">2</div>
+              <h3 className="font-bold text-gray-900 mb-2">前処理</h3>
+              <p className="text-sm text-gray-700">データを整理して機械学習用に準備</p>
+            </div>
+            <div className="text-center">
+              <div className="bg-purple-500 text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3 text-xl font-bold">3</div>
+              <h3 className="font-bold text-gray-900 mb-2">モデル選択</h3>
+              <p className="text-sm text-gray-700">適切な機械学習モデルを選択</p>
+            </div>
+            <div className="text-center">
+              <div className="bg-orange-500 text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3 text-xl font-bold">4</div>
+              <h3 className="font-bold text-gray-900 mb-2">評価</h3>
+              <p className="text-sm text-gray-700">結果を評価して改善点を見つける</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 統計情報 */}
+        <div className="grid md:grid-cols-4 gap-6 mb-12">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg">
+            <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">17</div>
+            <div className="text-sm text-gray-600">挑戦可能な地域</div>
+          </div>
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg">
+            <BookOpen className="w-8 h-8 text-green-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">4</div>
+            <div className="text-sm text-gray-600">学習ステップ</div>
+          </div>
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg">
+            <Zap className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">6+</div>
+            <div className="text-sm text-gray-600">機械学習モデル</div>
+          </div>
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg">
+            <Award className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">∞</div>
+            <div className="text-sm text-gray-600">学習の可能性</div>
+          </div>
+        </div>
+
+        {/* ユーザー名入力 */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-xl border-2" style={{ borderColor: 'var(--gold)' }}>
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">戦国大名として参戦しよう！</h2>
+            <p className="text-gray-600">あなたの名前を入力して、天下統一の旅を始めよう</p>
+          </div>
+
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="name" className="block text-lg font-bold text-gray-900 mb-3">
+                あなたの名前を入力してください
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="例：織田信長"
+                className="w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold py-4 px-8 rounded-lg text-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              天下統一を始める！
+            </button>
+          </form>
         </div>
       </div>
     </div>

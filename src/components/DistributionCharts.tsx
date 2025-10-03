@@ -2,6 +2,7 @@ import { BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import type { Dataset } from '../types/ml';
 import { createHistogram, calculateClassDistribution } from '../utils/statistics';
+import { formatNumber } from '../utils/format';
 
 interface Props {
   dataset: Dataset;
@@ -11,6 +12,17 @@ const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 
 export function DistributionCharts({ dataset }: Props) {
   const classDistribution = calculateClassDistribution(dataset);
+  
+  const isDiscrete = (vals: (number | string)[]): boolean => {
+    const unique = Array.from(new Set(vals.map(v => typeof v === 'number' ? Number(v) : String(v))));
+    if (unique.length <= 12) return true;
+    const nums = vals.filter(v => typeof v === 'number') as number[];
+    if (nums.length === vals.length) {
+      const allIntLike = nums.every(v => Math.abs(v - Math.round(v)) < 1e-6);
+      if (allIntLike && unique.length <= 24) return true;
+    }
+    return false;
+  };
 
   return (
     <div className="space-y-6">
@@ -82,24 +94,47 @@ export function DistributionCharts({ dataset }: Props) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {dataset.featureNames.map((name, i) => {
-            const values = dataset.train.map(d => d.features[i]);
-            const histogram = createHistogram(values, 15);
+            // 生データ（raw）があれば必ずそれを利用して分布を描画
+            const rawVals = (dataset.raw?.train?.map(d => d.features[i]) ?? dataset.train.map(d => d.features[i]));
+            const useDiscrete = isDiscrete(rawVals as (number | string)[]);
 
+            if (useDiscrete) {
+              const freqMap = new Map<string, number>();
+              for (const v of rawVals as (number | string)[]) {
+                const key = typeof v === 'number' ? String(v) : v;
+                freqMap.set(key, (freqMap.get(key) || 0) + 1);
+              }
+              const data = Array.from(freqMap.entries())
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([category, count]) => ({ category, count }));
+
+              return (
+                <div key={i} className="bg-orange-50 p-4 rounded border border-orange-300">
+                  <h4 className="text-sm font-bold text-orange-900 mb-3 text-center">{name}（カテゴリ）</h4>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={data}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="category" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 10 }} />
+                      <YAxis />
+                      <Tooltip formatter={(v: any) => formatNumber(v)} />
+                      <Bar dataKey="count" fill="#fb923c" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            }
+
+            const values = (rawVals as number[]);
+            const histogram = createHistogram(values, 15);
             return (
               <div key={i} className="bg-orange-50 p-4 rounded border border-orange-300">
                 <h4 className="text-sm font-bold text-orange-900 mb-3 text-center">{name}</h4>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={histogram}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="bin"
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      tick={{ fontSize: 10 }}
-                    />
+                    <XAxis dataKey="bin" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 10 }} />
                     <YAxis />
-                    <Tooltip />
+                    <Tooltip formatter={(v: any) => formatNumber(v)} />
                     <Bar dataKey="count" fill="#f97316" />
                   </BarChart>
                 </ResponsiveContainer>

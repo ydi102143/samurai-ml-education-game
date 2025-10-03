@@ -1,6 +1,7 @@
 import { TrendingUp } from 'lucide-react';
 import type { Dataset } from '../types/ml';
 import { calculateFeatureStats } from '../utils/statistics';
+import { formatNumber } from '../utils/format';
 
 interface Props {
   dataset: Dataset;
@@ -32,11 +33,11 @@ export function StatisticsPanel({ dataset }: Props) {
             {stats.map((stat, i) => (
               <tr key={i} className="border-b border-green-200 hover:bg-green-50">
                 <td className="px-2 py-2 font-medium text-green-900">{stat.name}</td>
-                <td className="px-2 py-2 text-right text-green-800">{stat.mean.toFixed(3)}</td>
-                <td className="px-2 py-2 text-right text-green-800">{stat.median.toFixed(3)}</td>
-                <td className="px-2 py-2 text-right text-green-800">{stat.std.toFixed(3)}</td>
-                <td className="px-2 py-2 text-right text-green-800">{stat.min.toFixed(3)}</td>
-                <td className="px-2 py-2 text-right text-green-800">{stat.max.toFixed(3)}</td>
+                <td className="px-2 py-2 text-right text-green-800">{formatNumber(stat.mean)}</td>
+                <td className="px-2 py-2 text-right text-green-800">{formatNumber(stat.median)}</td>
+                <td className="px-2 py-2 text-right text-green-800">{formatNumber(stat.std)}</td>
+                <td className="px-2 py-2 text-right text-green-800">{formatNumber(stat.min)}</td>
+                <td className="px-2 py-2 text-right text-green-800">{formatNumber(stat.max)}</td>
               </tr>
             ))}
           </tbody>
