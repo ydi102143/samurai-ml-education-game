@@ -21,6 +21,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
   ], []);
   const [typedEng, setTypedEng] = useState(['', '']);
   const [typedJpn, setTypedJpn] = useState(['', '']);
+  const [showAuthor, setShowAuthor] = useState(false);
 
   useEffect(() => {
     // 視覚効果を減らす設定に配慮
@@ -74,6 +75,8 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
           i++;
         } else {
           clearInterval(timer);
+          // タイプライタ完了後に著者名を表示
+          setTimeout(() => setShowAuthor(true), 1000);
         }
       }
     }, Math.max(20, 35 * durationScale));
@@ -170,9 +173,11 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
                   <p className="text-base md:text-lg opacity-95" style={{ color: '#e0e8f0' }}>{typedJpn[1]}</p>
                 </div>
               </div>
-              <cite className="block mt-6 text-sm md:text-base font-light" style={{ color: '#d0dae8' }}>
-                — Jonathan Rosenberg
-              </cite>
+              {showAuthor && (
+                <cite className="block mt-6 text-sm md:text-base font-light transition-opacity duration-1000" style={{ color: '#d0dae8' }}>
+                  — Jonathan Rosenberg
+                </cite>
+              )}
             </div>
           </div>
         )}

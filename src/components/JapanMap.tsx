@@ -118,8 +118,8 @@ export function JapanMap() {
               <div className="relative w-full h-[900px] md:h-[1100px]">
                 <div className="absolute inset-0 z-0">
                   <img
-                    src="/japan-oldmap.png/Gemini_Generated_Image_9k83oi9k83oi9k83.png"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/japan-oldmap.png'; }}
+                    src="./japan-map.png"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = './japan-oldmap.png/Gemini_Generated_Image_9k83oi9k83oi9k83.png'; }}
                     alt="日本地図"
                     className="w-full h-full object-cover"
                     style={{ transform: 'translateX(-3%) scale(1.25)', transformOrigin: '50% 42%', filter: 'saturate(0.95) contrast(1.02)', pointerEvents: 'none' }}
