@@ -2,14 +2,14 @@ import { ArrowLeft, Lock, CheckCircle, Star, MapPin, Award, Info } from 'lucide-
 import { useGameState } from '../hooks/useGameState';
 import { useState } from 'react';
 
-// 各地域の座標（日本地図上の相対位置）
+// 各地域の座標（正確な日本地図上の相対位置）
 const regionPositions = {
-  kyoto: { x: 45, y: 35, name: '京都', daimyo: '足利将軍家' },
-  sakai: { x: 40, y: 45, name: '堺', daimyo: '商人自治' },
-  kai: { x: 55, y: 40, name: '甲斐', daimyo: '武田信玄' },
-  echigo: { x: 60, y: 30, name: '越後', daimyo: '上杉謙信' },
-  owari: { x: 50, y: 45, name: '尾張', daimyo: '織田信長' },
-  satsuma: { x: 25, y: 70, name: '薩摩', daimyo: '島津義弘' }
+  kyoto: { x: 42, y: 38, name: '京都', daimyo: '足利将軍家' },
+  sakai: { x: 38, y: 48, name: '堺', daimyo: '商人自治' },
+  kai: { x: 52, y: 42, name: '甲斐', daimyo: '武田信玄' },
+  echigo: { x: 58, y: 32, name: '越後', daimyo: '上杉謙信' },
+  owari: { x: 48, y: 48, name: '尾張', daimyo: '織田信長' },
+  satsuma: { x: 22, y: 75, name: '薩摩', daimyo: '島津義弘' }
 };
 
 export function JapanMap() {
@@ -71,7 +71,7 @@ export function JapanMap() {
             </div>
 
             {/* 日本地図 */}
-            <div className="relative bg-gradient-to-br from-blue-100 via-cyan-50 to-green-50 rounded-2xl border-4 border-blue-300 shadow-2xl overflow-hidden mb-8">
+            <div className="relative bg-gradient-to-br from-blue-100 via-cyan-50 to-emerald-50 rounded-2xl border-4 border-blue-300 shadow-2xl overflow-hidden mb-8">
               {/* 海の波模様 */}
               <div className="absolute inset-0 opacity-20">
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-200/30 to-transparent"></div>
@@ -84,68 +84,95 @@ export function JapanMap() {
                 <div className="absolute bottom-20 right-20 w-28 h-2 bg-blue-300/30 rounded-full blur-sm"></div>
               </div>
 
-              {/* 日本列島の詳細なシルエット */}
+              {/* 正確な日本列島のシルエット */}
               <div className="relative w-full h-96 md:h-[500px]">
-                {/* 北海道 - より詳細な形状 */}
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2">
-                  <div className="w-28 h-32 bg-gradient-to-br from-green-300 to-green-400 rounded-b-2xl shadow-lg relative">
-                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-20 h-4 bg-gradient-to-br from-green-300 to-green-400 rounded-full"></div>
-                    <div className="absolute top-4 left-2 w-6 h-6 bg-green-400/50 rounded-full"></div>
-                    <div className="absolute top-8 right-3 w-4 h-4 bg-green-400/50 rounded-full"></div>
+                {/* 北海道 - 正確な形状 */}
+                <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
+                  <div className="w-32 h-36 bg-gradient-to-br from-emerald-300 to-green-400 shadow-lg relative" 
+                       style={{
+                         clipPath: 'polygon(20% 0%, 80% 0%, 90% 20%, 95% 40%, 90% 60%, 85% 80%, 80% 100%, 20% 100%, 15% 80%, 10% 60%, 5% 40%, 10% 20%)'
+                       }}>
+                    {/* 北海道の内陸部 */}
+                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-20 h-24 bg-green-400/20 rounded-full"></div>
+                    <div className="absolute top-8 left-1/4 w-6 h-8 bg-green-400/30 rounded-full"></div>
+                    <div className="absolute top-12 right-1/4 w-5 h-6 bg-green-400/30 rounded-full"></div>
                   </div>
                 </div>
 
-                {/* 本州 - より詳細な形状 */}
-                <div className="absolute top-8 left-1/4 w-1/2 h-80 relative">
-                  {/* 本州本体 */}
-                  <div className="w-full h-full bg-gradient-to-br from-green-200 to-green-300 rounded-t-full rounded-b-3xl shadow-lg relative overflow-hidden">
-                    {/* 内陸の山脈 */}
-                    <div className="absolute top-16 left-1/4 w-8 h-16 bg-green-400/30 rounded-full transform rotate-12"></div>
-                    <div className="absolute top-20 right-1/4 w-6 h-12 bg-green-400/30 rounded-full transform -rotate-12"></div>
-                    <div className="absolute top-32 left-1/2 w-10 h-20 bg-green-400/30 rounded-full transform -translate-x-1/2"></div>
-                    <div className="absolute bottom-20 left-1/3 w-8 h-16 bg-green-400/30 rounded-full transform rotate-45"></div>
+                {/* 本州 - 正確な形状 */}
+                <div className="absolute top-12 left-1/4 w-1/2 h-72 relative">
+                  {/* 本州本体 - より正確な形状 */}
+                  <div className="w-full h-full bg-gradient-to-br from-emerald-200 to-green-300 shadow-lg relative overflow-hidden"
+                       style={{
+                         clipPath: 'polygon(5% 0%, 25% 5%, 45% 0%, 65% 5%, 85% 0%, 95% 10%, 100% 25%, 95% 45%, 90% 65%, 85% 85%, 80% 100%, 60% 95%, 40% 100%, 20% 95%, 0% 100%, 5% 85%, 10% 65%, 15% 45%, 10% 25%)'
+                       }}>
+                    {/* 本州の山脈と地形 */}
+                    <div className="absolute top-8 left-1/3 w-12 h-20 bg-green-400/20 rounded-full transform rotate-12"></div>
+                    <div className="absolute top-16 right-1/3 w-10 h-16 bg-green-400/20 rounded-full transform -rotate-12"></div>
+                    <div className="absolute top-24 left-1/2 w-16 h-24 bg-green-400/20 rounded-full transform -translate-x-1/2"></div>
+                    <div className="absolute bottom-16 left-1/4 w-12 h-20 bg-green-400/20 rounded-full transform rotate-45"></div>
+                    <div className="absolute bottom-8 right-1/4 w-10 h-16 bg-green-400/20 rounded-full transform -rotate-30"></div>
                     
-                    {/* 海岸線の詳細 */}
-                    <div className="absolute top-0 left-0 w-full h-4 bg-gradient-to-r from-green-100 to-green-200 rounded-t-full"></div>
-                    <div className="absolute bottom-0 left-0 w-full h-6 bg-gradient-to-r from-green-100 to-green-200 rounded-b-3xl"></div>
+                    {/* 海岸線のハイライト */}
+                    <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-green-100 to-green-200"></div>
+                    <div className="absolute bottom-0 left-0 w-full h-4 bg-gradient-to-r from-green-100 to-green-200"></div>
                   </div>
                   
-                  {/* 本州の半島 */}
-                  <div className="absolute bottom-8 left-1/3 w-12 h-16 bg-gradient-to-br from-green-200 to-green-300 rounded-t-2xl shadow-md transform -rotate-12"></div>
-                  <div className="absolute bottom-12 right-1/4 w-10 h-14 bg-gradient-to-br from-green-200 to-green-300 rounded-t-2xl shadow-md transform rotate-12"></div>
+                  {/* 本州の半島 - より正確な位置 */}
+                  <div className="absolute bottom-12 left-1/3 w-16 h-20 bg-gradient-to-br from-emerald-200 to-green-300 shadow-md transform -rotate-15"
+                       style={{
+                         clipPath: 'polygon(20% 0%, 80% 0%, 90% 30%, 85% 60%, 80% 100%, 20% 100%, 15% 60%, 10% 30%)'
+                       }}></div>
+                  <div className="absolute bottom-16 right-1/4 w-14 h-18 bg-gradient-to-br from-emerald-200 to-green-300 shadow-md transform rotate-15"
+                       style={{
+                         clipPath: 'polygon(20% 0%, 80% 0%, 90% 30%, 85% 60%, 80% 100%, 20% 100%, 15% 60%, 10% 30%)'
+                       }}></div>
                 </div>
 
-                {/* 四国 - より詳細な形状 */}
-                <div className="absolute bottom-16 left-1/3 transform -translate-x-1/2">
-                  <div className="w-20 h-24 bg-gradient-to-br from-green-200 to-green-300 rounded-t-2xl shadow-md relative">
-                    <div className="absolute top-2 left-2 w-4 h-4 bg-green-400/50 rounded-full"></div>
-                    <div className="absolute top-6 right-2 w-3 h-3 bg-green-400/50 rounded-full"></div>
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-6 h-3 bg-green-400/30 rounded-full"></div>
+                {/* 四国 - 正確な形状 */}
+                <div className="absolute bottom-20 left-1/3 transform -translate-x-1/2">
+                  <div className="w-24 h-28 bg-gradient-to-br from-emerald-200 to-green-300 shadow-md relative"
+                       style={{
+                         clipPath: 'polygon(15% 0%, 85% 0%, 95% 20%, 90% 40%, 85% 60%, 80% 80%, 75% 100%, 25% 100%, 20% 80%, 15% 60%, 10% 40%, 5% 20%)'
+                       }}>
+                    <div className="absolute top-3 left-1/2 transform -translate-x-1/2 w-12 h-16 bg-green-400/20 rounded-full"></div>
+                    <div className="absolute top-6 left-1/4 w-4 h-6 bg-green-400/30 rounded-full"></div>
+                    <div className="absolute top-8 right-1/4 w-3 h-5 bg-green-400/30 rounded-full"></div>
                   </div>
                 </div>
 
-                {/* 九州 - より詳細な形状 */}
-                <div className="absolute bottom-8 left-1/4 w-24 h-28 relative">
-                  <div className="w-full h-full bg-gradient-to-br from-green-200 to-green-300 rounded-t-2xl shadow-md relative overflow-hidden">
-                    {/* 九州の山脈 */}
-                    <div className="absolute top-4 left-1/4 w-6 h-12 bg-green-400/30 rounded-full transform rotate-12"></div>
-                    <div className="absolute top-6 right-1/4 w-5 h-10 bg-green-400/30 rounded-full transform -rotate-12"></div>
-                    <div className="absolute bottom-8 left-1/2 w-8 h-16 bg-green-400/30 rounded-full transform -translate-x-1/2"></div>
+                {/* 九州 - 正確な形状 */}
+                <div className="absolute bottom-12 left-1/4 w-28 h-32 relative">
+                  <div className="w-full h-full bg-gradient-to-br from-emerald-200 to-green-300 shadow-md relative overflow-hidden"
+                       style={{
+                         clipPath: 'polygon(10% 0%, 30% 5%, 50% 0%, 70% 5%, 90% 0%, 95% 15%, 100% 35%, 95% 55%, 90% 75%, 85% 95%, 80% 100%, 60% 95%, 40% 100%, 20% 95%, 0% 100%, 5% 75%, 10% 55%, 5% 35%)'
+                       }}>
+                    {/* 九州の山脈と地形 */}
+                    <div className="absolute top-6 left-1/3 w-8 h-16 bg-green-400/20 rounded-full transform rotate-12"></div>
+                    <div className="absolute top-10 right-1/3 w-6 h-12 bg-green-400/20 rounded-full transform -rotate-12"></div>
+                    <div className="absolute bottom-12 left-1/2 w-12 h-20 bg-green-400/20 rounded-full transform -translate-x-1/2"></div>
                     
-                    {/* 海岸線の詳細 */}
-                    <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-green-100 to-green-200 rounded-t-2xl"></div>
+                    {/* 海岸線のハイライト */}
+                    <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-green-100 to-green-200"></div>
                   </div>
                   
-                  {/* 九州の半島 */}
-                  <div className="absolute bottom-4 left-0 w-8 h-12 bg-gradient-to-br from-green-200 to-green-300 rounded-t-xl shadow-sm transform -rotate-6"></div>
-                  <div className="absolute bottom-6 right-0 w-6 h-10 bg-gradient-to-br from-green-200 to-green-300 rounded-t-xl shadow-sm transform rotate-6"></div>
+                  {/* 九州の半島 - より正確な位置 */}
+                  <div className="absolute bottom-6 left-2 w-10 h-14 bg-gradient-to-br from-emerald-200 to-green-300 shadow-sm transform -rotate-8"
+                       style={{
+                         clipPath: 'polygon(20% 0%, 80% 0%, 90% 40%, 85% 80%, 80% 100%, 20% 100%, 15% 80%, 10% 40%)'
+                       }}></div>
+                  <div className="absolute bottom-8 right-2 w-8 h-12 bg-gradient-to-br from-emerald-200 to-green-300 shadow-sm transform rotate-8"
+                       style={{
+                         clipPath: 'polygon(20% 0%, 80% 0%, 90% 40%, 85% 80%, 80% 100%, 20% 100%, 15% 80%, 10% 40%)'
+                       }}></div>
                 </div>
 
-                {/* 沖縄諸島 */}
-                <div className="absolute bottom-4 right-1/4 flex space-x-1">
-                  <div className="w-2 h-2 bg-green-300 rounded-full"></div>
-                  <div className="w-3 h-2 bg-green-300 rounded-full"></div>
-                  <div className="w-2 h-2 bg-green-300 rounded-full"></div>
+                {/* 沖縄諸島 - より詳細 */}
+                <div className="absolute bottom-6 right-1/4 flex space-x-1">
+                  <div className="w-3 h-2 bg-green-300 rounded-full shadow-sm"></div>
+                  <div className="w-4 h-2 bg-green-300 rounded-full shadow-sm"></div>
+                  <div className="w-3 h-2 bg-green-300 rounded-full shadow-sm"></div>
+                  <div className="w-2 h-2 bg-green-300 rounded-full shadow-sm"></div>
                 </div>
 
                 {/* 地域ピン */}
