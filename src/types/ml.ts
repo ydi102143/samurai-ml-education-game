@@ -3,12 +3,20 @@ export interface DataPoint {
   label: number | string;
 }
 
+export interface RawDataset {
+  train: DataPoint[];
+  test: DataPoint[];
+  featureUnits?: string[];
+}
+
 export interface Dataset {
   train: DataPoint[];
   test: DataPoint[];
   featureNames: string[];
   labelName: string;
   classes?: string[];
+  // 生データ（前処理前）を保持し、EDAでわかりやすく表示できるようにする
+  raw?: RawDataset;
 }
 
 export interface ModelParameters {

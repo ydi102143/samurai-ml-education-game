@@ -20,6 +20,7 @@ function normalRandom(mean: number, std: number): number {
 
 export function generateKyotoDataset(): Dataset {
   const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
     const isReal = i < 150;
@@ -51,6 +52,17 @@ export function generateKyotoDataset(): Dataset {
 
     const isAuthentic = authenticityScore > 0.6;
 
+    // 生データ（前処理前）を保持（年代: 年、他は0-1を人が理解しやすいスケールへ）
+    raw.push({
+      features: [
+        Math.round(age),              // 年代（年）
+        Math.round(craftsmanship * 10) / 10, // 職人技（0-1）
+        Math.round(materialQuality * 10) / 10, // 材質（0-1）
+        Math.round(patina * 10) / 10   // 古色（0-1）
+      ],
+      label: isAuthentic ? 1 : 0,
+    });
+
     data.push({
       features: [
         Math.min(1, age / 300), // 年代（正規化）
@@ -71,11 +83,17 @@ export function generateKyotoDataset(): Dataset {
     featureNames: ['年代', '職人技', '材質', '古色'],
     classes: ['贋作', '本物'],
     labelName: '真贋',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureUnits: ['年', '', '', '']
+    }
   };
 }
 
 export function generateSakaiDataset(): Dataset {
   const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
   const origins = ['中国', '南蛮', '朝鮮', '日本'];
 
   for (let i = 0; i < 300; i++) {
@@ -112,6 +130,17 @@ export function generateSakaiDataset(): Dataset {
         break;
     }
 
+    // 生データ（価格は0-1を金額相当の見やすいスケールに換算）
+    raw.push({
+      features: [
+        Math.round(material * 10) / 10,
+        Math.round(decoration * 10) / 10,
+        Math.round(craftsmanship * 10) / 10,
+        Math.round( (100 + price * 900) ) // おおよそ100〜1000
+      ],
+      label: originIdx,
+    });
+
     data.push({
       features: [
         material,      // 材質
@@ -132,11 +161,17 @@ export function generateSakaiDataset(): Dataset {
     featureNames: ['材質', '装飾', '職人技', '価格'],
     classes: origins,
     labelName: '産地',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureUnits: ['', '', '', '文']
+    }
   };
 }
 
 export function generateKaiDataset(): Dataset {
   const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
     // 現実的な鉱山の特徴量
@@ -155,6 +190,19 @@ export function generateKaiDataset(): Dataset {
     
     const baseOutput = workerEffect * weatherEffect * techEffect * geologicalEffect;
     const output = Math.max(0, baseOutput * (0.8 + Math.random() * 0.4));
+
+    // 生データ（単位付き）
+    raw.push({
+      features: [
+        Math.round(workers),
+        Math.round(experience * 20), // 年換算
+        Math.round(temp),
+        Math.round(rainfall),
+        Math.round(equipment * 10) / 10,
+        Math.round(oreQuality * 10) / 10
+      ],
+      label: Math.round(output * 1000) / 1000,
+    });
 
     data.push({
       features: [
@@ -178,11 +226,17 @@ export function generateKaiDataset(): Dataset {
     featureNames: ['労働者数', '経験値', '気温', '降水量', '機具の質', '鉱石の品質'],
     classes: [],
     labelName: '産出量',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureUnits: ['人', '年', '℃', 'mm', '', '']
+    }
   };
 }
 
 export function generateEchigoDataset(): Dataset {
   const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
     // 現実的な農業の特徴量
@@ -204,6 +258,19 @@ export function generateEchigoDataset(): Dataset {
     const soilEffect = Math.pow(soilQuality * seedQuality * fertilizer, 0.8);
     
     const harvestYield = tempEffect * rainEffect * sunEffect * soilEffect * (0.7 + Math.random() * 0.6);
+
+    // 生データ（単位付き）
+    raw.push({
+      features: [
+        Math.round(temperature),
+        Math.round(rainfall),
+        Math.round(sunshine),
+        Math.round(soilQuality * 10) / 10,
+        Math.round(seedQuality * 10) / 10,
+        Math.round(fertilizer * 10) / 10
+      ],
+      label: Math.round(harvestYield * 1000) / 1000,
+    });
 
     data.push({
       features: [
@@ -227,11 +294,17 @@ export function generateEchigoDataset(): Dataset {
     featureNames: ['気温', '降水量', '日照時間', '土壌の質', '種子の質', '肥料の量'],
     classes: [],
     labelName: '収穫量',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureUnits: ['℃', 'mm', '時間', '', '', '']
+    }
   };
 }
 
 export function generateOwariDataset(): Dataset {
   const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
     // 現実的な兵士の特徴量
@@ -260,6 +333,19 @@ export function generateOwariDataset(): Dataset {
     else if (totalScore > 0.55) role = 2; // 鉄砲隊（高）
     else if (totalScore > 0.35) role = 1; // 弓兵（中）
 
+    // 生データ（単位付き）
+    raw.push({
+      features: [
+        Math.round(age),
+        Math.round(adjustedStrength * 10) / 10,
+        Math.round(adjustedAgility * 10) / 10,
+        Math.round(intelligence * 10) / 10,
+        Math.round(experience * 10) / 10,
+        Math.round(socialClass * 10) / 10
+      ],
+      label: role,
+    });
+
     data.push({
       features: [
         age / 60,              // 年齢（正規化）
@@ -282,11 +368,17 @@ export function generateOwariDataset(): Dataset {
     featureNames: ['年齢', '筋力', '敏捷性', '知力', '戦闘経験', '社会階級'],
     classes: ['槍兵', '弓兵', '鉄砲隊', '騎馬隊'],
     labelName: '役職',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureUnits: ['年', '', '', '', '', '']
+    }
   };
 }
 
 export function generateSatsumaDataset(): Dataset {
   const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
     // 現実的な鉄砲製造の特徴量
@@ -304,6 +396,19 @@ export function generateSatsumaDataset(): Dataset {
     
     // 温度条件と品質スコアの両方を満たす必要
     const isGood = qualityScore > 0.65 && temperature > 1000 && temperature < 1300;
+
+    // 生データ（温度は摂氏）
+    raw.push({
+      features: [
+        Math.round(ironQuality * 10) / 10,
+        Math.round(steelQuality * 10) / 10,
+        Math.round(forging * 10) / 10,
+        Math.round(assembly * 10) / 10,
+        Math.round(testing * 10) / 10,
+        Math.round(temperature)
+      ],
+      label: isGood ? 1 : 0,
+    });
 
     data.push({
       features: [
@@ -327,11 +432,17 @@ export function generateSatsumaDataset(): Dataset {
     featureNames: ['鉄の品質', '鋼の品質', '鍛造技術', '組み立て精度', '検査の厳密さ', '製造温度'],
     classes: ['不良品', '良品'],
     labelName: '品質',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureUnits: ['', '', '', '', '', '℃']
+    }
   };
 }
 
 export function generateHizenDataset(): Dataset {
   const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
     // 現実的な陶器製造の特徴量
@@ -351,6 +462,19 @@ export function generateHizenDataset(): Dataset {
     let grade = 0; // 下級
     if (qualityScore > 0.8) grade = 2; // 上級
     else if (qualityScore > 0.6) grade = 1; // 中級
+
+    // 生データ（温度は摂氏、他は0-1を見やすく）
+    raw.push({
+      features: [
+        Math.round(clayQuality * 10) / 10,
+        Math.round(glazeQuality * 10) / 10,
+        Math.round(firingTemp),
+        Math.round(potterSkill * 10) / 10,
+        Math.round(decoration * 10) / 10,
+        Math.round(thickness * 10) / 10
+      ],
+      label: grade,
+    });
 
     data.push({
       features: [
@@ -374,11 +498,17 @@ export function generateHizenDataset(): Dataset {
     featureNames: ['粘土の品質', '釉薬の品質', '焼成温度', '陶工の技能', '装飾の美しさ', '厚さの均一性'],
     classes: ['下級', '中級', '上級'],
     labelName: '等級',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureUnits: ['', '', '℃', '', '', '']
+    }
   };
 }
 
 export function generateSagamiDataset(): Dataset {
   const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
     // 現実的な地域繁栄の特徴量
@@ -399,6 +529,19 @@ export function generateSagamiDataset(): Dataset {
     let level = 0; // 低い
     if (prosperity > 0.75) level = 2; // 高い
     else if (prosperity > 0.5) level = 1; // 中程度
+
+    // 生データ（単位付き）
+    raw.push({
+      features: [
+        Math.round(population),
+        Math.round(commerce * 10) / 10,
+        Math.round(agriculture * 10) / 10,
+        Math.round(governance * 10) / 10,
+        Math.round(stability * 10) / 10,
+        Math.round(location * 10) / 10
+      ],
+      label: level,
+    });
 
     data.push({
       features: [
@@ -422,11 +565,17 @@ export function generateSagamiDataset(): Dataset {
     featureNames: ['人口', '商業の発達度', '農業の発達度', '統治の質', '政治安定性', '立地の良さ'],
     classes: ['低い', '中程度', '高い'],
     labelName: '繁栄度',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureUnits: ['人', '', '', '', '', '']
+    }
   };
 }
 
 export function generateDewaDataset(): Dataset {
   const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
     // 現実的な輸送の特徴量
@@ -445,6 +594,19 @@ export function generateDewaDataset(): Dataset {
     const seasonEffect = 1 - Math.abs(season - 0.5) * 0.3; // 季節効果（春・秋が最適）
     
     const efficiency = distanceEffect * elevationEffect * weatherEffect * roadEffect * seasonEffect * cargoValue;
+
+    // 生データ（単位付き）
+    raw.push({
+      features: [
+        Math.round(distance),
+        Math.round(elevation),
+        Math.round(weather * 10) / 10,
+        Math.round(roadQuality * 10) / 10,
+        Math.round(cargoValue * 10) / 10,
+        Math.round(season * 100) / 100
+      ],
+      label: Math.round(efficiency * 1000) / 1000,
+    });
 
     data.push({
       features: [
@@ -468,6 +630,11 @@ export function generateDewaDataset(): Dataset {
     featureNames: ['距離', '標高', '天候の良さ', '道路の質', '荷物の価値', '季節'],
     classes: [],
     labelName: '輸送効率',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureUnits: ['km', 'm', '', '', '', '']
+    }
   };
 }
 
