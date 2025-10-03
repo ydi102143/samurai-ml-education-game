@@ -92,9 +92,9 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
     };
 
     // タイプライタ完了後の流れ
-    setT(() => setCurrentStep(3), 2000); // 著者名表示後2秒待機
-    setT(() => setCurrentStep(4), 4000); // さらに2秒待機
-    setT(() => onComplete(), 6000); // 最終的に6秒後に完了
+    setT(() => setCurrentStep(3), 4000); // 著者名表示後4秒待機
+    setT(() => setCurrentStep(4), 7000); // さらに3秒待機
+    setT(() => onComplete(), 10000); // 最終的に10秒後に完了
 
     return () => {
       timerIds.forEach(id => clearTimeout(id));
