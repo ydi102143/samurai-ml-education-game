@@ -332,6 +332,7 @@ export function ChallengeView() {
                   result={result}
                   dataset={dataset}
                   requiredAccuracy={region.required_accuracy}
+                  modelType={selectedModel}
                 />
                 <div className="flex justify-between">
                   <button

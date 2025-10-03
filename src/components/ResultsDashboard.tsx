@@ -3,14 +3,16 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { ModelResult, Dataset } from '../types/ml';
 import { FeatureImportanceChart } from './FeatureImportanceChart';
 import { ConfusionMatrixView } from './ConfusionMatrixView';
+import { LearningTips } from './LearningTips';
 
 interface Props {
   result: ModelResult;
   dataset: Dataset;
   requiredAccuracy: number;
+  modelType?: string;
 }
 
-export function ResultsDashboard({ result, dataset, requiredAccuracy }: Props) {
+export function ResultsDashboard({ result, dataset, requiredAccuracy, modelType }: Props) {
   const isPassed = result.accuracy >= requiredAccuracy;
 
   const comparisonData = result.predictions.slice(0, 20).map((pred, i) => ({
@@ -33,16 +35,26 @@ export function ResultsDashboard({ result, dataset, requiredAccuracy }: Props) {
             <Trophy
               className={`w-8 h-8 ${isPassed ? 'text-green-700' : 'text-orange-700'}`}
             />
-            <h3 className={`text-2xl font-bold ${isPassed ? 'text-green-900' : 'text-orange-900'}`}>
-              {isPassed ? '成功！課題クリア！' : 'もう少し！'}
-            </h3>
+            <div>
+              <h3 className={`text-2xl font-bold ${isPassed ? 'text-green-900' : 'text-orange-900'}`}>
+                {isPassed ? '🎉 成功！課題クリア！' : '💪 もう少し！'}
+              </h3>
+              <p className={`text-sm ${isPassed ? 'text-green-700' : 'text-orange-700'}`}>
+                {isPassed ? 'AIの予測がとても正確でした！' : '設定を調整してもう一度挑戦してみよう！'}
+              </p>
+            </div>
           </div>
-          <div
-            className={`text-4xl font-bold ${
-              isPassed ? 'text-green-700' : 'text-orange-700'
-            }`}
-          >
-            {(result.accuracy * 100).toFixed(1)}%
+          <div className="text-center">
+            <div
+              className={`text-4xl font-bold ${
+                isPassed ? 'text-green-700' : 'text-orange-700'
+              }`}
+            >
+              {(result.accuracy * 100).toFixed(1)}%
+            </div>
+            <div className={`text-sm ${isPassed ? 'text-green-600' : 'text-orange-600'}`}>
+              正解率
+            </div>
           </div>
         </div>
 
@@ -175,6 +187,13 @@ export function ResultsDashboard({ result, dataset, requiredAccuracy }: Props) {
           </ul>
         </div>
       )}
+
+      {/* 学習のヒント */}
+      <LearningTips 
+        accuracy={result.accuracy} 
+        requiredAccuracy={requiredAccuracy} 
+        modelType={modelType || ''} 
+      />
     </div>
   );
 }

@@ -21,20 +21,23 @@ export function DataExplorer({ dataset }: Props) {
   const anomalies = useMemo(() => detectAnomalies(dataset), [dataset]);
   const suggestions = useMemo(() => suggestDataImprovements(insights, dataset), [insights, dataset]);
 
-  const tabs: { id: Tab; label: string; icon: typeof Database }[] = [
-    { id: 'overview', label: 'データの中身', icon: Database },
-    { id: 'statistics', label: '数値の特徴', icon: TrendingUp },
-    { id: 'distribution', label: '値の広がり', icon: BarChart },
-    { id: 'correlation', label: '関係性', icon: Grid3X3 },
-    { id: 'scatter', label: '散らばり具合', icon: Maximize2 },
-    { id: 'insights', label: 'アドバイス', icon: Lightbulb },
+  const tabs: { id: Tab; label: string; icon: typeof Database; description: string }[] = [
+    { id: 'overview', label: 'データの中身', icon: Database, description: '実際のデータを見てみよう' },
+    { id: 'statistics', label: '数値の特徴', icon: TrendingUp, description: '平均値や最大値などを確認' },
+    { id: 'distribution', label: '値の広がり', icon: BarChart, description: 'どの値が多いかグラフで確認' },
+    { id: 'correlation', label: '関係性', icon: Grid3X3, description: 'データ同士の関係を見つけよう' },
+    { id: 'scatter', label: '散らばり具合', icon: Maximize2, description: 'データの分布を2次元で確認' },
+    { id: 'insights', label: 'アドバイス', icon: Lightbulb, description: 'AIからの学習のヒント' },
   ];
 
   return (
     <div className="bg-white rounded-xl shadow-lg border-2 border-blue-300 overflow-hidden">
-      <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-cyan-500 p-4 rounded-t-xl">
-        <Database className="w-5 h-5 text-white" />
-        <h3 className="text-lg font-bold text-white">データを調べよう</h3>
+      <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-4 rounded-t-xl">
+        <div className="flex items-center space-x-2 mb-2">
+          <Database className="w-5 h-5 text-white" />
+          <h3 className="text-lg font-bold text-white">データを調べよう</h3>
+        </div>
+        <p className="text-blue-100 text-sm">データをよく観察して、パターンや特徴を見つけよう！</p>
       </div>
 
       <div className="border-b border-blue-200 bg-blue-50">
@@ -45,14 +48,17 @@ export function DataExplorer({ dataset }: Props) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all whitespace-nowrap ${
+                className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg transition-all whitespace-nowrap min-w-[120px] ${
                   activeTab === tab.id
                     ? 'bg-white text-blue-600 shadow-md scale-105 font-bold'
                     : 'text-blue-700 hover:bg-blue-100'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                <span className="text-sm font-medium">{tab.label}</span>
+                <div className="flex items-center space-x-2">
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm font-medium">{tab.label}</span>
+                </div>
+                <span className="text-xs text-gray-600">{tab.description}</span>
               </button>
             );
           })}
