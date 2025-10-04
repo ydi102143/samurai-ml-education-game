@@ -147,9 +147,10 @@ export function ChallengeView() {
           last_attempt_at: new Date().toISOString(),
         });
 
-        if (isCompleted && region?.unlock_condition === null) {
-          const nextRegion = regions.find(r => r.unlock_condition === selectedRegion);
-          if (nextRegion) {
+        if (isCompleted) {
+          // この問題を開放条件とする次の問題を開放
+          const nextRegions = regions.filter(r => r.unlock_condition === selectedRegion);
+          for (const nextRegion of nextRegions) {
             await unlockRegion(user.id, nextRegion.id);
           }
         }

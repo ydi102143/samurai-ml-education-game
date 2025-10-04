@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { Region, UserProfile, UserRegionProgress, MLModel } from '../types/database';
-import { getRegions, getUserProfile, getUserRegionProgress, getMLModels, createUserProfile, initializeUserProgress, unlockAllRegions } from '../lib/database';
+import { getRegions, getUserProfile, getUserRegionProgress, getMLModels, createUserProfile, initializeUserProgress } from '../lib/database';
 
 interface GameState {
   user: UserProfile | null;
@@ -49,14 +49,68 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setError(null);
       const userProgress = await getUserRegionProgress(user.id);
       const progressMap: Record<string, UserRegionProgress> = {};
-      for (const p of userProgress) {
-        progressMap[p.region_id] = p;
+      
+      // 開放条件をチェックして進捗を更新
+      for (const region of regions) {
+        const existingProgress = userProgress.find(p => p.region_id === region.id);
+        const isUnlocked = checkUnlockCondition(region, progressMap, regions);
+        
+        if (existingProgress) {
+          progressMap[region.id] = {
+            ...existingProgress,
+            is_unlocked: isUnlocked
+          };
+        } else {
+          progressMap[region.id] = {
+            id: `progress_${region.id}`,
+            user_id: user.id,
+            region_id: region.id,
+            is_unlocked: isUnlocked,
+            is_completed: false,
+            best_accuracy: 0,
+            stars: 0,
+            attempts: 0,
+            first_completed_at: null,
+            last_attempt_at: null,
+            created_at: new Date().toISOString()
+          };
+        }
       }
+      
       setProgress(progressMap);
     } catch (error) {
       console.error('Failed to refresh progress:', error);
       setError('進捗データの取得に失敗しました。');
     }
+  };
+
+  const checkUnlockCondition = (region: Region, progressMap: Record<string, UserRegionProgress>, allRegions: Region[]): boolean => {
+    // 開放条件がない場合は開放
+    if (!region.unlock_condition) {
+      return true;
+    }
+    
+    // 開放条件の地域が完了しているかチェック
+    const requiredProgress = progressMap[region.unlock_condition];
+    if (requiredProgress?.is_completed) {
+      return true;
+    }
+    
+    // 前のレベルの問題をすべて完了しているかチェック
+    const previousLevel = region.difficulty - 1;
+    if (previousLevel > 0) {
+      const previousLevelRegions = allRegions.filter(r => r.difficulty === previousLevel);
+      const allPreviousCompleted = previousLevelRegions.every(r => {
+        const progress = progressMap[r.id];
+        return progress?.is_completed || false;
+      });
+      
+      if (allPreviousCompleted) {
+        return true;
+      }
+    }
+    
+    return false;
   };
 
   useEffect(() => {
@@ -86,12 +140,35 @@ export function GameProvider({ children }: { children: ReactNode }) {
           const userData = await getUserProfile(storedUserId);
           if (userData) {
             setUser(userData);
-            // 既存ユーザーの場合、すべての課題を解放する
-            await unlockAllRegions(userData.id);
+            // 既存ユーザーの場合、段階的に開放
             const userProgress = await getUserRegionProgress(userData.id);
             const progressMap: Record<string, UserRegionProgress> = {};
-            for (const p of userProgress) {
-              progressMap[p.region_id] = p;
+            
+            // 開放条件をチェックして進捗を更新
+            for (const region of regionsData) {
+              const existingProgress = userProgress.find(p => p.region_id === region.id);
+              const isUnlocked = checkUnlockCondition(region, progressMap, regionsData);
+              
+              if (existingProgress) {
+                progressMap[region.id] = {
+                  ...existingProgress,
+                  is_unlocked: isUnlocked
+                };
+              } else {
+                progressMap[region.id] = {
+                  id: `progress_${region.id}`,
+                  user_id: userData.id,
+                  region_id: region.id,
+                  is_unlocked: isUnlocked,
+                  is_completed: false,
+                  best_accuracy: 0,
+                  stars: 0,
+                  attempts: 0,
+                  first_completed_at: null,
+                  last_attempt_at: null,
+                  created_at: new Date().toISOString()
+                };
+              }
             }
             setProgress(progressMap);
           } else {
@@ -107,14 +184,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
             };
             setUser(mockUser);
             
-            // すべての課題を解放
+            // 段階的に開放
             const progressMap: Record<string, UserRegionProgress> = {};
             for (const region of regionsData) {
+              const isUnlocked = checkUnlockCondition(region, progressMap, regionsData);
               progressMap[region.id] = {
                 id: `progress_${region.id}`,
                 user_id: mockUser.id,
                 region_id: region.id,
-                is_unlocked: true,
+                is_unlocked: isUnlocked,
                 is_completed: false,
                 best_accuracy: 0,
                 stars: 0,
@@ -127,7 +205,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
             setProgress(progressMap);
           }
         } else {
-          // 新規ユーザーの場合、デフォルトで全課題を解放
+          // 新規ユーザーの場合、段階的に開放
           const defaultUserId = `user_${Date.now()}`;
           const defaultUser: UserProfile = {
             id: defaultUserId,
@@ -140,14 +218,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
           };
           setUser(defaultUser);
           
-          // すべての課題を解放
+          // 段階的に開放
           const progressMap: Record<string, UserRegionProgress> = {};
           for (const region of regionsData) {
+            const isUnlocked = checkUnlockCondition(region, progressMap, regionsData);
             progressMap[region.id] = {
               id: `progress_${region.id}`,
               user_id: defaultUserId,
               region_id: region.id,
-              is_unlocked: true,
+              is_unlocked: isUnlocked,
               is_completed: false,
               best_accuracy: 0,
               stars: 0,

@@ -53,6 +53,23 @@ export function ScatterPlotMatrix({ dataset }: Props) {
             value: point.label as number, // 回帰用の値
           }));
 
+          // 戦国時代のデータに合わせたスケール調整
+          const xValues = data.map(d => d.x);
+          const yValues = data.map(d => d.y);
+          const xMin = Math.min(...xValues);
+          const xMax = Math.max(...xValues);
+          const yMin = Math.min(...yValues);
+          const yMax = Math.max(...yValues);
+          
+          // 戦国時代のデータに適した軸の範囲設定
+          const xRange = xMax - xMin;
+          const yRange = yMax - yMin;
+          const xPadding = xRange > 0 ? xRange * 0.05 : 1; // 5%のパディング
+          const yPadding = yRange > 0 ? yRange * 0.05 : 1;
+          
+          const xDomain = [Math.max(0, xMin - xPadding), xMax + xPadding];
+          const yDomain = [Math.max(0, yMin - yPadding), yMax + yPadding];
+
           const labelGroups = isClassification
             ? [...new Set(data.map(d => d.label))].sort()
             : [0];
@@ -69,13 +86,59 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                     type="number"
                     dataKey="x"
                     name={dataset.featureNames[i]}
+                    domain={xDomain}
                     tick={{ fontSize: 10 }}
+                    tickFormatter={(value) => {
+                      // 戦国時代のデータに合わせた表示形式
+                      const unit = dataset.raw?.featureUnits?.[i] || '';
+                      if (unit) {
+                        if (unit === 'm/s') return `${Math.round(value * 10) / 10}${unit}`;
+                        if (unit === 'm') return `${Math.round(value * 10) / 10}${unit}`;
+                        if (unit === '隻') return `${Math.round(value)}${unit}`;
+                        if (unit === '点') return `${Math.round(value)}${unit}`;
+                        if (unit === '段階') return `${Math.round(value)}${unit}`;
+                        if (unit === '文') return `${Math.round(value)}${unit}`;
+                        if (unit === '年') return `${Math.round(value)}${unit}`;
+                        if (unit === '歳') return `${Math.round(value)}${unit}`;
+                        if (unit === '℃') return `${Math.round(value)}${unit}`;
+                        if (unit === 'mm') return `${Math.round(value)}${unit}`;
+                        if (unit === '時間') return `${Math.round(value)}h`;
+                        if (unit === 'kg') return `${Math.round(value)}${unit}`;
+                        if (unit === '両') return `${Math.round(value)}${unit}`;
+                        if (unit === '石') return `${Math.round(value)}${unit}`;
+                        return `${Math.round(value)}${unit}`;
+                      }
+                      return formatNumber(value).toString();
+                    }}
                   />
                   <YAxis
                     type="number"
                     dataKey="y"
                     name={dataset.featureNames[j]}
+                    domain={yDomain}
                     tick={{ fontSize: 10 }}
+                    tickFormatter={(value) => {
+                      // 戦国時代のデータに合わせた表示形式
+                      const unit = dataset.raw?.featureUnits?.[j] || '';
+                      if (unit) {
+                        if (unit === 'm/s') return `${Math.round(value * 10) / 10}${unit}`;
+                        if (unit === 'm') return `${Math.round(value * 10) / 10}${unit}`;
+                        if (unit === '隻') return `${Math.round(value)}${unit}`;
+                        if (unit === '点') return `${Math.round(value)}${unit}`;
+                        if (unit === '段階') return `${Math.round(value)}${unit}`;
+                        if (unit === '文') return `${Math.round(value)}${unit}`;
+                        if (unit === '年') return `${Math.round(value)}${unit}`;
+                        if (unit === '歳') return `${Math.round(value)}${unit}`;
+                        if (unit === '℃') return `${Math.round(value)}${unit}`;
+                        if (unit === 'mm') return `${Math.round(value)}${unit}`;
+                        if (unit === '時間') return `${Math.round(value)}h`;
+                        if (unit === 'kg') return `${Math.round(value)}${unit}`;
+                        if (unit === '両') return `${Math.round(value)}${unit}`;
+                        if (unit === '石') return `${Math.round(value)}${unit}`;
+                        return `${Math.round(value)}${unit}`;
+                      }
+                      return formatNumber(value).toString();
+                    }}
                   />
                   <ZAxis range={[50, 50]} />
                   <Tooltip
@@ -86,10 +149,22 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                         return (
                           <div className="bg-white p-3 border rounded shadow-lg text-xs" style={{ borderColor: 'var(--gold)' }}>
                             <p className="font-medium" style={{ color: 'var(--accent-strong)' }}>
-                              {dataset.featureNames[i]}: {formatNumber(data.x)}
+                              {dataset.featureNames[i]}: {(() => {
+                                const unit = dataset.raw?.featureUnits?.[i] || '';
+                                if (unit) {
+                                  return `${Math.round(data.x)}${unit}`;
+                                }
+                                return formatNumber(data.x);
+                              })()}
                             </p>
                             <p className="font-medium" style={{ color: 'var(--accent-strong)' }}>
-                              {dataset.featureNames[j]}: {formatNumber(data.y)}
+                              {dataset.featureNames[j]}: {(() => {
+                                const unit = dataset.raw?.featureUnits?.[j] || '';
+                                if (unit) {
+                                  return `${Math.round(data.y)}${unit}`;
+                                }
+                                return formatNumber(data.y);
+                              })()}
                             </p>
                             {isClassification ? (
                               <p className="font-bold" style={{ color: 'var(--gold)' }}>
@@ -97,7 +172,13 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                               </p>
                             ) : (
                               <p className="font-bold" style={{ color: 'var(--gold)' }}>
-                                {dataset.labelName}: {formatNumber(data.value)}
+                                {dataset.labelName}: {(() => {
+                                  const unit = dataset.raw?.featureUnits?.[dataset.featureNames.length] || '';
+                                  if (unit) {
+                                    return `${Math.round(data.value)}${unit}`;
+                                  }
+                                  return formatNumber(data.value);
+                                })()}
                               </p>
                             )}
                           </div>

@@ -11,6 +11,8 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
+  const [titleVisible, setTitleVisible] = useState(false);
+  const [audioPlayed, setAudioPlayed] = useState(false);
   const english = useMemo(() => [
     'Data is the sword of the 21st century,',
     'those who wield it well, the Samurai.'
@@ -93,12 +95,75 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
 
     // タイプライタ完了後の流れ
     setT(() => setCurrentStep(2), 2500); // 著者名表示後2.5秒でタイトル表示
-    setT(() => onComplete(), 5000); // タイトル表示後2.5秒で完了
+    setT(() => setTitleVisible(true), 2500); // タイトルをフェードイン
+    setT(() => onComplete(), 8500); // タイトル表示後6秒で完了
 
     return () => {
       timerIds.forEach(id => clearTimeout(id));
     };
   }, [typingCompleted, onComplete]);
+
+  // タイトル表示画面で拍子木の音を再生（確実な自動再生）
+  useEffect(() => {
+    if (currentStep === 2) {
+      console.log('タイトル表示画面に到達しました。確実に自動再生を実行します...');
+      
+      // 確実な自動再生を実行
+      const playAudioReliably = () => {
+        try {
+          const audio = new Audio('/audio/拍子木3.mp3');
+          audio.volume = 0.8;
+          audio.preload = 'auto';
+          
+          // 音声が読み込まれるまで待機
+          audio.addEventListener('canplaythrough', () => {
+            console.log('音声ファイルの読み込み完了。再生を開始します...');
+            
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              playPromise.then(() => {
+                console.log('拍子木の音が自動再生されました！');
+                setAudioPlayed(true);
+              }).catch(() => {
+                console.log('自動再生に失敗しました。ユーザーインタラクションをシミュレートします...');
+                
+                // ユーザーインタラクションをシミュレート
+                setTimeout(() => {
+                  // ページをクリックしてユーザーインタラクションをシミュレート
+                  document.body.click();
+                  
+                  setTimeout(() => {
+                    const retryAudio = new Audio('/audio/拍子木3.mp3');
+                    retryAudio.volume = 0.8;
+                    retryAudio.play().then(() => {
+                      console.log('シミュレート後の再生に成功しました！');
+                      setAudioPlayed(true);
+                    }).catch(() => {
+                      console.log('シミュレート後も再生失敗。スキップボタンで音声を再生してください。');
+                    });
+                  }, 100);
+                }, 200);
+              });
+            }
+          });
+          
+          // 読み込みエラーの場合
+          audio.addEventListener('error', () => {
+            console.log('音声ファイルの読み込みに失敗しました。直接再生を試行します...');
+            audio.play().catch(() => {
+              console.log('直接再生も失敗しました。スキップボタンで音声を再生してください。');
+            });
+          });
+          
+        } catch (error) {
+          console.log('音声の初期化に失敗しました:', error);
+        }
+      };
+      
+      // 少し遅延して再生を開始
+      setTimeout(playAudioReliably, 200);
+    }
+  }, [currentStep]);
 
   // Escキーでスキップ
   useEffect(() => {
@@ -112,9 +177,40 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
   }, [onComplete]);
 
   const handleSkip = () => {
-    if (isSkipping) return;
+    console.log('スキップボタンがクリックされました');
+    
+    if (isSkipping) {
+      console.log('既にスキップ処理中です');
+      return;
+    }
+    
     setIsSkipping(true);
-    onComplete();
+    console.log('スキップ処理を開始します');
+    
+    // 音声を再生（ユーザーインタラクションとして確実に再生される）
+    try {
+      const audio = new Audio('/audio/拍子木3.mp3');
+      audio.volume = 0.8;
+      audio.preload = 'auto';
+      
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          console.log('スキップ時に拍子木の音が再生されました！');
+          setAudioPlayed(true);
+        }).catch(err => {
+          console.warn('スキップ時の音声再生に失敗:', err);
+        });
+      }
+    } catch (error) {
+      console.warn('スキップ時の音声初期化に失敗:', error);
+    }
+    
+    // 少し遅延してから完了処理を実行
+    setTimeout(() => {
+      console.log('イントロを完了します');
+      onComplete();
+    }, 100);
   };
 
   return (
@@ -125,9 +221,9 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
           onClick={handleSkip}
           className="absolute top-4 right-4 text-sm px-3 py-1 rounded-lg transition-colors"
           style={{ color: 'white', background: 'rgba(255,255,255,0.2)', border: '1px solid var(--gold)' }}
-          aria-label="イントロをスキップ"
+          aria-label="イントロをスキップ（音声再生）"
         >
-          スキップ
+          {currentStep === 2 && !audioPlayed ? '音声付きでスキップ' : 'スキップ'}
         </button>
         
         {/* テレビノイズ風背景 */}
@@ -305,7 +401,41 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
             <div className="fixed inset-0 w-full h-full flex items-center justify-center" style={{
               background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)'
             }}>
-              <div className="space-y-8">
+              {/* 動く桜の花びらエフェクト - 40個版 */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {[...Array(40)].map((_, i) => {
+                  const size = Math.random() * 12 + 6; // 6-18px
+                  const startX = Math.random() * 120 - 10; // 画面外から開始
+                  const startY = Math.random() * 30 - 30; // 斜め上から
+                  const duration = 6; // 固定6秒
+                  const delay = Math.random() * 3; // 0-3秒の遅延（短縮）
+                  const rotation = Math.random() * 360; // 初期回転
+                  const opacity = Math.random() * 0.4 + 0.4; // 0.4-0.8の透明度
+                  
+                  return (
+                    <div
+                      key={i}
+                      className="absolute"
+                      style={{
+                        left: `${startX}%`,
+                        top: `${startY}%`,
+                        width: `${size}px`,
+                        height: `${size}px`,
+                        background: `radial-gradient(circle at 30% 30%, #ffb3d1, #ff69b4, #ff1493)`,
+                        borderRadius: '50% 10% 50% 10%',
+                        transform: `rotate(${rotation}deg)`,
+                        animation: `sakura6Sec ${duration}s linear forwards`,
+                        animationDelay: `${delay}s`,
+                        opacity: opacity,
+                        boxShadow: '0 0 8px rgba(255, 105, 180, 0.3)',
+                        filter: 'blur(0.5px)',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              <div className={`space-y-8 transition-all duration-3000 ease-out ${titleVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`}>
                 <div className="flex items-center justify-center space-x-4 mb-8">
                   <Swords className="w-16 h-16" style={{ color: 'var(--gold)' }} />
                   <h1 className="text-6xl font-bold text-white tracking-wider" style={{ textShadow: '0 0 20px rgba(255,255,255,0.8)' }}>

@@ -4,15 +4,23 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { ShogunRoom } from './components/ShogunRoom';
 import { JapanMap } from './components/JapanMap';
 import { ChallengeView } from './components/ChallengeView';
+
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 function GameContent() {
   const { user, currentView, loading, error, initializeUser } = useGameState();
   const [showQuoteIntro, setShowQuoteIntro] = useState(true);
+  
+  // 現在の画面を判定（簡素化）
+  const getCurrentScreen = (): string => {
+    if (showQuoteIntro) return 'intro';
+    if (!user) return 'home';
+    return currentView || 'home';
+  };
 
   useEffect(() => {
-    // 毎回クォートイントロを表示
+    // 毎回イントロを表示（デバッグ用）
     setShowQuoteIntro(true);
   }, []);
 
@@ -22,7 +30,9 @@ function GameContent() {
   };
 
   if (showQuoteIntro) {
-    return <QuoteIntro onComplete={handleQuoteIntroComplete} durationScale={1.3} />;
+    return (
+      <QuoteIntro onComplete={handleQuoteIntroComplete} durationScale={1.3} />
+    );
   }
 
   if (loading) {
@@ -56,18 +66,30 @@ function GameContent() {
   }
 
   if (!user) {
-    return <WelcomeScreen onStart={initializeUser} />;
+    return (
+      <WelcomeScreen onStart={initializeUser} />
+    );
   }
+
+  const currentScreen = getCurrentScreen();
 
   switch (currentView) {
     case 'home':
-      return <ShogunRoom />;
+      return (
+        <ShogunRoom />
+      );
     case 'map':
-      return <JapanMap />;
+      return (
+        <JapanMap />
+      );
     case 'challenge':
-      return <ChallengeView />;
+      return (
+        <ChallengeView />
+      );
     default:
-      return <ShogunRoom />;
+      return (
+        <ShogunRoom />
+      );
   }
 }
 

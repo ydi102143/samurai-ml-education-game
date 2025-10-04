@@ -125,9 +125,32 @@ export function DistributionCharts({ dataset }: Props) {
                   return histogram;
                 })()}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="bin" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 10 }} />
+                  <XAxis 
+                    dataKey="bin" 
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={80} 
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(value) => {
+                      // 戦国時代のデータに合わせた表示形式
+                      const unit = dataset.raw?.featureUnits?.[dataset.featureNames.length] || '';
+                      if (unit) {
+                        return `${Math.round(value)}${unit}`;
+                      }
+                      return formatNumber(value);
+                    }}
+                  />
                   <YAxis />
-                  <Tooltip formatter={(v: any) => formatNumber(v)} />
+                  <Tooltip 
+                    formatter={(v: any) => formatNumber(v)}
+                    labelFormatter={(label) => {
+                      const unit = dataset.raw?.featureUnits?.[dataset.featureNames.length] || '';
+                      if (unit) {
+                        return `${dataset.labelName}: ${Math.round(label)}${unit}`;
+                      }
+                      return `${dataset.labelName}: ${formatNumber(label)}`;
+                    }}
+                  />
                   <Bar dataKey="count" fill="#1e40af" />
                 </BarChart>
               </ResponsiveContainer>
@@ -149,24 +172,33 @@ export function DistributionCharts({ dataset }: Props) {
                   const min = sorted[0];
                   const max = sorted[sorted.length - 1];
                   
+                  // 戦国時代のデータに合わせた単位表示
+                  const unit = dataset.raw?.featureUnits?.[dataset.featureNames.length] || '';
+                  const formatWithUnit = (value: number) => {
+                    if (unit) {
+                      return `${Math.round(value * 10) / 10}${unit}`;
+                    }
+                    return formatNumber(value);
+                  };
+                  
                   return (
                     <>
                       <div className="bg-blue-50 p-3 rounded border" style={{ borderColor: 'var(--gold)' }}>
                         <div className="text-xs mb-1" style={{ color: 'var(--accent-strong)' }}>平均値</div>
                         <div className="text-lg font-bold" style={{ color: 'var(--accent-strong)' }}>
-                          {formatNumber(mean)}
+                          {formatWithUnit(mean)}
                         </div>
                       </div>
                       <div className="bg-blue-50 p-3 rounded border" style={{ borderColor: 'var(--gold)' }}>
                         <div className="text-xs mb-1" style={{ color: 'var(--accent-strong)' }}>中央値</div>
                         <div className="text-lg font-bold" style={{ color: 'var(--accent-strong)' }}>
-                          {formatNumber(median)}
+                          {formatWithUnit(median)}
                         </div>
                       </div>
                       <div className="bg-blue-50 p-3 rounded border" style={{ borderColor: 'var(--gold)' }}>
                         <div className="text-xs mb-1" style={{ color: 'var(--accent-strong)' }}>範囲</div>
                         <div className="text-lg font-bold" style={{ color: 'var(--accent-strong)' }}>
-                          {formatNumber(min)} - {formatNumber(max)}
+                          {formatWithUnit(min)} - {formatWithUnit(max)}
                         </div>
                       </div>
                     </>

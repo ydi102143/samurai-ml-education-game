@@ -11,7 +11,7 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '茶器の画像から真贋を判定するAIを構築する。',
     required_accuracy: 0.8,
-    unlock_condition: null,
+    unlock_condition: null, // 最初の問題
     difficulty: 1,
     reward_xp: 100,
     order_index: 1,
@@ -30,7 +30,7 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '貿易品の特徴から産地を分類する。',
     required_accuracy: 0.75,
-    unlock_condition: null,
+    unlock_condition: 'kyoto', // 京都をクリア後に開放（レベル2の問題群）
     difficulty: 2,
     reward_xp: 150,
     order_index: 2,
@@ -49,7 +49,7 @@ const mockRegions: Region[] = [
     problem_type: 'regression',
     problem_description: '気象条件と労働力から金山の月間産出量を予測する。',
     required_accuracy: 0.7,
-    unlock_condition: null,
+    unlock_condition: 'sakai', // レベル2をクリア後に開放（レベル3の問題群）
     difficulty: 3,
     reward_xp: 200,
     order_index: 3,
@@ -67,7 +67,7 @@ const mockRegions: Region[] = [
     problem_type: 'regression',
     problem_description: '気象条件と土壌データから米の収穫量を予測する。',
     required_accuracy: 0.75,
-    unlock_condition: null,
+    unlock_condition: 'kyoto', // レベル1をクリア後に開放（レベル2の問題群）
     difficulty: 2,
     reward_xp: 150,
     order_index: 4,
@@ -85,7 +85,7 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '兵士の能力データから最適な役職を判定する。',
     required_accuracy: 0.8,
-    unlock_condition: null,
+    unlock_condition: 'sakai', // レベル2をクリア後に開放（レベル3の問題群）
     difficulty: 3,
     reward_xp: 200,
     order_index: 5,
@@ -104,9 +104,9 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '鉄砲の製造データから品質を判定する。',
     required_accuracy: 0.85,
-    unlock_condition: null,
-    difficulty: 4,
-    reward_xp: 250,
+    unlock_condition: 'sakai', // レベル2をクリア後に開放（レベル3の問題群）
+    difficulty: 3,
+    reward_xp: 200,
     order_index: 6,
     dataset_info: {
       features: ['鉄の品質', '鋼の品質', '鍛造技術', '組み立て精度', '検査の厳密さ', '製造温度'],
@@ -124,7 +124,7 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '陶器の製造データから等級（上・中・下）を分類する。',
     required_accuracy: 0.8,
-    unlock_condition: null,
+    unlock_condition: 'sakai', // レベル2をクリア後に開放（レベル3の問題群）
     difficulty: 3,
     reward_xp: 180,
     order_index: 7,
@@ -143,7 +143,7 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '地域指標から繁栄レベル（低・中・高）を分類する。',
     required_accuracy: 0.75,
-    unlock_condition: null,
+    unlock_condition: 'kyoto', // レベル1をクリア後に開放（レベル2の問題群）
     difficulty: 2,
     reward_xp: 150,
     order_index: 8,
@@ -162,7 +162,7 @@ const mockRegions: Region[] = [
     problem_type: 'regression',
     problem_description: '距離や標高、天候などから輸送効率を予測する。',
     required_accuracy: 0.7,
-    unlock_condition: null,
+    unlock_condition: 'sakai', // レベル2をクリア後に開放（レベル3の問題群）
     difficulty: 3,
     reward_xp: 200,
     order_index: 9,
@@ -180,7 +180,7 @@ const mockRegions: Region[] = [
     problem_type: 'regression',
     problem_description: '馬の血統と環境条件から繁殖成功率を予測する。',
     required_accuracy: 0.75,
-    unlock_condition: null,
+    unlock_condition: 'kyoto', // レベル1をクリア後に開放（レベル2の問題群）
     difficulty: 2,
     reward_xp: 150,
     order_index: 10,
@@ -199,7 +199,7 @@ const mockRegions: Region[] = [
     problem_type: 'regression',
     problem_description: '気象条件から米の収穫量を予測する。',
     required_accuracy: 0.8,
-    unlock_condition: null,
+    unlock_condition: 'sakai', // レベル2をクリア後に開放（レベル3の問題群）
     difficulty: 3,
     reward_xp: 200,
     order_index: 11,
@@ -218,7 +218,7 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '金箔の製造データから品質等級を分類する。',
     required_accuracy: 0.85,
-    unlock_condition: null,
+    unlock_condition: 'kai', // レベル3をクリア後に開放（レベル4の問題）
     difficulty: 4,
     reward_xp: 250,
     order_index: 12,
@@ -237,7 +237,7 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '天候と海流から航海の安全性を判定する。',
     required_accuracy: 0.8,
-    unlock_condition: null,
+    unlock_condition: 'sakai', // レベル2をクリア後に開放（レベル3の問題群）
     difficulty: 3,
     reward_xp: 180,
     order_index: 13,
@@ -256,7 +256,7 @@ const mockRegions: Region[] = [
     problem_type: 'regression',
     problem_description: '石の材質と積み方から石垣の強度を予測する。',
     required_accuracy: 0.75,
-    unlock_condition: null,
+    unlock_condition: 'kyoto', // レベル1をクリア後に開放（レベル2の問題群）
     difficulty: 2,
     reward_xp: 150,
     order_index: 14,
@@ -275,7 +275,7 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '海戦の条件から勝利確率を予測する。',
     required_accuracy: 0.8,
-    unlock_condition: null,
+    unlock_condition: 'sakai', // レベル2をクリア後に開放（レベル3の問題群）
     difficulty: 3,
     reward_xp: 200,
     order_index: 15,
@@ -294,7 +294,7 @@ const mockRegions: Region[] = [
     problem_type: 'regression',
     problem_description: '地域の特性から信者獲得数を予測する。',
     required_accuracy: 0.75,
-    unlock_condition: null,
+    unlock_condition: 'kyoto', // レベル1をクリア後に開放（レベル2の問題群）
     difficulty: 2,
     reward_xp: 150,
     order_index: 16,
@@ -313,7 +313,7 @@ const mockRegions: Region[] = [
     problem_type: 'classification',
     problem_description: '戦略条件から成功確率を予測する。',
     required_accuracy: 0.8,
-    unlock_condition: null,
+    unlock_condition: 'sakai', // レベル2をクリア後に開放（レベル3の問題群）
     difficulty: 3,
     reward_xp: 180,
     order_index: 17,

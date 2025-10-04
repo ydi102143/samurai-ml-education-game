@@ -63,7 +63,9 @@ export function ShogunRoom() {
                 </div>
 
                 <button
-                  onClick={() => setCurrentView('map')}
+                  onClick={() => {
+                    setCurrentView('map');
+                  }}
                   className="w-full text-white p-8 rounded-lg shadow-xl border-4 transition-all transform hover:scale-105 group"
                   style={{ background: 'linear-gradient(to right, var(--accent), var(--accent-strong))', borderColor: 'var(--gold)' }}
                 >
@@ -88,7 +90,9 @@ export function ShogunRoom() {
                     このゲームでは、実際のMLモデルを使って戦国時代の様々な課題を解決します。
                   </p>
                   <button
-                    onClick={() => setShowMLFlow(true)}
+                    onClick={() => {
+                      setShowMLFlow(true);
+                    }}
                     className="w-full text-white py-3 px-4 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg"
                     style={{ background: 'linear-gradient(to right, var(--accent), var(--accent-strong))' }}
                   >
