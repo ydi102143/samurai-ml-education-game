@@ -8,7 +8,7 @@ interface Props {
   dataset: Dataset;
 }
 
-const COLORS = ['#1e40af', '#dc2626', '#059669', '#d97706', '#7c3aed', '#db2777'];
+const COLORS = ['#1e40af', '#dc2626', '#059669', '#d97706', '#7c3aed', '#db2777', '#1e3a8a', '#3b82f6'];
 
 export function DistributionCharts({ dataset }: Props) {
   const classDistribution = calculateClassDistribution(dataset);
@@ -49,7 +49,7 @@ export function DistributionCharts({ dataset }: Props) {
                   <XAxis dataKey="class" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#4f46e5" />
+                  <Bar dataKey="count" fill="#1e40af" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -216,7 +216,7 @@ export function DistributionCharts({ dataset }: Props) {
                       <XAxis dataKey="category" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 10 }} />
                       <YAxis />
                       <Tooltip formatter={(v: any) => formatNumber(v)} />
-                      <Bar dataKey="count" fill="#fb923c" />
+                      <Bar dataKey="count" fill="#d4af37" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -234,7 +234,7 @@ export function DistributionCharts({ dataset }: Props) {
                     <XAxis dataKey="bin" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 10 }} />
                     <YAxis />
                     <Tooltip formatter={(v: any) => formatNumber(v)} />
-                    <Bar dataKey="count" fill="#f97316" />
+                    <Bar dataKey="count" fill="#d4af37" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

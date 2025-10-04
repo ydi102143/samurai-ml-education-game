@@ -5,27 +5,32 @@
 /* 紺・金・銀の統一カラーパレット */
 @layer base {
   :root {
-    /* 紺・金・銀の統一テーマ */
+    /* 紺・金・銀の統一テーマ - 濃淡で統一感を演出 */
     --paper: #f8fafc;          /* 明るい背景 */
     --paper-dark: #0f172a;     /* 暗い背景 */
     --ink: #1e293b;            /* 濃い文字色 */
     --ink-light: #64748b;      /* 薄い文字色 */
     --ink-white: #ffffff;      /* 白文字 */
     --land-light: #e2e8f0;     /* 地図補助色（淡青） */
-    --land-dark: #3b82f6;      /* アクセント青 */
+    --land-dark: #1e40af;      /* アクセント青（紺系に統一） */
     --accent: #1e40af;         /* メイン紺 */
     --accent-strong: #1e3a8a;  /* 濃紺 */
     --accent-light: #3b82f6;   /* 薄紺 */
-    --gold: #d4af37;           /* 金 */
+    --accent-lighter: #60a5fa; /* さらに薄い紺 */
+    --accent-dark: #1e3a8a;    /* 濃い紺 */
+    --accent-darker: #1e293b;  /* さらに濃い紺 */
+    --gold: #d4af37;           /* より金色っぽい金 */
     --gold-light: #f4d03f;     /* 薄金 */
     --gold-dark: #b8860b;      /* 濃金 */
-    --silver: #94a3b8;         /* 銀 */
-    --silver-light: #e2e8f0;   /* 薄銀 */
-    --silver-dark: #64748b;    /* 濃銀 */
-    --success: #10b981;        /* 成功色（緑） */
-    --warning: #f59e0b;        /* 警告色（オレンジ） */
-    --error: #ef4444;          /* エラー色（赤） */
-    --info: #3b82f6;           /* 情報色（青） */
+    --gold-darker: #8b6914;    /* さらに濃い金 */
+    --silver: #c0c0c0;         /* より銀色っぽい銀 */
+    --silver-light: #e5e7eb;   /* 薄銀 */
+    --silver-dark: #6b7280;    /* 濃銀 */
+    --silver-darker: #374151;  /* さらに濃い銀 */
+    --success: #d4af37;        /* 成功色（金に統一） */
+    --warning: #d4af37;        /* 警告色（金に統一） */
+    --error: #ef4444;          /* エラー色（赤のみ保持） */
+    --info: #1e40af;           /* 情報色（紺に統一） */
   }
 }
 

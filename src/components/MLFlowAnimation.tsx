@@ -19,7 +19,7 @@ const steps = [
     ],
     tips: '問題がはっきりしていないと、良いAIは作れません。まず「何を知りたいのか」を整理しましょう。',
     icon: '🎯',
-    color: 'from-blue-500 to-blue-600'
+    color: 'from-blue-600 to-blue-800'
   },
   {
     id: 'eda',
@@ -34,7 +34,7 @@ const steps = [
     ],
     tips: 'データをよく見ることで、どんな特徴があるか、どんな問題があるかが分かります。',
     icon: '📊',
-    color: 'from-green-500 to-green-600'
+    color: 'from-blue-600 to-blue-800'
   },
   {
     id: 'preprocess',
@@ -49,7 +49,7 @@ const steps = [
     ],
     tips: 'AIは数値しか理解できないので、データを数値に変換する必要があります。',
     icon: '🔧',
-    color: 'from-yellow-500 to-yellow-600'
+    color: 'from-blue-600 to-blue-800'
   },
   {
     id: 'model',
@@ -64,7 +64,7 @@ const steps = [
     ],
     tips: '問題の種類によって使うモデルが違います。分類ならロジスティック回帰、回帰なら線形回帰など。',
     icon: '🤖',
-    color: 'from-purple-500 to-purple-600'
+    color: 'from-blue-600 to-blue-800'
   },
   {
     id: 'evaluate',
@@ -79,7 +79,7 @@ const steps = [
     ],
     tips: 'テストデータは学習に使わない新しいデータで評価することが重要です。',
     icon: '📈',
-    color: 'from-red-500 to-red-600'
+    color: 'from-blue-600 to-blue-800'
   },
   {
     id: 'deploy',
@@ -94,7 +94,7 @@ const steps = [
     ],
     tips: 'AIは一度作って終わりではありません。新しいデータで継続的に改善していくことが大切です。',
     icon: '🚀',
-    color: 'from-indigo-500 to-indigo-600'
+    color: 'from-blue-600 to-blue-800'
   }
 ];
 

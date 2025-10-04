@@ -7,7 +7,7 @@ interface Props {
   dataset: Dataset;
 }
 
-const COLORS = ['#1e40af', '#dc2626', '#059669', '#d97706', '#7c3aed', '#db2777'];
+const COLORS = ['#1e40af', '#dc2626', '#059669', '#d97706', '#7c3aed', '#db2777', '#1e3a8a', '#3b82f6'];
 
 export function ScatterPlotMatrix({ dataset }: Props) {
   // 生データがあればそれを使用して散布図を描画
