@@ -1,4 +1,4 @@
-import { Brain, Settings, Info, X, Play, Pause, RotateCcw } from 'lucide-react';
+import { Brain, Settings, Info } from 'lucide-react';
 import { useState } from 'react';
 
 interface Props {
@@ -17,10 +17,32 @@ const models = [
     category: 'classification',
     difficulty: '簡単',
     detailedDescription: 'データを2つのグループに分ける直線を引くAI。境界線を学習して、新しいデータがどちらのグループに属するかを判断します。',
-    animation: 'line',
+    tips: [
+      '💡 例：戦で勝つか負けるか、商品が売れるか売れないかを予測',
+      '⚡ 計算が速く、結果が分かりやすい',
+      '🎯 直線で分けられる問題に最適',
+      '⚠️ 複雑な曲線的な関係は苦手'
+    ],
+    useCases: '戦略の成功/失敗、商品の売上予測、病気の診断など',
     params: {
-      learning_rate: { default: 0.01, min: 0.001, max: 0.1, step: 0.001, label: '学習速度', description: 'AIが学習する速さ' },
-      max_iterations: { default: 100, min: 50, max: 500, step: 10, label: '学習回数', description: '何回練習するか' },
+      learning_rate: { 
+        default: 0.01, 
+        min: 0.001, 
+        max: 0.1, 
+        step: 0.001, 
+        label: '学習速度', 
+        description: 'AIが学習する速さ。大きすぎると学習が不安定になり、小さすぎると時間がかかる',
+        tips: '0.01が一般的な値。問題が複雑な場合は0.001、シンプルな場合は0.05を試してみよう'
+      },
+      max_iterations: { 
+        default: 100, 
+        min: 50, 
+        max: 500, 
+        step: 10, 
+        label: '学習回数', 
+        description: '何回練習するか。多いほど精度が上がるが、時間がかかる',
+        tips: '100回で十分な場合が多い。精度が足りない場合は200-300回に増やしてみよう'
+      },
     },
   },
   {
@@ -30,10 +52,32 @@ const models = [
     category: 'regression',
     difficulty: '簡単',
     detailedDescription: 'データの傾向を直線で表現し、新しいデータの値を予測するAI。特徴量と目的変数の関係を学習します。',
-    animation: 'trend',
+    tips: [
+      '💡 例：気温から収穫量を予測、人口から税収を予測',
+      '📈 「これが増えれば、あれも増える」という関係を見つける',
+      '⚡ 計算が速く、結果が分かりやすい',
+      '⚠️ 直線的な関係でない場合は精度が下がる'
+    ],
+    useCases: '収穫量予測、売上予測、価格予測、需要予測など',
     params: {
-      learning_rate: { default: 0.01, min: 0.001, max: 0.1, step: 0.001, label: '学習速度', description: 'AIが学習する速さ' },
-      max_iterations: { default: 100, min: 50, max: 500, step: 10, label: '学習回数', description: '何回練習するか' },
+      learning_rate: { 
+        default: 0.01, 
+        min: 0.001, 
+        max: 0.1, 
+        step: 0.001, 
+        label: '学習速度', 
+        description: 'AIが学習する速さ。大きすぎると学習が不安定になり、小さすぎると時間がかかる',
+        tips: '0.01が一般的な値。データが少ない場合は0.001、多い場合は0.05を試してみよう'
+      },
+      max_iterations: { 
+        default: 100, 
+        min: 50, 
+        max: 500, 
+        step: 10, 
+        label: '学習回数', 
+        description: '何回練習するか。多いほど精度が上がるが、時間がかかる',
+        tips: '100回で十分な場合が多い。複雑なデータの場合は200-300回に増やしてみよう'
+      },
     },
   },
   {
@@ -43,9 +87,23 @@ const models = [
     category: 'classification',
     difficulty: '普通',
     detailedDescription: '新しいデータの周りにあるk個の最も近いデータを探し、それらの多数決で判断するAI。距離を計算して近いデータを見つけます。',
-    animation: 'neighbors',
+    tips: [
+      '💡 例：似たような条件の戦いの結果を参考に判断',
+      '🔍 データの形が複雑でも対応できる',
+      '⚡ 学習は不要で、すぐに予測できる',
+      '⚠️ データが多いと計算に時間がかかる'
+    ],
+    useCases: '戦略の分類、商品のカテゴリ分け、顧客の行動予測など',
     params: {
-      k: { default: 5, min: 1, max: 20, step: 1, label: '近くの数', description: '参考にする近くのデータの数' },
+      k: { 
+        default: 5, 
+        min: 1, 
+        max: 20, 
+        step: 1, 
+        label: '近くの数', 
+        description: '参考にする近くのデータの数。奇数にすると多数決で決まりやすくなる',
+        tips: '5が一般的な値。データが少ない場合は3、多い場合は7-9を試してみよう。偶数だと同数になることがあるので奇数がおすすめ'
+      },
     },
   },
 ];
@@ -79,216 +137,6 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
     setIsAnimating(false);
   };
 
-  const renderAnimation = (animationType: string) => {
-    switch (animationType) {
-      case 'line':
-        return (
-          <div className="relative w-full h-40 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-lg overflow-hidden">
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 160">
-              {/* 背景グリッド */}
-              <defs>
-                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(59,130,246,0.1)" strokeWidth="1"/>
-                </pattern>
-                <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ef4444" />
-                  <stop offset="100%" stopColor="#dc2626" />
-                </linearGradient>
-                <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#3b82f6" />
-                  <stop offset="100%" stopColor="#1d4ed8" />
-                </linearGradient>
-                <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#fbbf24" />
-                  <stop offset="50%" stopColor="#f59e0b" />
-                  <stop offset="100%" stopColor="#d97706" />
-                </linearGradient>
-              </defs>
-              
-              <rect width="100%" height="100%" fill="url(#grid)" />
-              
-              {/* データポイント（赤クラス） */}
-              <circle cx="60" cy="40" r="6" fill="url(#redGradient)" className="animate-pulse">
-                <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" />
-              </circle>
-              <circle cx="100" cy="60" r="6" fill="url(#redGradient)" className="animate-pulse" style={{ animationDelay: '0.3s' }}>
-                <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" begin="0.3s" />
-              </circle>
-              <circle cx="140" cy="80" r="6" fill="url(#redGradient)" className="animate-pulse" style={{ animationDelay: '0.6s' }}>
-                <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" begin="0.6s" />
-              </circle>
-              <circle cx="180" cy="100" r="6" fill="url(#redGradient)" className="animate-pulse" style={{ animationDelay: '0.9s' }}>
-                <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" begin="0.9s" />
-              </circle>
-              
-              {/* データポイント（青クラス） */}
-              <circle cx="80" cy="100" r="6" fill="url(#blueGradient)" className="animate-pulse" style={{ animationDelay: '0.1s' }}>
-                <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" begin="0.1s" />
-              </circle>
-              <circle cx="120" cy="120" r="6" fill="url(#blueGradient)" className="animate-pulse" style={{ animationDelay: '0.4s' }}>
-                <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" begin="0.4s" />
-              </circle>
-              <circle cx="160" cy="140" r="6" fill="url(#blueGradient)" className="animate-pulse" style={{ animationDelay: '0.7s' }}>
-                <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" begin="0.7s" />
-              </circle>
-              <circle cx="200" cy="160" r="6" fill="url(#blueGradient)" className="animate-pulse" style={{ animationDelay: '1s' }}>
-                <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" begin="1s" />
-              </circle>
-              
-              {/* 境界線（動的に描画） */}
-              <line x1="20" y1="50" x2="380" y2="130" stroke="url(#lineGradient)" strokeWidth="4" strokeLinecap="round">
-                <animate attributeName="stroke-dasharray" values="0,400;400,0" dur="3s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0;1;1;0" dur="3s" repeatCount="indefinite" />
-              </line>
-              
-              {/* 境界線の影 */}
-              <line x1="22" y1="52" x2="382" y2="132" stroke="rgba(0,0,0,0.2)" strokeWidth="4" strokeLinecap="round" opacity="0.3">
-                <animate attributeName="stroke-dasharray" values="0,400;400,0" dur="3s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0;0.3;0.3;0" dur="3s" repeatCount="indefinite" />
-              </line>
-              
-              {/* 分類ラベル */}
-              <text x="20" y="30" className="text-xs font-bold fill-red-600">クラスA</text>
-              <text x="20" y="150" className="text-xs font-bold fill-blue-600">クラスB</text>
-            </svg>
-          </div>
-        );
-      
-      case 'trend':
-        return (
-          <div className="relative w-full h-40 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-lg overflow-hidden">
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 160">
-              <defs>
-                <pattern id="trendGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(34,197,94,0.1)" strokeWidth="1"/>
-                </pattern>
-                <linearGradient id="pointGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#10b981" />
-                  <stop offset="100%" stopColor="#059669" />
-                </linearGradient>
-                <linearGradient id="trendGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#10b981" />
-                  <stop offset="50%" stopColor="#3b82f6" />
-                  <stop offset="100%" stopColor="#8b5cf6" />
-                </linearGradient>
-              </defs>
-              
-              <rect width="100%" height="100%" fill="url(#trendGrid)" />
-              
-              {/* データポイント */}
-              {[...Array(12)].map((_, i) => {
-                const x = 30 + i * 30;
-                const y = 120 - i * 4 - Math.sin(i * 0.5) * 10;
-                return (
-                  <g key={i}>
-                    <circle cx={x} cy={y} r="4" fill="url(#pointGradient)">
-                      <animate attributeName="r" values="4;6;4" dur="1.5s" repeatCount="indefinite" begin={`${i * 0.1}s`} />
-                      <animate attributeName="opacity" values="0.7;1;0.7" dur="1.5s" repeatCount="indefinite" begin={`${i * 0.1}s`} />
-                    </circle>
-                    {/* データポイントの光る効果 */}
-                    <circle cx={x} cy={y} r="8" fill="none" stroke="url(#pointGradient)" strokeWidth="1" opacity="0.3">
-                      <animate attributeName="r" values="8;12;8" dur="2s" repeatCount="indefinite" begin={`${i * 0.1}s`} />
-                      <animate attributeName="opacity" values="0.3;0;0.3" dur="2s" repeatCount="indefinite" begin={`${i * 0.1}s`} />
-                    </circle>
-                  </g>
-                );
-              })}
-              
-              {/* トレンドライン（ベジェ曲線） */}
-              <path d="M 30,120 Q 100,100 200,80 T 370,60" stroke="url(#trendGradient)" strokeWidth="3" fill="none" strokeLinecap="round">
-                <animate attributeName="stroke-dasharray" values="0,400;400,0" dur="4s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0;1;1;0" dur="4s" repeatCount="indefinite" />
-              </path>
-              
-              {/* 予測エリア（点線） */}
-              <path d="M 370,60 Q 380,50 390,40" stroke="url(#trendGradient)" strokeWidth="2" fill="none" strokeLinecap="round" strokeDasharray="5,5">
-                <animate attributeName="opacity" values="0;0.7;0" dur="3s" repeatCount="indefinite" begin="2s" />
-              </path>
-              
-              {/* 軸ラベル */}
-              <text x="10" y="140" className="text-xs font-bold fill-gray-600">特徴量</text>
-              <text x="350" y="20" className="text-xs font-bold fill-gray-600">目的変数</text>
-            </svg>
-          </div>
-        );
-      
-      case 'neighbors':
-        return (
-          <div className="relative w-full h-40 bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 rounded-lg overflow-hidden">
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 160">
-              <defs>
-                <pattern id="neighborGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(168,85,247,0.1)" strokeWidth="1"/>
-                </pattern>
-                <radialGradient id="centerGradient" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#a855f7" />
-                  <stop offset="100%" stopColor="#7c3aed" />
-                </radialGradient>
-                <radialGradient id="neighborGradient" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#ec4899" />
-                  <stop offset="100%" stopColor="#be185d" />
-                </radialGradient>
-                <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#a855f7" />
-                  <stop offset="100%" stopColor="#ec4899" />
-                </linearGradient>
-              </defs>
-              
-              <rect width="100%" height="100%" fill="url(#neighborGrid)" />
-              
-              {/* 中心のデータポイント */}
-              <g>
-                <circle cx="200" cy="80" r="8" fill="url(#centerGradient)">
-                  <animate attributeName="r" values="8;12;8" dur="2s" repeatCount="indefinite" />
-                </circle>
-                <circle cx="200" cy="80" r="16" fill="none" stroke="url(#centerGradient)" strokeWidth="2" opacity="0.5">
-                  <animate attributeName="r" values="16;24;16" dur="2s" repeatCount="indefinite" />
-                  <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite" />
-                </circle>
-              </g>
-              
-              {/* 近傍のデータポイント */}
-              {[...Array(8)].map((_, i) => {
-                const angle = (i * 45) * Math.PI / 180;
-                const radius = 40 + Math.sin(i * 0.5) * 10;
-                const x = 200 + Math.cos(angle) * radius;
-                const y = 80 + Math.sin(angle) * radius;
-                
-                return (
-                  <g key={i}>
-                    <circle cx={x} cy={y} r="5" fill="url(#neighborGradient)">
-                      <animate attributeName="r" values="5;7;5" dur="1.5s" repeatCount="indefinite" begin={`${i * 0.2}s`} />
-                    </circle>
-                    {/* 距離線 */}
-                    <line x1="200" y1="80" x2={x} y2={y} stroke="url(#lineGradient)" strokeWidth="1" opacity="0.6">
-                      <animate attributeName="opacity" values="0;0.6;0" dur="2s" repeatCount="indefinite" begin={`${i * 0.2}s`} />
-                    </line>
-                    {/* 距離の数値 */}
-                    <text x={x + 5} y={y - 5} className="text-xs font-bold fill-gray-600" opacity="0.8">
-                      <animate attributeName="opacity" values="0;0.8;0" dur="2s" repeatCount="indefinite" begin={`${i * 0.2}s`} />
-                      {Math.round(radius)}
-                    </text>
-                  </g>
-                );
-              })}
-              
-              {/* k値の表示 */}
-              <rect x="320" y="20" width="60" height="30" rx="15" fill="rgba(168,85,247,0.1)" stroke="url(#centerGradient)" strokeWidth="2">
-                <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />
-              </rect>
-              <text x="350" y="40" className="text-sm font-bold fill-purple-600" textAnchor="middle">k=5</text>
-              
-              {/* ラベル */}
-              <text x="20" y="20" className="text-xs font-bold fill-purple-600">新しいデータ</text>
-              <text x="20" y="150" className="text-xs font-bold fill-pink-600">近傍データ</text>
-            </svg>
-          </div>
-        );
-      
-      default:
-        return null;
-    }
-  };
 
   return (
     <div className="bg-white/90 rounded-lg p-6 shadow-lg border-2" style={{ borderColor: 'var(--gold)' }}>
@@ -296,7 +144,31 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
         <Brain className="w-5 h-5" style={{ color: 'var(--gold)' }} />
         <h3 className="text-lg font-bold text-gray-900">AIモデルを選ぼう</h3>
       </div>
-      <p className="text-sm mb-4 text-gray-700">問題に合ったAIの種類を選んで、設定を調整しよう！</p>
+          <p className="text-sm mb-4 text-gray-700">問題に合ったAIの種類を選んで、設定を調整しよう！</p>
+          
+          {/* 問題タイプ別のヒント */}
+          <div className="mb-6 p-4 rounded-lg border-2" style={{ background: 'rgba(30,58,138,0.06)', borderColor: 'var(--accent-strong)' }}>
+            <div className="flex items-center space-x-2 mb-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-sm font-bold text-gray-900">問題タイプ別のヒント</span>
+            </div>
+            {regionType === 'classification' ? (
+              <div className="text-sm text-gray-700">
+                <p className="mb-2">📊 <strong>分類問題</strong>：データをグループに分ける問題です</p>
+                <p className="text-xs text-gray-600">例：戦で勝つか負けるか、商品が売れるか売れないか、病気か健康か</p>
+              </div>
+            ) : regionType === 'regression' ? (
+              <div className="text-sm text-gray-700">
+                <p className="mb-2">📈 <strong>回帰問題</strong>：数値を予測する問題です</p>
+                <p className="text-xs text-gray-600">例：収穫量、売上金額、価格、温度、人口など</p>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-700">
+                <p className="mb-2">🤔 <strong>問題タイプを確認</strong>：まずデータを確認して問題の種類を把握しましょう</p>
+                <p className="text-xs text-gray-600">分類：グループ分け、回帰：数値予測</p>
+              </div>
+            )}
+          </div>
 
       <div className="space-y-4">
         <div>
@@ -376,6 +248,11 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
                     </span>
                   </div>
                   <p className="text-xs mb-2 text-gray-700">{config.description}</p>
+                  {config.tips && (
+                    <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded border-l-2 border-blue-300 mb-2">
+                      💡 {config.tips}
+                    </div>
+                  )}
                   <input
                     type="range"
                     min={config.min}
@@ -429,41 +306,63 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
                       </button>
                     </div>
 
-                    {/* アニメーション */}
-                    <div className="mb-6 animate-slideInUp">
-                      <h4 className="text-lg font-bold text-gray-900 mb-3 animate-glow">動作の仕組み</h4>
-                      <div className="animate-bounceIn" style={{ animationDelay: '0.2s' }}>
-                        {renderAnimation(model.animation)}
-                      </div>
-                    </div>
 
                     {/* 詳細説明 */}
                     <div className="mb-6 animate-slideInUp" style={{ animationDelay: '0.3s' }}>
                       <h4 className="text-lg font-bold text-gray-900 mb-3">詳しい説明</h4>
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 animate-pulse-glow">
-                        <p className="text-gray-700 leading-relaxed">{model.detailedDescription}</p>
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <p className="text-gray-700 leading-relaxed mb-4">{model.detailedDescription}</p>
+                        
+                        {/* 使用例 */}
+                        <div className="mb-4">
+                          <h5 className="text-sm font-bold text-gray-800 mb-2">📋 使用例</h5>
+                          <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded border-l-4 border-blue-400">
+                            {model.useCases}
+                          </p>
+                        </div>
+
+                        {/* ヒントとコツ */}
+                        <div>
+                          <h5 className="text-sm font-bold text-gray-800 mb-2">💡 ヒントとコツ</h5>
+                          <div className="space-y-2">
+                            {model.tips.map((tip, index) => (
+                              <div key={index} className="text-sm text-gray-600 bg-yellow-50 p-2 rounded border-l-2 border-yellow-300">
+                                {tip}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     {/* パラメータ説明 */}
                     <div className="mb-6 animate-slideInUp" style={{ animationDelay: '0.4s' }}>
                       <h4 className="text-lg font-bold text-gray-900 mb-3">設定パラメータ</h4>
-                      <div className="space-y-3">
-                        {Object.entries(model.params).map(([paramName, config], index) => (
+                      <div className="space-y-4">
+                        {Object.entries(model.params).map(([paramName, config]) => (
                           <div 
                             key={paramName} 
-                            className="bg-gray-50 p-3 rounded-lg border border-gray-200 animate-float"
-                            style={{ animationDelay: `${0.5 + index * 0.1}s` }}
+                            className="bg-gray-50 p-4 rounded-lg border border-gray-200"
                           >
-                            <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center justify-between mb-2">
                               <span className="font-medium text-gray-900">{config.label}</span>
-                              <span className="text-sm text-gray-600 bg-white px-2 py-1 rounded-full border">
+                              <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded border font-bold">
                                 現在値: {parameters[paramName] ?? config.default}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">{config.description}</p>
-                            <div className="mt-2 text-xs text-gray-500 bg-white/50 px-2 py-1 rounded">
-                              範囲: {config.min} ～ {config.max} (ステップ: {config.step})
+                            <p className="text-sm text-gray-700 mb-3 leading-relaxed">{config.description}</p>
+                            
+                            {/* パラメータのヒント */}
+                            {config.tips && (
+                              <div className="bg-blue-50 p-3 rounded border-l-4 border-blue-400 mb-3">
+                                <div className="text-xs font-bold text-blue-800 mb-1">💡 調整のコツ</div>
+                                <p className="text-xs text-blue-700">{config.tips}</p>
+                              </div>
+                            )}
+                            
+                            <div className="text-xs text-gray-500 bg-white/50 px-3 py-2 rounded border">
+                              <span className="font-medium">範囲:</span> {config.min} ～ {config.max} 
+                              <span className="ml-2 font-medium">ステップ:</span> {config.step}
                             </div>
                           </div>
                         ))}
@@ -475,7 +374,7 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
                           <span className="text-sm font-medium text-gray-600">難易度:</span>
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium animate-pulse ${
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                             model.difficulty === '簡単' 
                               ? 'bg-green-100 text-green-800' 
                               : model.difficulty === '普通'
@@ -487,7 +386,7 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="text-sm font-medium text-gray-600">タイプ:</span>
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium animate-pulse ${
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                             model.category === 'classification' 
                               ? 'bg-blue-100 text-blue-800' 
                               : 'bg-green-100 text-green-800'
@@ -502,7 +401,7 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
                     <div className="mt-6 flex justify-end animate-slideInUp" style={{ animationDelay: '0.7s' }}>
                       <button
                         onClick={handleCloseInfo}
-                        className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg animate-pulse-glow"
+                        className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg"
                       >
                         閉じる
                       </button>

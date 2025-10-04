@@ -1,8 +1,11 @@
 import { Map, Scroll, Award } from 'lucide-react';
+import { useState } from 'react';
 import { useGameState } from '../hooks/useGameState';
+import { MLFlowAnimation } from './MLFlowAnimation';
 
 export function ShogunRoom() {
   const { user, regions, progress, setCurrentView } = useGameState();
+  const [showMLFlow, setShowMLFlow] = useState(false);
 
   if (!user) return null;
 
@@ -80,10 +83,16 @@ export function ShogunRoom() {
                     <Scroll className="w-6 h-6" style={{ color: 'var(--accent-strong)' }} />
                     <h3 className="text-xl font-bold text-gray-900">機械学習とは？</h3>
                   </div>
-                  <p className="text-sm text-gray-700 leading-relaxed">
+                  <p className="text-sm text-gray-700 leading-relaxed mb-4">
                     機械学習は、コンピュータがデータから自動的にパターンを見つけ出す技術です。
                     このゲームでは、実際のMLモデルを使って戦国時代の様々な課題を解決します。
                   </p>
+                  <button
+                    onClick={() => setShowMLFlow(true)}
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-3 px-4 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg"
+                  >
+                    🎬 機械学習の流れをアニメーションで見る
+                  </button>
                 </div>
 
                 <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border-2" style={{ borderColor: 'var(--gold)' }}>
@@ -129,6 +138,11 @@ export function ShogunRoom() {
           </div>
         </div>
       </div>
+
+      {/* 機械学習の流れアニメーション */}
+      {showMLFlow && (
+        <MLFlowAnimation onClose={() => setShowMLFlow(false)} />
+      )}
     </div>
   );
 }
