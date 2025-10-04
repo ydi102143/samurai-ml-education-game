@@ -31,8 +31,8 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border-2 overflow-hidden" style={{ borderColor: 'var(--gold)' }}>
-      <div className="p-4" style={{ background: 'linear-gradient(to right, #1e3a8a, #1e40af)' }}>
+    <div className="rounded-xl shadow-lg border-2 overflow-hidden" style={{ background: 'var(--ink-white)', borderColor: 'var(--gold)' }}>
+      <div className="p-4" style={{ background: 'linear-gradient(to right, var(--accent-strong), var(--accent))' }}>
         <h3 className="text-lg font-bold text-white">使う特徴を選ぼう</h3>
         <p className="text-sm mt-1 text-white/85">
           予測に役立ちそうな特徴を選びます。最低1つは選んでください。
@@ -40,14 +40,14 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
       </div>
 
       <div className="p-6">
-        <div className="mb-6 p-4 rounded-lg border-2" style={{ background: 'rgba(30,58,138,0.06)', borderColor: 'var(--gold)' }}>
+        <div className="mb-6 p-4 rounded-lg border-2" style={{ background: 'var(--silver-light)', borderColor: 'var(--gold)' }}>
           <div className="flex items-start space-x-3">
             <Lightbulb className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--gold)' }} />
             <div>
-              <p className="text-sm leading-relaxed mb-2 text-gray-800">
+              <p className="text-sm leading-relaxed mb-2" style={{ color: 'var(--ink)' }}>
                 <span className="font-bold">特徴選択のポイント：</span>
               </p>
-              <ul className="text-sm space-y-1 text-gray-700">
+              <ul className="text-sm space-y-1" style={{ color: 'var(--ink-light)' }}>
                 <li>• 値のばらつき（標準偏差）が大きい特徴は予測に役立つことが多い</li>
                 <li>• すべての特徴を使うと、逆に精度が下がることもある</li>
                 <li>• まずは全部使ってみて、少しずつ減らして試してみよう</li>

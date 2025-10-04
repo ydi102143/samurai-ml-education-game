@@ -105,8 +105,8 @@ export function PreprocessingTab({ dataset, onPreprocessedDataset }: Props) {
 
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border-2 overflow-hidden" style={{ borderColor: 'var(--gold)' }}>
-      <div className="p-4 rounded-t-xl" style={{ background: 'linear-gradient(to right, #1e3a8a, #1e40af)' }}>
+    <div className="rounded-xl shadow-lg border-2 overflow-hidden" style={{ background: 'var(--ink-white)', borderColor: 'var(--gold)' }}>
+      <div className="p-4 rounded-t-xl" style={{ background: 'linear-gradient(to right, var(--accent-strong), var(--accent))' }}>
         <div className="flex items-center space-x-2 mb-2">
           <Settings className="w-5 h-5" style={{ color: 'var(--gold)' }} />
           <h3 className="text-lg font-bold text-white">データの前処理</h3>

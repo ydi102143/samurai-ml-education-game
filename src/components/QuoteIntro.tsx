@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Swords, Quote } from 'lucide-react';
 
 interface Props {
   onComplete: () => void;
@@ -41,15 +40,15 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
     };
 
     // タイミング（ms）をまとめて定義し、倍率を適用
-    // 0: フェードイン開始, 1: タイプライタ開始(英日同時)
-    const times = [700, 3200].map(t => Math.round(t * durationScale));
+    // 0: タイプライタ開始(英日同時)
+    const times = [200].map(t => Math.round(t * durationScale));
     setT(() => setIsVisible(true), times[0]);
-    setT(() => setCurrentStep(1), times[1]);
+    setT(() => setCurrentStep(1), times[0]);
 
     return () => {
       timerIds.forEach(id => clearTimeout(id));
     };
-  }, [onComplete, durationScale]);
+  }, [durationScale, onComplete]);
 
   // ステップ2：タイプライタ（英日同時）
   useEffect(() => {
@@ -58,17 +57,17 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
     const timer = setInterval(() => {
       if (line === 0) {
         if (i <= english[0].length) {
-          // 英語の方が少し早く進む
+          // 英語の方が早く進む
           setTypedEng(prev => [english[0].slice(0, i), prev[1]]);
           setTypedJpn(prev => [japanese[0].slice(0, Math.min(j, japanese[0].length)), prev[1]]);
-          i++; j = Math.floor(i * 0.5);
+          i++; j = Math.floor(i * 0.3);
         } else {
           line = 1; i = 0; j = 0;
         }
       } else if (line === 1) {
         if (i <= english[1].length) {
           setTypedEng(prev => [prev[0], english[1].slice(0, i)]);
-          setTypedJpn(prev => [prev[0], japanese[1].slice(0, Math.min(Math.floor(i * 0.55), japanese[1].length))]);
+          setTypedJpn(prev => [prev[0], japanese[1].slice(0, Math.min(Math.floor(i * 0.43), japanese[1].length))]);
           i++;
         } else {
           clearInterval(timer);
@@ -77,7 +76,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
           setTimeout(() => setShowAuthor(true), 1000);
         }
       }
-    }, Math.max(50, 80 * durationScale));
+    }, Math.max(40, 70 * durationScale));
     return () => clearInterval(timer);
   }, [currentStep, durationScale, english, japanese]);
 
@@ -92,9 +91,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
     };
 
     // タイプライタ完了後の流れ
-    setT(() => setCurrentStep(3), 4000); // 著者名表示後4秒待機
-    setT(() => setCurrentStep(4), 7000); // さらに3秒待機
-    setT(() => onComplete(), 10000); // 最終的に10秒後に完了
+    setT(() => onComplete(), 2500); // 著者名表示後2.5秒で完了
 
     return () => {
       timerIds.forEach(id => clearTimeout(id));
@@ -119,126 +116,192 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
   };
 
   return (
-    <div className="h-screen" style={{ background: 'var(--paper)' }}>
+    <div className="h-screen" style={{ background: '#404040' }}>
       <div className="w-full h-full flex items-center justify-center p-4 relative overflow-hidden">
-      {/* スキップボタン */}
-      <button
-        onClick={handleSkip}
-        className="absolute top-4 right-4 text-sm px-3 py-1 rounded-lg transition-colors"
-        style={{ color: 'var(--ink)', background: 'rgba(255,255,255,0.6)', border: '1px solid var(--gold)' }}
-        aria-label="イントロをスキップ"
-      >
-        スキップ
-      </button>
-      {/* 背景エフェクト（CRT風） */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0" style={{ backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.2) 0px, rgba(0,0,0,0.2) 1px, transparent 2px, transparent 3px)' }} />
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.15), transparent 40%)' }} />
-      </div>
+        {/* スキップボタン */}
+        <button
+          onClick={handleSkip}
+          className="absolute top-4 right-4 text-sm px-3 py-1 rounded-lg transition-colors"
+          style={{ color: 'white', background: 'rgba(255,255,255,0.2)', border: '1px solid var(--gold)' }}
+          aria-label="イントロをスキップ"
+        >
+          スキップ
+        </button>
+        
+        {/* テレビノイズ風背景 */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: `
+            radial-gradient(circle at 20% 30%, rgba(255,255,255,0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 70%, rgba(255,255,255,0.05) 0%, transparent 50%),
+            radial-gradient(circle at 40% 80%, rgba(255,255,255,0.08) 0%, transparent 50%),
+            repeating-linear-gradient(
+              0deg,
+              transparent 0px,
+              rgba(255,255,255,0.02) 1px,
+              transparent 2px,
+              rgba(0,0,0,0.02) 3px,
+              transparent 4px
+            )
+          `,
+          animation: 'noise 0.2s steps(8) infinite'
+        }} />
 
-      {/* 微細な光の粒子 */}
-      <div className="absolute inset-0">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-0.5 h-0.5 bg-white/60 rounded-full animate-pulse"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 4}s`,
-              animationDuration: `${3 + Math.random() * 2}s`,
-            }}
-          />
-        ))}
-      </div>
+        {/* 微細な光の粒子 */}
+        <div className="absolute inset-0">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-0.5 h-0.5 rounded-full animate-pulse"
+              style={{
+                background: 'var(--gold)',
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 4}s`,
+                opacity: 0.8,
+              }}
+            />
+          ))}
+        </div>
 
-      <div className={`relative z-10 max-w-4xl w-full text-center transition-all duration-1000 ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-      }`}>
-        {/* ステップ1: タイトル表示 */}
-        {currentStep === 0 && (
-          <div className={`transition-all duration-1000 ${
-            isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-          }`}>
-            <div className="flex items-center justify-center mb-8">
-              <Swords className="w-16 h-16" style={{ color: 'var(--accent-strong)' }} />
-              <div className="ml-4 text-center">
-                <h1 className="text-5xl md:text-7xl font-bold tracking-wider" style={{ color: 'white' }}>
-                  samurAI
-                </h1>
-                <p className="mt-3 text-xl md:text-2xl font-light" style={{ color: 'var(--gold)' }}>
-                  機械学習で天下統一
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* メインコンテンツ */}
+        <div className={`text-center z-10 transition-all duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
 
-        {/* ステップ2: 引用文表示 */}
-        {currentStep === 1 && (
-          <div className={`transition-all duration-1000 ${
-            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          }`}>
-            <div className="rounded-3xl p-8 md:p-12 border" style={{ background: 'rgba(10,25,47,0.85)', borderColor: 'var(--gold)' }}>
-              <Quote className="w-10 h-10 mx-auto mb-6" style={{ color: 'var(--gold)' }} />
-              <div className="space-y-3">
-                <div>
-                  <p className="text-3xl md:text-5xl font-light" style={{ color: 'var(--gold)' }}>{typedEng[0]}</p>
-                  <p className="text-base md:text-lg opacity-95" style={{ color: '#e0e8f0' }}>{typedJpn[0]}</p>
+          {currentStep === 1 && (
+            <div className="fixed inset-0 w-full h-full flex items-center justify-center" style={{
+              background: '#404040'
+            }}>
+              {/* 黒色ノイズエフェクト - 画面全体 */}
+              <div className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: `
+                  repeating-linear-gradient(
+                    0deg,
+                    transparent 0px,
+                    rgba(0,0,0,0.3) 0.5px,
+                    transparent 1px,
+                    rgba(0,0,0,0.4) 1.5px,
+                    transparent 2px,
+                    rgba(0,0,0,0.2) 2.5px,
+                    transparent 3px,
+                    rgba(0,0,0,0.5) 3.5px,
+                    transparent 4px,
+                    rgba(0,0,0,0.1) 4.5px,
+                    transparent 5px
+                  ),
+                  repeating-linear-gradient(
+                    90deg,
+                    transparent 0px,
+                    rgba(0,0,0,0.25) 0.3px,
+                    transparent 0.8px,
+                    rgba(0,0,0,0.35) 1.3px,
+                    transparent 1.8px,
+                    rgba(0,0,0,0.15) 2.3px,
+                    transparent 2.8px,
+                    rgba(0,0,0,0.45) 3.3px,
+                    transparent 3.8px
+                  ),
+                  repeating-linear-gradient(
+                    45deg,
+                    transparent 0px,
+                    rgba(0,0,0,0.2) 0.2px,
+                    transparent 0.6px,
+                    rgba(0,0,0,0.3) 1.1px,
+                    transparent 1.6px,
+                    rgba(0,0,0,0.1) 2.1px,
+                    transparent 2.6px
+                  ),
+                  repeating-linear-gradient(
+                    135deg,
+                    transparent 0px,
+                    rgba(0,0,0,0.18) 0.1px,
+                    transparent 0.5px,
+                    rgba(0,0,0,0.28) 1px,
+                    transparent 1.5px,
+                    rgba(0,0,0,0.08) 2px,
+                    transparent 2.5px
+                  )
+                `,
+                animation: 'tvNoise 0.005s steps(1) infinite'
+              }} />
+              
+              {/* 追加の黒色ノイズ */}
+              <div className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: `
+                  radial-gradient(circle at 5% 10%, rgba(0,0,0,0.4) 0%, transparent 0.2px),
+                  radial-gradient(circle at 15% 25%, rgba(0,0,0,0.5) 0%, transparent 0.1px),
+                  radial-gradient(circle at 25% 40%, rgba(0,0,0,0.3) 0%, transparent 0.3px),
+                  radial-gradient(circle at 35% 55%, rgba(0,0,0,0.6) 0%, transparent 0.15px),
+                  radial-gradient(circle at 45% 70%, rgba(0,0,0,0.35) 0%, transparent 0.4px),
+                  radial-gradient(circle at 55% 15%, rgba(0,0,0,0.7) 0%, transparent 0.08px),
+                  radial-gradient(circle at 65% 30%, rgba(0,0,0,0.25) 0%, transparent 0.6px),
+                  radial-gradient(circle at 75% 45%, rgba(0,0,0,0.55) 0%, transparent 0.2px),
+                  radial-gradient(circle at 85% 60%, rgba(0,0,0,0.45) 0%, transparent 0.35px),
+                  radial-gradient(circle at 95% 75%, rgba(0,0,0,0.65) 0%, transparent 0.12px)
+                `,
+                animation: 'tvNoise 0.003s steps(1) infinite'
+              }} />
+              
+              <div className="space-y-8 w-full px-4 relative z-10" style={{ maxWidth: '90vw' }}>
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="text-3xl font-bold leading-relaxed" style={{ 
+                      color: '#ffffff',
+                      textShadow: '0 0 5px #ffffff, 0 0 10px #ffffff, 0 0 15px #ffffff, 0 0 20px #ffffff',
+                      fontFamily: 'monospace',
+                      textAlign: 'center',
+                      fontWeight: 'bold'
+                    }}>
+                      {typedEng[0]}
+                    </div>
+                    <div className="text-lg font-medium leading-relaxed" style={{ 
+                      color: '#cccccc',
+                      textShadow: '0 0 3px #cccccc, 0 0 6px #cccccc, 0 0 9px #cccccc',
+                      fontFamily: 'monospace',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {typedJpn[0]}
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="text-3xl font-bold leading-relaxed" style={{ 
+                      color: '#ffffff',
+                      textShadow: '0 0 5px #ffffff, 0 0 10px #ffffff, 0 0 15px #ffffff, 0 0 20px #ffffff',
+                      fontFamily: 'monospace',
+                      textAlign: 'center',
+                      fontWeight: 'bold'
+                    }}>
+                      {typedEng[1]}
+                    </div>
+                    <div className="text-lg font-medium leading-relaxed" style={{ 
+                      color: '#cccccc',
+                      textShadow: '0 0 3px #cccccc, 0 0 6px #cccccc, 0 0 9px #cccccc',
+                      fontFamily: 'monospace',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {typedJpn[1]}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-3xl md:text-5xl font-light" style={{ color: 'var(--gold)' }}>{typedEng[1]}</p>
-                  <p className="text-base md:text-lg opacity-95" style={{ color: '#e0e8f0' }}>{typedJpn[1]}</p>
-                </div>
+                
+                {showAuthor && (
+                  <div className={`transition-all duration-3000 mt-6 ${showAuthor ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                    <p className="text-xl font-light text-center" style={{ 
+                      color: '#999999',
+                      textShadow: '0 0 3px #999999, 0 0 6px #999999',
+                      fontFamily: 'monospace'
+                    }}>
+                      — Jonathan Rosenberg
+                    </p>
+                  </div>
+                )}
               </div>
-              <cite 
-                className={`block mt-6 text-sm md:text-base font-light transition-all duration-3000 ${
-                  showAuthor ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                }`} 
-                style={{ color: '#d0dae8' }}
-              >
-                — Jonathan Rosenberg
-              </cite>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ステップ3: 日本語訳（不要のため非表示） */}
+        </div>
 
-        {/* ステップ4: 説明文表示 */}
-        {currentStep === 3 && (
-          <div className={`transition-all duration-1000 ${
-            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          }`}>
-            <div className="rounded-3xl p-12 md:p-16 border" style={{ background: 'rgba(255,255,255,0.1)', borderColor: 'var(--gold)' }}>
-              <p className="text-xl md:text-3xl leading-relaxed font-light" style={{ color: 'white' }}>
-                戦国時代の日本。各地の藩が抱える課題を、
-                <br />
-                <span className="font-medium" style={{ color: 'var(--gold)' }}>機械学習の力</span>で解決し、天下統一を目指せ！
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* ステップ5: ローディング表示 */}
-        {currentStep === 4 && (
-          <div className={`transition-all duration-1000 ${
-            isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-          }`}>
-            <div className="rounded-3xl p-12 md:p-16 border" style={{ background: 'rgba(255,255,255,0.1)', borderColor: 'var(--gold)' }}>
-              <div className="flex items-center justify-center space-x-4 mb-6">
-                <div className="w-4 h-4 rounded-full animate-bounce" style={{ background: 'white', animationDelay: '0s' }} />
-                <div className="w-4 h-4 rounded-full animate-bounce" style={{ background: 'var(--gold)', animationDelay: '0.1s' }} />
-                <div className="w-4 h-4 rounded-full animate-bounce" style={{ background: 'white', animationDelay: '0.2s' }} />
-              </div>
-              <p className="text-xl md:text-2xl font-light" style={{ color: 'white' }}>
-                ゲームを準備中...
-              </p>
-            </div>
-          </div>
-        )}
       </div>
-    </div>
     </div>
   );
 }

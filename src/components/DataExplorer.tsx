@@ -32,8 +32,8 @@ export function DataExplorer({ dataset }: Props) {
   ];
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border-2 overflow-hidden" style={{ borderColor: 'var(--gold)' }}>
-      <div className="p-4 rounded-t-xl" style={{ background: 'linear-gradient(to right, #1e3a8a, #1e40af)' }}>
+    <div className="rounded-xl shadow-lg border-2 overflow-hidden" style={{ background: 'var(--ink-white)', borderColor: 'var(--gold)' }}>
+      <div className="p-4 rounded-t-xl" style={{ background: 'linear-gradient(to right, var(--accent-strong), var(--accent))' }}>
         <div className="flex items-center space-x-2 mb-2">
           <Database className="w-5 h-5" style={{ color: 'var(--gold)' }} />
           <h3 className="text-lg font-bold text-white">データを調べよう</h3>
@@ -41,7 +41,7 @@ export function DataExplorer({ dataset }: Props) {
         <p className="text-sm text-white/85">データをよく観察して、パターンや特徴を見つけよう！</p>
       </div>
 
-      <div className="border-b" style={{ borderColor: 'var(--gold)', background: 'rgba(30,58,138,0.06)' }}>
+      <div className="border-b" style={{ borderColor: 'var(--gold)', background: 'var(--silver-light)' }}>
         <div className="flex space-x-2 p-3 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -51,19 +51,20 @@ export function DataExplorer({ dataset }: Props) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg transition-all whitespace-nowrap min-w-[120px] border-2 ${
                   activeTab === tab.id
-                    ? 'bg-white shadow-md scale-105 font-bold'
-                    : 'bg-white/40 hover:bg-white/60 border-white/50'
+                    ? 'shadow-md scale-105 font-bold'
+                    : 'hover:bg-white/60'
                 }`}
                 style={{ 
-                  color: activeTab === tab.id ? '#1e3a8a' : '#1e3a8a',
-                  borderColor: activeTab === tab.id ? 'var(--gold)' : 'rgba(30,58,138,0.3)'
+                  background: activeTab === tab.id ? 'var(--ink-white)' : 'transparent',
+                  color: activeTab === tab.id ? 'var(--accent-strong)' : 'var(--ink-light)',
+                  borderColor: activeTab === tab.id ? 'var(--gold)' : 'var(--silver)'
                 }}
               >
                 <div className="flex items-center space-x-2">
-                  <Icon className="w-4 h-4" style={{ color: activeTab === tab.id ? '#1e3a8a' : '#1e3a8a' }} />
+                  <Icon className="w-4 h-4" style={{ color: activeTab === tab.id ? 'var(--accent-strong)' : 'var(--ink-light)' }} />
                   <span className="text-sm font-medium">{tab.label}</span>
                 </div>
-                <span className="text-xs" style={{ color: activeTab === tab.id ? '#374151' : '#1e3a8a' }}>{tab.description}</span>
+                <span className="text-xs" style={{ color: activeTab === tab.id ? 'var(--ink-light)' : 'var(--ink-light)' }}>{tab.description}</span>
               </button>
             );
           })}

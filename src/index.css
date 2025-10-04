@@ -6,16 +6,26 @@
 @layer base {
   :root {
     /* 紺・金・銀の統一テーマ */
-    --paper: radial-gradient(circle at 20% 40%, rgba(12,22,46,0.25), transparent 60%), #0a1224; /* 紺の地 */
-    --ink: #e6f0ff;            /* 明るい青白（文字） */
-    --land-light: #a5c8ff;     /* 地図補助色（淡青） */
+    --paper: #f8fafc;          /* 明るい背景 */
+    --paper-dark: #0f172a;     /* 暗い背景 */
+    --ink: #1e293b;            /* 濃い文字色 */
+    --ink-light: #64748b;      /* 薄い文字色 */
+    --ink-white: #ffffff;      /* 白文字 */
+    --land-light: #e2e8f0;     /* 地図補助色（淡青） */
     --land-dark: #3b82f6;      /* アクセント青 */
-    --accent: #1e3a8a;         /* 紺 */
-    --accent-strong: #0b275a;  /* 濃紺 */
-    --gold: #d6c171;           /* 金 */
-    --silver: #c0c0c0;         /* 銀 */
-    --silver-light: #e8e8e8;   /* 薄銀 */
-    --silver-dark: #a0a0a0;    /* 濃銀 */
+    --accent: #1e40af;         /* メイン紺 */
+    --accent-strong: #1e3a8a;  /* 濃紺 */
+    --accent-light: #3b82f6;   /* 薄紺 */
+    --gold: #d4af37;           /* 金 */
+    --gold-light: #f4d03f;     /* 薄金 */
+    --gold-dark: #b8860b;      /* 濃金 */
+    --silver: #94a3b8;         /* 銀 */
+    --silver-light: #e2e8f0;   /* 薄銀 */
+    --silver-dark: #64748b;    /* 濃銀 */
+    --success: #10b981;        /* 成功色（緑） */
+    --warning: #f59e0b;        /* 警告色（オレンジ） */
+    --error: #ef4444;          /* エラー色（赤） */
+    --info: #3b82f6;           /* 情報色（青） */
   }
 }
 
@@ -43,6 +53,65 @@
   
   .animate-glow {
     animation: glow 2s ease-in-out infinite alternate;
+  }
+}
+
+/* 統一ボタンスタイル */
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg text-white;
+    background: linear-gradient(to right, var(--accent), var(--accent-strong));
+    border: 2px solid var(--gold);
+  }
+  
+  .btn-secondary {
+    @apply px-4 py-2 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg;
+    background: var(--silver-light);
+    color: var(--ink);
+    border: 2px solid var(--gold);
+  }
+  
+  .btn-outline {
+    @apply px-4 py-2 rounded-lg font-medium transition-all transform hover:scale-105;
+    background: transparent;
+    color: var(--accent-strong);
+    border: 2px solid var(--accent-strong);
+  }
+  
+  .btn-outline:hover {
+    background: var(--accent-strong);
+    color: white;
+  }
+  
+  .card {
+    @apply rounded-lg shadow-lg border-2;
+    background: var(--ink-white);
+    border-color: var(--gold);
+  }
+  
+  .card-header {
+    @apply p-4 rounded-t-lg;
+    background: linear-gradient(to right, var(--accent-strong), var(--accent));
+  }
+  
+  .text-primary {
+    color: var(--ink);
+  }
+  
+  .text-secondary {
+    color: var(--ink-light);
+  }
+  
+  .bg-accent {
+    background: var(--accent);
+  }
+  
+  .bg-accent-strong {
+    background: var(--accent-strong);
+  }
+  
+  .bg-silver {
+    background: var(--silver-light);
   }
 }
 
@@ -108,5 +177,108 @@
   }
   to {
     text-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes scanlines {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(4px);
+  }
+}
+
+@keyframes noise {
+  0% {
+    background-position: 0 0;
+  }
+  10% {
+    background-position: -5% -10%;
+  }
+  20% {
+    background-position: -15% 5%;
+  }
+  30% {
+    background-position: 7% -25%;
+  }
+  40% {
+    background-position: -5% 25%;
+  }
+  50% {
+    background-position: -15% 10%;
+  }
+  60% {
+    background-position: 15% 0%;
+  }
+  70% {
+    background-position: 0% 15%;
+  }
+  80% {
+    background-position: 3% 35%;
+  }
+  90% {
+    background-position: -10% 10%;
+  }
+  100% {
+    background-position: 5% 5%;
+  }
+}
+
+@keyframes tvNoise {
+  0% { 
+    background-position: 0% 0%, 10% 20%, 5% 15%, 15% 25%, 8% 18%, 0% 0%, 0% 0%;
+    opacity: 0.9;
+    transform: translateX(0px) translateY(0px);
+  }
+  10% { 
+    background-position: 5% 5%, 15% 25%, 10% 20%, 20% 30%, 12% 22%, 2% 2%, 2% 2%;
+    opacity: 0.7;
+    transform: translateX(1px) translateY(-1px);
+  }
+  20% { 
+    background-position: 10% 10%, 20% 30%, 15% 25%, 25% 35%, 16% 26%, 4% 4%, 4% 4%;
+    opacity: 0.8;
+    transform: translateX(-1px) translateY(1px);
+  }
+  30% { 
+    background-position: 15% 15%, 25% 35%, 20% 30%, 30% 40%, 20% 30%, 6% 6%, 6% 6%;
+    opacity: 0.6;
+    transform: translateX(2px) translateY(-2px);
+  }
+  40% { 
+    background-position: 20% 20%, 30% 40%, 25% 35%, 35% 45%, 24% 34%, 8% 8%, 8% 8%;
+    opacity: 0.9;
+    transform: translateX(-2px) translateY(2px);
+  }
+  50% { 
+    background-position: 25% 25%, 35% 45%, 30% 40%, 40% 50%, 28% 38%, 10% 10%, 10% 10%;
+    opacity: 0.7;
+    transform: translateX(1px) translateY(-1px);
+  }
+  60% { 
+    background-position: 30% 30%, 40% 50%, 35% 45%, 45% 55%, 32% 42%, 12% 12%, 12% 12%;
+    opacity: 0.8;
+    transform: translateX(-1px) translateY(1px);
+  }
+  70% { 
+    background-position: 35% 35%, 45% 55%, 40% 50%, 50% 60%, 36% 46%, 14% 14%, 14% 14%;
+    opacity: 0.6;
+    transform: translateX(2px) translateY(-2px);
+  }
+  80% { 
+    background-position: 40% 40%, 50% 60%, 45% 55%, 55% 65%, 40% 50%, 16% 16%, 16% 16%;
+    opacity: 0.9;
+    transform: translateX(-2px) translateY(2px);
+  }
+  90% { 
+    background-position: 45% 45%, 55% 65%, 50% 60%, 60% 70%, 44% 54%, 18% 18%, 18% 18%;
+    opacity: 0.7;
+    transform: translateX(1px) translateY(-1px);
+  }
+  100% { 
+    background-position: 50% 50%, 60% 70%, 55% 65%, 65% 75%, 48% 58%, 20% 20%, 20% 20%;
+    opacity: 0.8;
+    transform: translateX(0px) translateY(0px);
   }
 }

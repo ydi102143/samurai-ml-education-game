@@ -139,40 +139,40 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
 
 
   return (
-    <div className="bg-white/90 rounded-lg p-6 shadow-lg border-2" style={{ borderColor: 'var(--gold)' }}>
+    <div className="rounded-lg p-6 shadow-lg border-2" style={{ background: 'var(--ink-white)', borderColor: 'var(--gold)' }}>
       <div className="flex items-center space-x-2 mb-4">
         <Brain className="w-5 h-5" style={{ color: 'var(--gold)' }} />
-        <h3 className="text-lg font-bold text-gray-900">AIモデルを選ぼう</h3>
+        <h3 className="text-lg font-bold" style={{ color: 'var(--ink)' }}>AIモデルを選ぼう</h3>
       </div>
-          <p className="text-sm mb-4 text-gray-700">問題に合ったAIの種類を選んで、設定を調整しよう！</p>
+          <p className="text-sm mb-4" style={{ color: 'var(--ink-light)' }}>問題に合ったAIの種類を選んで、設定を調整しよう！</p>
           
           {/* 問題タイプ別のヒント */}
-          <div className="mb-6 p-4 rounded-lg border-2" style={{ background: 'rgba(30,58,138,0.06)', borderColor: 'var(--accent-strong)' }}>
+          <div className="mb-6 p-4 rounded-lg border-2" style={{ background: 'var(--silver-light)', borderColor: 'var(--accent-strong)' }}>
             <div className="flex items-center space-x-2 mb-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span className="text-sm font-bold text-gray-900">問題タイプ別のヒント</span>
+              <div className="w-2 h-2 rounded-full" style={{ background: 'var(--accent)' }}></div>
+              <span className="text-sm font-bold" style={{ color: 'var(--ink)' }}>問題タイプ別のヒント</span>
             </div>
             {regionType === 'classification' ? (
-              <div className="text-sm text-gray-700">
+              <div className="text-sm" style={{ color: 'var(--ink-light)' }}>
                 <p className="mb-2">📊 <strong>分類問題</strong>：データをグループに分ける問題です</p>
-                <p className="text-xs text-gray-600">例：戦で勝つか負けるか、商品が売れるか売れないか、病気か健康か</p>
+                <p className="text-xs" style={{ color: 'var(--ink-light)' }}>例：戦で勝つか負けるか、商品が売れるか売れないか、病気か健康か</p>
               </div>
             ) : regionType === 'regression' ? (
-              <div className="text-sm text-gray-700">
+              <div className="text-sm" style={{ color: 'var(--ink-light)' }}>
                 <p className="mb-2">📈 <strong>回帰問題</strong>：数値を予測する問題です</p>
-                <p className="text-xs text-gray-600">例：収穫量、売上金額、価格、温度、人口など</p>
+                <p className="text-xs" style={{ color: 'var(--ink-light)' }}>例：収穫量、売上金額、価格、温度、人口など</p>
               </div>
             ) : (
-              <div className="text-sm text-gray-700">
+              <div className="text-sm" style={{ color: 'var(--ink-light)' }}>
                 <p className="mb-2">🤔 <strong>問題タイプを確認</strong>：まずデータを確認して問題の種類を把握しましょう</p>
-                <p className="text-xs text-gray-600">分類：グループ分け、回帰：数値予測</p>
+                <p className="text-xs" style={{ color: 'var(--ink-light)' }}>分類：グループ分け、回帰：数値予測</p>
               </div>
             )}
           </div>
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-2 text-gray-900">
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--ink)' }}>
             AIモデルの種類
           </label>
           <div className="space-y-2">
@@ -181,9 +181,13 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
                 key={model.id}
                 className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
                   selectedModel === model.id
-                    ? 'bg-blue-50 border-blue-400 shadow-md'
-                    : 'bg-white border-gray-200 hover:bg-gray-50'
+                    ? 'shadow-md'
+                    : 'hover:bg-gray-50'
                 }`}
+                style={{
+                  background: selectedModel === model.id ? 'var(--silver-light)' : 'var(--ink-white)',
+                  borderColor: selectedModel === model.id ? 'var(--accent)' : 'var(--silver)'
+                }}
                 onClick={() => onModelChange(model.id)}
               >
                 <div className="flex items-center space-x-3">
@@ -197,8 +201,8 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
                     )}
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900">{model.name}</div>
-                    <div className="text-sm text-gray-600">{model.description}</div>
+                    <div className="font-medium" style={{ color: 'var(--ink)' }}>{model.name}</div>
+                    <div className="text-sm" style={{ color: 'var(--ink-light)' }}>{model.description}</div>
                   </div>
                 </div>
                 <button
@@ -209,47 +213,37 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
                   className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                   title="詳細情報を見る"
                 >
-                  <Info className="w-4 h-4 text-gray-500 hover:text-blue-500" />
+                  <Info className="w-4 h-4" style={{ color: 'var(--ink-light)' }} />
                 </button>
               </div>
             ))}
           </div>
           
-          {/* 選択されたモデルの説明 */}
-          <div className="mt-2 p-3 rounded-lg border" style={{ background: 'rgba(30,58,138,0.06)', borderColor: 'var(--accent-strong)' }}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-medium text-gray-900">{currentModel.name}</span>
-              <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'var(--accent)', color: 'white' }}>
-                {currentModel.difficulty}
-              </span>
-            </div>
-            <p className="text-sm text-gray-800">{currentModel.description}</p>
-          </div>
         </div>
 
-        <div className="p-4 rounded-lg border" style={{ background: 'rgba(30,58,138,0.06)', borderColor: 'var(--accent-strong)' }}>
+        <div className="p-4 rounded-lg border" style={{ background: 'var(--silver-light)', borderColor: 'var(--accent-strong)' }}>
           <div className="flex items-center space-x-2 mb-3">
             <Settings className="w-4 h-4" style={{ color: 'var(--accent-strong)' }} />
-            <h4 className="text-sm font-bold text-gray-900">AIの設定を調整</h4>
+            <h4 className="text-sm font-bold" style={{ color: 'var(--ink)' }}>AIの設定を調整</h4>
           </div>
-          <p className="text-xs mb-3 text-gray-700">スライダーを動かして、AIの動作を調整しよう</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--ink-light)' }}>スライダーを動かして、AIの動作を調整しよう</p>
 
           <div className="space-y-4">
             {Object.entries(currentModel.params).map(([paramName, config]) => {
               const value = parameters[paramName] ?? config.default;
               return (
-                <div key={paramName} className="bg-white p-3 rounded-lg border" style={{ borderColor: 'var(--accent-strong)' }}>
+                <div key={paramName} className="p-3 rounded-lg border" style={{ background: 'var(--ink-white)', borderColor: 'var(--accent-strong)' }}>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-gray-900">
+                    <label className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
                       {config.label || paramName}
                     </label>
-                    <span className="text-sm font-bold px-2 py-1 rounded" style={{ color: 'var(--accent-strong)', background: 'rgba(30,58,138,0.1)' }}>
+                    <span className="text-sm font-bold px-2 py-1 rounded" style={{ color: 'var(--accent-strong)', background: 'var(--silver-light)' }}>
                       {value}
                     </span>
                   </div>
-                  <p className="text-xs mb-2 text-gray-700">{config.description}</p>
+                  <p className="text-xs mb-2" style={{ color: 'var(--ink-light)' }}>{config.description}</p>
                   {config.tips && (
-                    <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded border-l-2 border-blue-300 mb-2">
+                    <div className="text-xs p-2 rounded border-l-2 mb-2" style={{ color: 'var(--accent-strong)', background: 'var(--silver-light)', borderColor: 'var(--accent)' }}>
                       💡 {config.tips}
                     </div>
                   )}

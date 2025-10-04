@@ -186,10 +186,10 @@ export function ChallengeView() {
   ];
 
   return (
-    <div className="min-h-screen" style={{ background: 'radial-gradient(circle at 20% 40%, rgba(201,176,100,0.12), transparent 60%), var(--paper)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--paper)' }}>
       <div className="max-w-6xl mx-auto">
-        <div className="rounded-2xl shadow-xl overflow-hidden border-4" style={{ borderColor: 'var(--gold)', background: 'rgba(255,255,255,0.95)' }}>
-          <div className="p-6" style={{ background: 'linear-gradient(to right, #1e3a8a, #1e40af)' }}>
+        <div className="rounded-2xl shadow-xl overflow-hidden border-4" style={{ borderColor: 'var(--gold)', background: 'var(--ink-white)' }}>
+          <div className="p-6" style={{ background: 'linear-gradient(to right, var(--accent-strong), var(--accent))' }}>
             <div className="flex items-center justify-between mb-6">
               <button
                 onClick={() => setCurrentView('map')}

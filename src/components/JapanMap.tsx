@@ -11,7 +11,7 @@ const regionPositions = {
   owari: { x: 53, y: 63, name: '尾張', daimyo: '織田信長' },
   satsuma: { x: 20, y: 85, name: '薩摩', daimyo: '島津義弘' },
   hizen: { x: 17, y: 73, name: '肥前', daimyo: '鍋島直茂' },
-  sagami: { x: 62, y: 62, name: '相模', daimyo: '北条氏康' },
+  sagami: { x: 64, y: 62, name: '相模', daimyo: '北条氏康' },
   dewa: { x: 74, y: 35, name: '出羽', daimyo: '最上義光' },
   morioka: { x: 72, y: 25, name: '盛岡', daimyo: '南部信直' },
   sendai: { x: 72, y: 43, name: '仙台', daimyo: '伊達政宗' },
@@ -64,9 +64,9 @@ export function JapanMap() {
   const unlockedCount = Object.values(progress).filter(p => p.is_unlocked).length;
 
   return (
-    <div className="min-h-screen p-4 md:p-8" style={{ background: 'radial-gradient(circle at 20% 40%, rgba(201,176,100,0.12), transparent 60%), var(--paper)' }}>
+    <div className="min-h-screen p-4 md:p-8" style={{ background: 'var(--paper)' }}>
       <div className="max-w-7xl mx-auto">
-        <div className="rounded-2xl shadow-xl overflow-hidden border-4" style={{ borderColor: 'var(--gold)', background: 'rgba(255,255,255,0.9)' }}>
+        <div className="rounded-2xl shadow-xl overflow-hidden border-4" style={{ borderColor: 'var(--gold)', background: 'var(--ink-white)' }}>
           <div className="p-6" style={{ background: 'linear-gradient(to right, var(--accent-strong), var(--accent))' }}>
             <div className="flex items-center justify-between">
               <button
