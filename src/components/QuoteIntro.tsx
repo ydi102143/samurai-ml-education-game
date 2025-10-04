@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Swords } from 'lucide-react';
 
 interface Props {
   onComplete: () => void;
@@ -91,7 +92,8 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
     };
 
     // タイプライタ完了後の流れ
-    setT(() => onComplete(), 2500); // 著者名表示後2.5秒で完了
+    setT(() => setCurrentStep(2), 2500); // 著者名表示後2.5秒でタイトル表示
+    setT(() => onComplete(), 5000); // タイトル表示後2.5秒で完了
 
     return () => {
       timerIds.forEach(id => clearTimeout(id));
@@ -295,6 +297,24 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
                     </p>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {currentStep === 2 && (
+            <div className="fixed inset-0 w-full h-full flex items-center justify-center" style={{
+              background: 'linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 100%)'
+            }}>
+              <div className="space-y-8">
+                <div className="flex items-center justify-center space-x-4 mb-8">
+                  <Swords className="w-16 h-16" style={{ color: 'var(--gold)' }} />
+                  <h1 className="text-6xl font-bold text-white tracking-wider" style={{ textShadow: '0 0 20px rgba(255,255,255,0.8)' }}>
+                    samurAI
+                  </h1>
+                </div>
+                <p className="text-2xl text-white/90 font-light tracking-wide" style={{ textShadow: '0 0 10px rgba(255,255,255,0.6)' }}>
+                  機械学習で天下統一
+                </p>
               </div>
             </div>
           )}
