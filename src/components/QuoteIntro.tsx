@@ -303,7 +303,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
 
           {currentStep === 2 && (
             <div className="fixed inset-0 w-full h-full flex items-center justify-center" style={{
-              background: 'linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 100%)'
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)'
             }}>
               <div className="space-y-8">
                 <div className="flex items-center justify-center space-x-4 mb-8">
