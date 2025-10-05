@@ -28,7 +28,7 @@ export function DataExplorer({ dataset }: Props) {
     { id: 'distribution', label: '値の広がり', icon: BarChart, description: 'どの値が多いかヒストグラムで確認' },
     { id: 'correlation', label: '関係性', icon: Grid3X3, description: '特徴同士の相関を見る' },
     { id: 'scatter', label: '散らばり具合', icon: Maximize2, description: '2つの特徴の関係を見る' },
-    { id: 'insights', label: 'アドバイス', icon: Lightbulb, description: '次の一手のヒント' },
+    { id: 'insights', label: 'AIの洞察', icon: Lightbulb, description: 'データから分かること' },
   ];
 
   return (
@@ -379,6 +379,24 @@ export function DataExplorer({ dataset }: Props) {
                       }}
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 新しい機能：データの特徴分析 */}
+            <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-400">
+              <div className="flex items-center space-x-2 mb-3">
+                <Target className="w-5 h-5 text-blue-700" />
+                <h4 className="text-lg font-bold text-blue-900">データの特徴分析</h4>
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm text-blue-800">
+                  <p><strong>データサイズ:</strong> {dataset.train.length + dataset.test.length}件</p>
+                  <p><strong>特徴量数:</strong> {dataset.featureNames.length}個</p>
+                  <p><strong>問題タイプ:</strong> {dataset.classes ? '分類問題' : '回帰問題'}</p>
+                  {dataset.classes && (
+                    <p><strong>クラス数:</strong> {dataset.classes.length}個</p>
+                  )}
                 </div>
               </div>
             </div>

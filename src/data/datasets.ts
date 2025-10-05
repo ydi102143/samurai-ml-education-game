@@ -131,18 +131,19 @@ export function generateSakaiDataset(): Dataset {
         break;
     }
 
-    // 生データ
+    // 生データ（正規化前の値）
     raw.push({
       features: [
         Math.round(material),      // 材質（1-10点）
         Math.round(decoration),    // 装飾（1-10点）
         Math.round(craftsmanship), // 職人技（1-10点）
-        Math.round(price)          // 価格（100-1000文）
+        Math.round(price)          // 価格（50-500文）
       ],
       label: origins[originIdx], // 文字列で保存
     });
 
-      data.push({
+    // 正規化データ
+    data.push({
       features: [
         material / 10,      // 材質（正規化）
         decoration / 10,    // 装飾（正規化）

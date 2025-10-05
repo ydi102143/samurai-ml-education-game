@@ -75,33 +75,16 @@ export function PreprocessingTab({ dataset, onPreprocessedDataset }: Props) {
 
   // プレビュー用のデータを取得
   const previewData = useMemo(() => {
-    console.log('previewData calculation:', { method, hasDataset: !!dataset, hasRaw: !!dataset?.raw });
-    
     if (method === 'none') {
       // 前処理なしの場合は生データを表示
-      const rawData = dataset.raw || dataset;
-      console.log('Using raw data:', { hasRaw: !!rawData, trainLength: rawData?.train?.length });
-      return rawData;
+      return dataset.raw || dataset;
     }
     // 前処理ありの場合は処理済みデータを表示
-    console.log('Using processed data:', { hasPreview: !!preview, trainLength: preview?.train?.length });
     return preview;
   }, [method, dataset, preview]);
 
   // プレビューデータが存在しない場合のフォールバック
   const safePreviewData = previewData || dataset;
-
-  // デバッグ用ログ
-  console.log('PreprocessingTab Debug:', {
-    method,
-    hasDataset: !!dataset,
-    hasRaw: !!dataset.raw,
-    hasPreview: !!preview,
-    previewDataKeys: previewData ? Object.keys(previewData) : 'no previewData',
-    safePreviewDataKeys: safePreviewData ? Object.keys(safePreviewData) : 'no safePreviewData',
-    safePreviewDataTrain: safePreviewData?.train?.length || 0,
-    datasetTrain: dataset?.train?.length || 0
-  });
 
 
   return (
@@ -203,14 +186,8 @@ export function PreprocessingTab({ dataset, onPreprocessedDataset }: Props) {
           ) : (
             <div className="p-4 bg-gray-100 rounded border-2 border-gray-200 text-center text-gray-600">
               <div className="mb-2">データを読み込み中...</div>
-              <div className="text-xs text-gray-500 space-y-1">
-                <div>デバッグ情報:</div>
-                <div>dataset存在: {dataset ? 'Yes' : 'No'}</div>
-                <div>raw存在: {dataset?.raw ? 'Yes' : 'No'}</div>
-                <div>preview存在: {preview ? 'Yes' : 'No'}</div>
-                <div>safePreviewData存在: {safePreviewData ? 'Yes' : 'No'}</div>
-                <div>train配列長: {safePreviewData?.train?.length || 0}</div>
-                <div>method: {method}</div>
+              <div className="text-xs text-gray-500">
+                データの読み込みに時間がかかっています。しばらくお待ちください。
               </div>
             </div>
           )}

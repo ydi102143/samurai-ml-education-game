@@ -9,7 +9,7 @@ const mockRegions: Region[] = [
     daimyo: '足利将軍家',
     description: '商業の中心地として栄え、多くの茶器が取引される中で贋作を見抜く目が求められている。',
     problem_type: 'classification',
-    problem_description: '茶器の画像から真贋を判定するAIを構築する。',
+    problem_description: '茶器の情報から真贋を判定するAIを構築する。',
     required_accuracy: 0.8,
     unlock_condition: null, // 最初の問題
     difficulty: 1,

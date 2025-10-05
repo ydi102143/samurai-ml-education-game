@@ -106,6 +106,41 @@ const models = [
       },
     },
   },
+  {
+    id: 'neural_network',
+    name: 'ニューラルネットワーク',
+    description: '複雑な問題に強いAI',
+    category: 'classification',
+    difficulty: '難しい',
+    detailedDescription: '人間の脳の仕組みをまねたAI。複雑なパターンを学習して、高度な判断ができます。',
+    tips: [
+      '🧠 例：複雑な画像認識、自然言語処理、高度な予測',
+      '⚡ 複雑な関係性を学習できる',
+      '🎯 大量のデータがある場合に威力を発揮',
+      '⚠️ 設定が複雑で、過学習しやすい'
+    ],
+    useCases: '画像認識、音声認識、翻訳、高度な予測など',
+    params: {
+      learning_rate: { 
+        default: 0.01, 
+        min: 0.001, 
+        max: 0.1, 
+        step: 0.001, 
+        label: '学習速度', 
+        description: 'AIが学習する速さ。ニューラルネットワークでは特に重要',
+        tips: '0.01が一般的。複雑な問題は0.001、シンプルな問題は0.05を試してみよう'
+      },
+      max_iterations: { 
+        default: 100, 
+        min: 50, 
+        max: 500, 
+        step: 10, 
+        label: '学習回数', 
+        description: '何回練習するか。ニューラルネットワークは時間がかかる',
+        tips: '100回から始めて、精度が足りない場合は200-300回に増やそう'
+      },
+    },
+  },
 ];
 
 export function ModelSelector({ selectedModel, parameters, onModelChange, onParametersChange, regionType }: Props) {

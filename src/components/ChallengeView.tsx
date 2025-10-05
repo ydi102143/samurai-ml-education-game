@@ -58,6 +58,7 @@ export function ChallengeView() {
       } else if (region.problem_type === 'regression') {
         setSelectedModel('linear_regression');
       } else {
+        // デフォルトは分類問題として扱う
         setSelectedModel('logistic_regression');
       }
 
@@ -86,11 +87,6 @@ export function ChallengeView() {
   }, [selectedFeatures, preprocessedDataset]);
 
   const handlePreprocess = (processed: Dataset) => {
-    console.log('handlePreprocess called with:', { 
-      hasProcessed: !!processed, 
-      trainLength: processed?.train?.length,
-      featureNames: processed?.featureNames 
-    });
     setPreprocessedDataset(processed);
     setDataset(processed);
     setSelectedFeatures(processed.featureNames.map((_, i) => i));

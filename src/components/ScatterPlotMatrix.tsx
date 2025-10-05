@@ -7,7 +7,40 @@ interface Props {
   dataset: Dataset;
 }
 
-const COLORS = ['#1e40af', '#dc2626', '#059669', '#d97706', '#7c3aed', '#db2777', '#1e3a8a', '#3b82f6'];
+// 戦国時代テーマに合った色設定（問題タイプ別）
+const getColorsForProblem = (problemType: string, classes?: string[]) => {
+  if (problemType === 'classification' && classes) {
+    // 分類問題の色分け
+    if (classes.includes('中国') || classes.includes('南蛮') || classes.includes('朝鮮') || classes.includes('日本')) {
+      // 堺（産地分類）
+      return ['#DC143C', '#228B22', '#DAA520', '#4B0082']; // 中国、朝鮮、南蛮、日本
+    } else if (classes.includes('槍兵') || classes.includes('弓兵') || classes.includes('鉄砲隊') || classes.includes('騎馬隊')) {
+      // 尾張（兵種分類）
+      return ['#8B4513', '#DC143C', '#228B22', '#DAA520']; // 槍兵、弓兵、鉄砲隊、騎馬隊
+    } else if (classes.includes('敗北') || classes.includes('勝利')) {
+      // 薩摩（戦果分類）
+      return ['#DC143C', '#228B22']; // 敗北、勝利
+    } else if (classes.includes('低い') || classes.includes('中程度') || classes.includes('高い')) {
+      // 相模（繁栄度分類）
+      return ['#8B4513', '#DAA520', '#228B22']; // 低い、中程度、高い
+    } else if (classes.includes('危険') || classes.includes('注意') || classes.includes('安全')) {
+      // 高松（安全性分類）
+      return ['#DC143C', '#DAA520', '#228B22']; // 危険、注意、安全
+    }
+  }
+  
+  // デフォルトの戦国時代テーマ色
+  return [
+    '#8B4513', // 茶色（土・大地）
+    '#DC143C', // 深紅（血・戦）
+    '#228B22', // 森緑（自然・農業）
+    '#DAA520', // 金色（権力・富）
+    '#4B0082', // 紫（高貴・神秘）
+    '#B22222', // 赤レンガ（城・建築）
+    '#2F4F4F', // ダークスレート（石・鉱物）
+    '#CD853F'  // ペルー（木材・工芸）
+  ];
+};
 
 export function ScatterPlotMatrix({ dataset }: Props) {
   // 生データがあればそれを使用して散布図を描画
@@ -15,6 +48,25 @@ export function ScatterPlotMatrix({ dataset }: Props) {
   const sampleSize = Math.min(rawSource.length, 200);
   const sampledData = rawSource.slice(0, sampleSize) as { features: number[]; label: number | string }[];
   const isClassification = dataset.classes && dataset.classes.length > 0;
+  
+  // デバッグ情報
+  console.log('ScatterPlotMatrix Debug:', {
+    hasRaw: !!dataset.raw,
+    rawLength: dataset.raw?.train?.length,
+    trainLength: dataset.train.length,
+    rawSourceLength: rawSource.length,
+    sampledDataLength: sampledData.length,
+    featureNames: dataset.featureNames,
+    isClassification,
+    classes: dataset.classes,
+    sampleData: sampledData.slice(0, 3)
+  });
+  
+  // 問題タイプに応じた色設定
+  const colors = getColorsForProblem(
+    isClassification ? 'classification' : 'regression',
+    dataset.classes
+  );
 
   const featurePairs: [number, number][] = [];
   for (let i = 0; i < dataset.featureNames.length; i++) {
@@ -42,52 +94,128 @@ export function ScatterPlotMatrix({ dataset }: Props) {
             : '特徴量と目的変数の関係を確認し、予測に有効な特徴量を見つけましょう'
           }
         </span>
+        <br />
+        <span className="text-xs text-gray-500">
+          🎨 戦国時代テーマの色で表示：{isClassification ? '各クラスが異なる色で表示されます' : '回帰問題は茶色系で表示されます'}
+        </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {topPairs.map(([i, j], index) => {
-          const data = sampledData.map(point => ({
-            x: point.features[i] as number,
-            y: point.features[j] as number,
-            label: isClassification ? Number(point.label) : point.label as number,
-            value: point.label as number, // 回帰用の値
-          }));
+          const data = sampledData.map(point => {
+            // 生データを使用する場合、正規化前の値を使用
+            const xValue = dataset.raw ? point.features[i] as number : (point.features[i] as number);
+            const yValue = dataset.raw ? point.features[j] as number : (point.features[j] as number);
+            
+            return {
+              x: xValue,
+              y: yValue,
+              label: isClassification ? Number(point.label) : point.label as number,
+              value: point.label as number, // 回帰用の値
+            };
+          });
 
-          // 戦国時代のデータに合わせたスケール調整
+          // デバッグ情報
+          console.log(`Scatter plot ${index} (${dataset.featureNames[i]} vs ${dataset.featureNames[j]}):`, {
+            dataLength: data.length,
+            xRange: data.length > 0 ? [Math.min(...data.map(d => d.x)), Math.max(...data.map(d => d.x))] : [0, 1],
+            yRange: data.length > 0 ? [Math.min(...data.map(d => d.y)), Math.max(...data.map(d => d.y))] : [0, 1],
+            labels: [...new Set(data.map(d => d.label))],
+            sampleData: data.slice(0, 3)
+          });
+
+          // データが空の場合はスキップ
+          if (data.length === 0) {
+            return (
+            <div key={index} className="p-3 rounded border" style={{ 
+              background: 'linear-gradient(135deg, #f8f4e6 0%, #f0e6d2 100%)', 
+              borderColor: 'var(--gold)',
+              borderWidth: '2px'
+            }}>
+              <h4 className="text-xs font-bold mb-2 text-center" style={{ color: 'var(--accent-strong)' }}>
+                {dataset.featureNames[i]} vs {dataset.featureNames[j]}
+              </h4>
+              <div className="text-center text-gray-500 text-xs">データがありません</div>
+            </div>
+            );
+          }
+
+          // データがすべて同じ値の場合は警告
           const xValues = data.map(d => d.x);
           const yValues = data.map(d => d.y);
-          const xMin = Math.min(...xValues);
-          const xMax = Math.max(...xValues);
-          const yMin = Math.min(...yValues);
-          const yMax = Math.max(...yValues);
+          const xUnique = [...new Set(xValues)];
+          const yUnique = [...new Set(yValues)];
+          
+          if (xUnique.length === 1 && yUnique.length === 1) {
+            return (
+            <div key={index} className="p-3 rounded border" style={{ 
+              background: 'linear-gradient(135deg, #f8f4e6 0%, #f0e6d2 100%)', 
+              borderColor: 'var(--gold)',
+              borderWidth: '2px'
+            }}>
+              <h4 className="text-xs font-bold mb-2 text-center" style={{ color: 'var(--accent-strong)' }}>
+                {dataset.featureNames[i]} vs {dataset.featureNames[j]}
+              </h4>
+              <div className="text-center text-gray-500 text-xs">データの変化がありません</div>
+            </div>
+            );
+          }
+
+          // 戦国時代のデータに合わせたスケール調整
+          const xMin = xValues.length > 0 ? Math.min(...xValues) : 0;
+          const xMax = xValues.length > 0 ? Math.max(...xValues) : 1;
+          const yMin = yValues.length > 0 ? Math.min(...yValues) : 0;
+          const yMax = yValues.length > 0 ? Math.max(...yValues) : 1;
+          
+          // デバッグ情報
+          console.log(`Scale debug for ${dataset.featureNames[i]} vs ${dataset.featureNames[j]}:`, {
+            xMin, xMax, yMin, yMax,
+            xRange: xMax - xMin,
+            yRange: yMax - yMin,
+            hasData: data.length > 0
+          });
           
           // 戦国時代のデータに適した軸の範囲設定
           const xRange = xMax - xMin;
           const yRange = yMax - yMin;
-          const xPadding = xRange > 0 ? xRange * 0.05 : 1; // 5%のパディング
-          const yPadding = yRange > 0 ? yRange * 0.05 : 1;
+          const xPadding = xRange > 0 ? xRange * 0.1 : 0.1; // 10%のパディング
+          const yPadding = yRange > 0 ? yRange * 0.1 : 0.1;
           
-          const xDomain = [Math.max(0, xMin - xPadding), xMax + xPadding];
-          const yDomain = [Math.max(0, yMin - yPadding), yMax + yPadding];
+          // データがすべて同じ値の場合の処理
+          const xDomain = xRange === 0 ? [xMin - 0.1, xMin + 0.1] : [Math.max(0, xMin - xPadding), xMax + xPadding];
+          const yDomain = yRange === 0 ? [yMin - 0.1, yMin + 0.1] : [Math.max(0, yMin - yPadding), yMax + yPadding];
+          
+          // デバッグ情報
+          console.log(`Domain debug for ${dataset.featureNames[i]} vs ${dataset.featureNames[j]}:`, {
+            xDomain, yDomain,
+            xPadding, yPadding,
+            xRange, yRange
+          });
 
           const labelGroups = isClassification
             ? [...new Set(data.map(d => d.label))].sort()
             : [0];
 
           return (
-            <div key={index} className="bg-blue-50 p-3 rounded border" style={{ borderColor: 'var(--gold)' }}>
+            <div key={index} className="p-3 rounded border" style={{ 
+              background: 'linear-gradient(135deg, #f8f4e6 0%, #f0e6d2 100%)', 
+              borderColor: 'var(--gold)',
+              borderWidth: '2px'
+            }}>
               <h4 className="text-xs font-bold mb-2 text-center" style={{ color: 'var(--accent-strong)' }}>
                 {dataset.featureNames[i]} vs {dataset.featureNames[j]}
               </h4>
               <ResponsiveContainer width="100%" height={180}>
                 <ScatterChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#8B4513" strokeOpacity={0.3} />
                   <XAxis
                     type="number"
                     dataKey="x"
                     name={dataset.featureNames[i]}
                     domain={xDomain}
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 10, fill: '#8B4513' }}
+                    axisLine={{ stroke: '#8B4513' }}
+                    tickLine={{ stroke: '#8B4513' }}
                     tickFormatter={(value) => {
                       // 戦国時代のデータに合わせた表示形式
                       const unit = dataset.raw?.featureUnits?.[i] || '';
@@ -116,7 +244,9 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                     dataKey="y"
                     name={dataset.featureNames[j]}
                     domain={yDomain}
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 10, fill: '#8B4513' }}
+                    axisLine={{ stroke: '#8B4513' }}
+                    tickLine={{ stroke: '#8B4513' }}
                     tickFormatter={(value) => {
                       // 戦国時代のデータに合わせた表示形式
                       const unit = dataset.raw?.featureUnits?.[j] || '';
@@ -188,20 +318,33 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                     }}
                   />
                   {isClassification ? (
-                    labelGroups.map((label, idx) => (
-                      <Scatter
-                        key={label}
-                        name={dataset.classes ? dataset.classes[label] : `グループ ${label}`}
-                        data={data.filter(d => d.label === label)}
-                        fill={COLORS[idx % COLORS.length]}
-                      />
-                    ))
+                    labelGroups.map((label, idx) => {
+                      const labelData = data.filter(d => d.label === label);
+                      console.log(`Label ${label} data:`, labelData.slice(0, 3));
+                      return labelData.length > 0 ? (
+                        <Scatter
+                          key={label}
+                          name={dataset.classes ? dataset.classes[label] : `グループ ${label}`}
+                          data={labelData}
+                          fill={colors[idx % colors.length]}
+                          stroke={colors[idx % colors.length]}
+                          strokeWidth={2}
+                          fillOpacity={0.8}
+                          r={4}
+                        />
+                      ) : null;
+                    })
                   ) : (
-                    <Scatter
-                      data={data}
-                      fill="#1e40af"
-                      fillOpacity={0.6}
-                    />
+                    data.length > 0 ? (
+                      <Scatter
+                        data={data}
+                        fill={colors[0]}
+                        fillOpacity={0.8}
+                        stroke={colors[1] || colors[0]}
+                        strokeWidth={2}
+                        r={4}
+                      />
+                    ) : null
                   )}
                 </ScatterChart>
               </ResponsiveContainer>
