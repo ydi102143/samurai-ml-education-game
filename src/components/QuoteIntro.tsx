@@ -11,6 +11,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
+  const [titleFadeIn, setTitleFadeIn] = useState(false);
   const [titleVisible, setTitleVisible] = useState(false);
   const [audioPlayed, setAudioPlayed] = useState(false);
   const english = useMemo(() => [
@@ -19,7 +20,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
   ], []);
   const japanese = useMemo(() => [
     'データは21世紀の刀、',
-    'それを使いこなす者こそ、サムライ。'
+    'それを使いこなす者こそ、侍。'
   ], []);
   const [typedEng, setTypedEng] = useState(['', '']);
   const [typedJpn, setTypedJpn] = useState(['', '']);
@@ -95,13 +96,30 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
 
     // タイプライタ完了後の流れ
     setT(() => setCurrentStep(2), 2500); // 著者名表示後2.5秒でタイトル表示
-    setT(() => setTitleVisible(true), 2500); // タイトルをフェードイン
-    setT(() => onComplete(), 8500); // タイトル表示後6秒で完了
+    setT(() => setTitleFadeIn(true), 2500); // タイトル表示と同時にフェードイン開始
+    setT(() => onComplete(), 11500); // タイトル表示後9秒で完了（6秒のフェードイン + 3秒の表示）
 
     return () => {
       timerIds.forEach(id => clearTimeout(id));
     };
   }, [typingCompleted, onComplete]);
+
+  // タイトル表示画面でフェードインを確実に開始
+  useEffect(() => {
+    if (currentStep === 2) {
+      console.log('タイトル表示画面に到達。フェードインを開始します...');
+      // タイトル画面が確実に表示されてからフェードイン開始
+      setTimeout(() => {
+        console.log('フェードインを開始します');
+        console.log('titleFadeIn状態:', titleFadeIn);
+        setTitleVisible(true);
+        setTimeout(() => {
+          setTitleFadeIn(true);
+          console.log('setTitleFadeIn(true)を実行しました');
+        }, 100);
+      }, 500);
+    }
+  }, [currentStep]);
 
   // タイトル表示画面で拍子木の音を再生（確実な自動再生）
   useEffect(() => {
@@ -160,8 +178,11 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
         }
       };
       
-      // 少し遅延して再生を開始
-      setTimeout(playAudioReliably, 200);
+      // タイトル表示画面の瞬間に1回だけ自動再生
+      setTimeout(() => {
+        console.log('タイトル表示画面で音声を1回だけ自動再生します...');
+        playAudioReliably();
+      }, 100);
     }
   }, [currentStep]);
 
@@ -404,13 +425,13 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
               {/* 動く桜の花びらエフェクト - 40個版 */}
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 {[...Array(40)].map((_, i) => {
-                  const size = Math.random() * 12 + 6; // 6-18px
+                  const size = Math.random() * 7 + 4; // 4-11px
                   const startX = Math.random() * 120 - 10; // 画面外から開始
                   const startY = Math.random() * 30 - 30; // 斜め上から
                   const duration = 6; // 固定6秒
                   const delay = Math.random() * 3; // 0-3秒の遅延（短縮）
                   const rotation = Math.random() * 360; // 初期回転
-                  const opacity = Math.random() * 0.4 + 0.4; // 0.4-0.8の透明度
+                  const opacity = Math.random() * 0.2 + 0.2; // 0.2-0.4の透明度
                   
                   return (
                     <div
@@ -435,14 +456,49 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
                 })}
               </div>
 
-              <div className={`space-y-8 transition-all duration-3000 ease-out ${titleVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`}>
+              <div 
+                className="space-y-8"
+                style={{
+                  opacity: titleVisible ? (titleFadeIn ? 1 : 0) : 0,
+                  transform: titleVisible ? (titleFadeIn ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.95)') : 'translateY(12px) scale(0.95)',
+                  transition: titleVisible ? 'opacity 6s ease-out 0s, transform 6s ease-out 0s' : 'none',
+                  willChange: 'opacity, transform'
+                }}
+              >
                 <div className="flex items-center justify-center space-x-4 mb-8">
-                  <Swords className="w-16 h-16" style={{ color: 'var(--gold)' }} />
-                  <h1 className="text-6xl font-bold text-white tracking-wider" style={{ textShadow: '0 0 20px rgba(255,255,255,0.8)' }}>
+                  <Swords 
+                    className="w-16 h-16" 
+                    style={{ 
+                      color: 'var(--gold)',
+                      transition: titleVisible ? 'opacity 6s ease-out 0s, transform 6s ease-out 0s' : 'none',
+                      opacity: titleVisible ? (titleFadeIn ? 1 : 0) : 0,
+                      transform: titleVisible ? (titleFadeIn ? 'scale(1) rotate(0deg)' : 'scale(0.8) rotate(-5deg)') : 'scale(0.8) rotate(-5deg)',
+                      willChange: 'opacity, transform'
+                    }} 
+                  />
+                  <h1 
+                    className="text-6xl font-bold text-white tracking-wider" 
+                    style={{ 
+                      textShadow: '0 0 20px rgba(255,255,255,0.8)',
+                      transition: titleVisible ? 'opacity 6s ease-out 0s, transform 6s ease-out 0s' : 'none',
+                      opacity: titleVisible ? (titleFadeIn ? 1 : 0) : 0,
+                      transform: titleVisible ? (titleFadeIn ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.9)') : 'translateY(20px) scale(0.9)',
+                      willChange: 'opacity, transform'
+                    }}
+                  >
                     samurAI
                   </h1>
                 </div>
-                <p className="text-2xl text-white/90 font-light tracking-wide" style={{ textShadow: '0 0 10px rgba(255,255,255,0.6)' }}>
+                <p 
+                  className="text-2xl text-white/90 font-light tracking-wide" 
+                  style={{ 
+                    textShadow: '0 0 10px rgba(255,255,255,0.6)',
+                    transition: titleVisible ? 'opacity 6s ease-out 0.5s, transform 6s ease-out 0.5s' : 'none',
+                    opacity: titleVisible ? (titleFadeIn ? 1 : 0) : 0,
+                    transform: titleVisible ? (titleFadeIn ? 'translateY(0) scale(1)' : 'translateY(15px) scale(0.95)') : 'translateY(15px) scale(0.95)',
+                    willChange: 'opacity, transform'
+                  }}
+                >
                   機械学習で天下統一
                 </p>
               </div>
