@@ -84,24 +84,13 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
     return () => clearInterval(timer);
   }, [currentStep, durationScale, english, japanese]);
 
-  // タイプライタ完了後の画面遷移制御
+  // タイプライタ完了後の画面遷移制御（自動遷移を削除）
   useEffect(() => {
     if (!typingCompleted) return;
     
-    const timerIds: number[] = [];
-    const setT = (fn: () => void, ms: number) => {
-      const id = window.setTimeout(fn, ms);
-      timerIds.push(id);
-    };
-
-    // タイプライタ完了後の流れ
-    setT(() => setCurrentStep(2), 2500); // 著者名表示後2.5秒でタイトル表示
-    setT(() => setTitleFadeIn(true), 2500); // タイトル表示と同時にフェードイン開始
-    setT(() => onComplete(), 11500); // タイトル表示後9秒で完了（6秒のフェードイン + 3秒の表示）
-
-    return () => {
-      timerIds.forEach(id => clearTimeout(id));
-    };
+    // タイプライタ完了後の流れ（自動遷移を削除）
+    // ユーザークリックでタイトル画面に遷移するように変更
+    console.log('タイプライタ完了。ユーザーのクリックを待機中...');
   }, [typingCompleted, onComplete]);
 
   // タイトル表示画面でフェードインを確実に開始
@@ -121,68 +110,41 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
     }
   }, [currentStep]);
 
-  // タイトル表示画面で拍子木の音を再生（確実な自動再生）
+  // タイトル表示画面で拍子木の音を再生（ユーザーインタラクション後なので確実に再生）
   useEffect(() => {
     if (currentStep === 2) {
-      console.log('タイトル表示画面に到達しました。確実に自動再生を実行します...');
+      console.log('タイトル表示画面に到達しました。ユーザーインタラクション後なので確実に音声を再生します...');
       
-      // 確実な自動再生を実行
-      const playAudioReliably = () => {
+      // ユーザーインタラクション後なので確実に音声再生
+      const playAudioAfterInteraction = () => {
         try {
           const audio = new Audio('/audio/拍子木3.mp3');
           audio.volume = 0.8;
           audio.preload = 'auto';
           
-          // 音声が読み込まれるまで待機
-          audio.addEventListener('canplaythrough', () => {
-            console.log('音声ファイルの読み込み完了。再生を開始します...');
-            
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-              playPromise.then(() => {
-                console.log('拍子木の音が自動再生されました！');
-                setAudioPlayed(true);
-              }).catch(() => {
-                console.log('自動再生に失敗しました。ユーザーインタラクションをシミュレートします...');
-                
-                // ユーザーインタラクションをシミュレート
-                setTimeout(() => {
-                  // ページをクリックしてユーザーインタラクションをシミュレート
-                  document.body.click();
-                  
-                  setTimeout(() => {
-                    const retryAudio = new Audio('/audio/拍子木3.mp3');
-                    retryAudio.volume = 0.8;
-                    retryAudio.play().then(() => {
-                      console.log('シミュレート後の再生に成功しました！');
-                      setAudioPlayed(true);
-                    }).catch(() => {
-                      console.log('シミュレート後も再生失敗。スキップボタンで音声を再生してください。');
-                    });
-                  }, 100);
-                }, 200);
-              });
-            }
-          });
+          console.log('🎵 音声ファイルを読み込み中...');
           
-          // 読み込みエラーの場合
-          audio.addEventListener('error', () => {
-            console.log('音声ファイルの読み込みに失敗しました。直接再生を試行します...');
-            audio.play().catch(() => {
-              console.log('直接再生も失敗しました。スキップボタンで音声を再生してください。');
+          // ユーザーインタラクション後なので確実に再生
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              console.log('🎵 拍子木の音が再生されました！');
+              setAudioPlayed(true);
+            }).catch((error) => {
+              console.log('音声再生に失敗しました:', error);
             });
-          });
+          }
           
         } catch (error) {
           console.log('音声の初期化に失敗しました:', error);
         }
       };
       
-      // タイトル表示画面の瞬間に1回だけ自動再生
+      // タイトル表示画面の瞬間に音声再生
       setTimeout(() => {
-        console.log('タイトル表示画面で音声を1回だけ自動再生します...');
-        playAudioReliably();
-      }, 100);
+        console.log('🎵 タイトル表示画面で音声を再生します...');
+        playAudioAfterInteraction();
+      }, 200);
     }
   }, [currentStep]);
 
@@ -214,12 +176,14 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
       audio.volume = 0.8;
       audio.preload = 'auto';
       
+      console.log('🎵 スキップ時に音声を再生します...');
+      
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
-          console.log('スキップ時に拍子木の音が再生されました！');
+          console.log('🎵 スキップ時に拍子木の音が再生されました！');
           setAudioPlayed(true);
-        }).catch(err => {
+        }).catch((err) => {
           console.warn('スキップ時の音声再生に失敗:', err);
         });
       }
@@ -244,7 +208,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
           style={{ color: 'white', background: 'rgba(255,255,255,0.2)', border: '1px solid var(--gold)' }}
           aria-label="イントロをスキップ（音声再生）"
         >
-          {currentStep === 2 && !audioPlayed ? '音声付きでスキップ' : 'スキップ'}
+          {currentStep === 2 && !audioPlayed ? '🎵 音声付きでスキップ' : 'スキップ'}
         </button>
         
         {/* テレビノイズ風背景 */}
@@ -412,6 +376,31 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
                     }}>
                       — Jonathan Rosenberg
                     </p>
+                    <div className="mt-8">
+                      <button
+                        onClick={() => {
+                          console.log('ユーザーがクリックしました。タイトル画面に遷移します...');
+                          setCurrentStep(2);
+                          setTitleVisible(true);
+                          setTimeout(() => {
+                            setTitleFadeIn(true);
+                            console.log('setTitleFadeIn(true)を実行しました');
+                          }, 100);
+                        }}
+                        className="px-6 py-3 rounded-lg transition-all duration-300 hover:scale-105"
+                        style={{
+                          background: 'linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 100%)',
+                          color: 'white',
+                          border: '2px solid var(--gold)',
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                          fontFamily: 'monospace',
+                          fontSize: '16px',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                         開始
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
