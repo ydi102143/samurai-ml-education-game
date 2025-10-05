@@ -124,7 +124,8 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
       // ユーザーインタラクション後なので確実に音声再生
       const playAudioAfterInteraction = () => {
         try {
-          const audio = new Audio('/audio/拍子木3.mp3');
+          // GitHub Pages対応: 相対パスを使用
+          const audio = new Audio('./audio/拍子木3.mp3');
           audio.volume = 0.8;
           audio.preload = 'auto';
           
@@ -178,7 +179,8 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
     
     // 音声を再生（ユーザーインタラクションとして確実に再生される）
     try {
-      const audio = new Audio('/audio/拍子木3.mp3');
+      // GitHub Pages対応: 相対パスを使用
+      const audio = new Audio('./audio/拍子木3.mp3');
       audio.volume = 0.8;
       audio.preload = 'auto';
       
@@ -404,7 +406,7 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
                           fontWeight: 'bold'
                         }}
                       >
-                         開始
+                        開始
                       </button>
                     </div>
                   </div>
