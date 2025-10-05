@@ -105,10 +105,16 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
         setTimeout(() => {
           setTitleFadeIn(true);
           console.log('setTitleFadeIn(true)を実行しました');
+          
+          // フェードイン完了後に自動でホーム画面に遷移
+          setTimeout(() => {
+            console.log('タイトル表示完了。ホーム画面に自動遷移します...');
+            onComplete();
+          }, 7000); // 6秒のフェードイン + 1秒の表示時間
         }, 100);
       }, 500);
     }
-  }, [currentStep]);
+  }, [currentStep, onComplete]);
 
   // タイトル表示画面で拍子木の音を再生（ユーザーインタラクション後なので確実に再生）
   useEffect(() => {
@@ -458,7 +464,8 @@ export function QuoteIntro({ onComplete, durationScale = 1.3 }: Props) {
                   <Swords 
                     className="w-16 h-16" 
                     style={{ 
-                      color: 'var(--gold)',
+                      color: '#D4AF37',
+                      filter: 'drop-shadow(0 0 8px rgba(212, 175, 55, 0.6))',
                       transition: titleVisible ? 'opacity 6s ease-out 0s, transform 6s ease-out 0s' : 'none',
                       opacity: titleVisible ? (titleFadeIn ? 1 : 0) : 0,
                       transform: titleVisible ? (titleFadeIn ? 'scale(1) rotate(0deg)' : 'scale(0.8) rotate(-5deg)') : 'scale(0.8) rotate(-5deg)',
