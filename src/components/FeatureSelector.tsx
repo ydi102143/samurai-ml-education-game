@@ -32,22 +32,22 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
 
   return (
     <div className="rounded-xl shadow-lg border-2 overflow-hidden" style={{ background: 'var(--ink-white)', borderColor: 'var(--gold)' }}>
-      <div className="p-4" style={{ background: 'linear-gradient(to right, var(--accent-strong), var(--accent))' }}>
-        <h3 className="text-lg font-bold text-white">使う特徴を選ぼう</h3>
-        <p className="text-sm mt-1 text-white/85">
+      <div className="p-6" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%)' }}>
+        <h3 className="text-2xl font-bold text-white">使う特徴を選ぼう</h3>
+        <p className="text-lg mt-2 text-yellow-200">
           予測に役立ちそうな特徴を選びます。最低1つは選んでください。
         </p>
       </div>
 
-      <div className="p-6">
-        <div className="mb-6 p-4 rounded-lg border-2" style={{ background: 'var(--silver-light)', borderColor: 'var(--gold)' }}>
-          <div className="flex items-start space-x-3">
-            <Lightbulb className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--gold)' }} />
+      <div className="p-8">
+        <div className="mb-8 p-6 rounded-lg border-2 bg-slate-50" style={{ borderColor: 'var(--gold)' }}>
+          <div className="flex items-start space-x-4">
+            <Lightbulb className="w-6 h-6 flex-shrink-0 mt-1 text-yellow-500" />
             <div>
-              <p className="text-sm leading-relaxed mb-2" style={{ color: 'var(--ink)' }}>
+              <p className="text-lg leading-relaxed mb-3 text-blue-900">
                 <span className="font-bold">特徴選択のポイント：</span>
               </p>
-              <ul className="text-sm space-y-1" style={{ color: 'var(--ink-light)' }}>
+              <ul className="text-base space-y-2 text-blue-800">
                 <li>• 値のばらつき（標準偏差）が大きい特徴は予測に役立つことが多い</li>
                 <li>• すべての特徴を使うと、逆に精度が下がることもある</li>
                 <li>• まずは全部使ってみて、少しずつ減らして試してみよう</li>
@@ -56,20 +56,19 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
           </div>
         </div>
 
-        <div className="flex justify-between items-center mb-4">
-          <div className="text-sm" style={{ color: 'var(--ink)' }}>
-            選択中: <span className="font-bold" style={{ color: 'var(--accent-strong)' }}>{selectedFeatures.length}</span> / {dataset.featureNames.length}
+        <div className="flex justify-between items-center mb-6">
+          <div className="text-lg text-blue-900">
+            選択中: <span className="font-bold text-blue-700">{selectedFeatures.length}</span> / {dataset.featureNames.length}
           </div>
           <button
             onClick={selectAll}
-            className="text-sm font-medium transition-colors"
-            style={{ color: 'var(--accent-strong)' }}
+            className="text-lg font-bold transition-colors text-blue-600 hover:text-blue-800 px-4 py-2 rounded-lg border-2 border-blue-300 hover:border-blue-500"
           >
             すべて選択
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {dataset.featureNames.map((name, index) => {
             const isSelected = selectedFeatures.includes(index);
             const stats = calculateFeatureStats(index);
@@ -78,36 +77,35 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
               <button
                 key={index}
                 onClick={() => toggleFeature(index)}
-                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${isSelected ? 'bg-white shadow-md' : 'bg-gray-50 hover:border-gray-300'}`}
-                style={{ borderColor: isSelected ? 'var(--gold)' : '#e5e7eb' }}
+                className={`w-full text-left p-6 rounded-lg border-2 transition-all ${isSelected ? 'bg-yellow-50 shadow-lg border-yellow-400' : 'bg-slate-50 hover:bg-blue-50 border-slate-300'}`}
               >
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0 mt-1">
                     {isSelected ? (
-                      <CheckCircle className="w-6 h-6" style={{ color: 'var(--gold)' }} />
+                      <CheckCircle className="w-8 h-8 text-yellow-500" />
                     ) : (
-                      <Circle className="w-6 h-6 text-gray-400" />
+                      <Circle className="w-8 h-8 text-slate-400" />
                     )}
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className={`font-bold ${isSelected ? 'text-gray-900' : 'text-gray-600'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className={`text-xl font-bold ${isSelected ? 'text-blue-900' : 'text-slate-600'}`}>
                         {name}
                       </h4>
-                      {isSelected && (<span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'var(--accent)', color: 'white' }}>使用中</span>)}
+                      {isSelected && (<span className="text-sm px-3 py-1 rounded-full font-bold bg-blue-600 text-white">使用中</span>)}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                      <div className={isSelected ? 'text-gray-700' : 'text-gray-500'}>
-                        <span className="font-medium">平均:</span> {formatNumber(stats.mean)}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-base">
+                      <div className={isSelected ? 'text-blue-800' : 'text-slate-500'}>
+                        <span className="font-bold">平均:</span> {formatNumber(stats.mean)}
                       </div>
-                      <div className={isSelected ? 'text-gray-700' : 'text-gray-500'}>
-                        <span className="font-medium">ばらつき:</span> {formatNumber(stats.std)}
+                      <div className={isSelected ? 'text-blue-800' : 'text-slate-500'}>
+                        <span className="font-bold">ばらつき:</span> {formatNumber(stats.std)}
                       </div>
-                      <div className={isSelected ? 'text-gray-700' : 'text-gray-500'}>
-                        <span className="font-medium">最小:</span> {formatNumber(stats.min)}
+                      <div className={isSelected ? 'text-blue-800' : 'text-slate-500'}>
+                        <span className="font-bold">最小:</span> {formatNumber(stats.min)}
                       </div>
-                      <div className={isSelected ? 'text-gray-700' : 'text-gray-500'}>
-                        <span className="font-medium">最大:</span> {formatNumber(stats.max)}
+                      <div className={isSelected ? 'text-blue-800' : 'text-slate-500'}>
+                        <span className="font-bold">最大:</span> {formatNumber(stats.max)}
                       </div>
                     </div>
                   </div>
@@ -118,8 +116,8 @@ export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }:
         </div>
 
         {selectedFeatures.length === 0 && (
-          <div className="mt-4 bg-red-50 p-4 rounded-lg border-2 border-red-200">
-            <p className="text-sm text-red-800 text-center">
+          <div className="mt-6 bg-red-50 p-6 rounded-lg border-2 border-red-200">
+            <p className="text-lg text-red-800 text-center font-bold">
               少なくとも1つの特徴を選んでください
             </p>
           </div>

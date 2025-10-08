@@ -33,15 +33,15 @@ export function DataExplorer({ dataset }: Props) {
 
   return (
     <div className="rounded-xl shadow-lg border-2 overflow-hidden" style={{ background: 'var(--ink-white)', borderColor: 'var(--gold)' }}>
-      <div className="p-4 rounded-t-xl" style={{ background: 'linear-gradient(to right, var(--accent-strong), var(--accent))' }}>
+      <div className="p-4 rounded-t-xl" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%)' }}>
         <div className="flex items-center space-x-2 mb-2">
-          <Database className="w-5 h-5" style={{ color: 'var(--gold)' }} />
+          <Database className="w-5 h-5 text-yellow-400" />
           <h3 className="text-lg font-bold text-white">データを調べよう</h3>
         </div>
-        <p className="text-sm text-white/85">データをよく観察して、パターンや特徴を見つけよう！</p>
+        <p className="text-sm text-yellow-200">データをよく観察して、パターンや特徴を見つけよう！</p>
       </div>
 
-      <div className="border-b" style={{ borderColor: 'var(--gold)', background: 'var(--silver-light)' }}>
+      <div className="border-b bg-slate-50" style={{ borderColor: 'var(--gold)' }}>
         <div className="flex space-x-2 p-3 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -51,20 +51,15 @@ export function DataExplorer({ dataset }: Props) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex flex-col items-center space-y-1 px-4 py-3 rounded-lg transition-all whitespace-nowrap min-w-[120px] border-2 ${
                   activeTab === tab.id
-                    ? 'shadow-md scale-105 font-bold'
-                    : 'hover:bg-white/60'
+                    ? 'shadow-md scale-105 font-bold bg-yellow-400 text-blue-900 border-yellow-500'
+                    : 'hover:bg-blue-100 text-slate-600 border-slate-300'
                 }`}
-                style={{ 
-                  background: activeTab === tab.id ? 'var(--ink-white)' : 'transparent',
-                  color: activeTab === tab.id ? 'var(--accent-strong)' : 'var(--ink-light)',
-                  borderColor: activeTab === tab.id ? 'var(--gold)' : 'var(--silver)'
-                }}
               >
                 <div className="flex items-center space-x-2">
-                  <Icon className="w-4 h-4" style={{ color: activeTab === tab.id ? 'var(--accent-strong)' : 'var(--ink-light)' }} />
+                  <Icon className="w-4 h-4" />
                   <span className="text-sm font-medium">{tab.label}</span>
                 </div>
-                <span className="text-xs" style={{ color: activeTab === tab.id ? 'var(--ink-light)' : 'var(--ink-light)' }}>{tab.description}</span>
+                <span className="text-xs opacity-80">{tab.description}</span>
               </button>
             );
           })}
@@ -72,28 +67,28 @@ export function DataExplorer({ dataset }: Props) {
       </div>
 
       {/* タブ別ヒント */}
-      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-gray-50 border-b" style={{ borderColor: 'var(--gold)' }}>
+      <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-gray-50 border-b" style={{ borderColor: 'var(--gold)' }}>
         {activeTab === 'overview' && (
-          <div className="text-sm text-slate-800 flex items-start space-x-2">
-            <Eye className="w-4 h-4 mt-0.5" />
+          <div className="text-base text-blue-900 flex items-start space-x-3">
+            <Eye className="w-5 h-5 mt-1 text-yellow-500" />
             <div>
-              <div className="font-bold">見方のコツ</div>
-              <div>単位や桁を確認し、常識的な値かをチェック。生データ（raw）があれば比較して理解を深めよう。</div>
+              <div className="font-bold text-lg">見方のコツ</div>
+              <div className="text-base">単位や桁を確認し、常識的な値かをチェック。生データ（raw）があれば比較して理解を深めよう。</div>
             </div>
           </div>
         )}
         {activeTab === 'distribution' && (
-          <div className="text-sm text-slate-800 flex items-start space-x-2">
-            <BarChart className="w-4 h-4 mt-0.5" />
+          <div className="text-base text-blue-900 flex items-start space-x-3">
+            <BarChart className="w-5 h-5 mt-1 text-yellow-500" />
             <div>
-              <div className="font-bold">読み取りポイント</div>
-              <div>
+              <div className="font-bold text-lg">読み取りポイント</div>
+              <div className="text-base">
                 {dataset.classes && dataset.classes.length > 0 
                   ? '山型＝自然な分布。片寄りや二峰性のときは前処理（正規化/標準化）を検討しよう。'
                   : '目的変数が正規分布に近いと回帰モデルの精度が向上しやすくなります。'
                 }
               </div>
-              <div className="text-xs text-gray-600 mt-1">
+              <div className="text-sm text-blue-700 mt-2">
                 💡 {dataset.classes && dataset.classes.length > 0 
                   ? '新問題例：毛利氏の風速は正規分布、加賀の信者数は偏りがある、長宗我部氏の戦果は3つのクラスに分かれる'
                   : '回帰問題例：甲斐の産出量、越後の収穫量、出羽の輸送効率など、目的変数の分布を確認しよう'
@@ -103,26 +98,26 @@ export function DataExplorer({ dataset }: Props) {
           </div>
         )}
         {activeTab === 'correlation' && (
-          <div className="text-sm text-slate-800 flex items-start space-x-2">
-            <Grid3X3 className="w-4 h-4 mt-0.5" />
+          <div className="text-base text-blue-900 flex items-start space-x-3">
+            <Grid3X3 className="w-5 h-5 mt-1 text-yellow-500" />
             <div>
-              <div className="font-bold">読み取りポイント</div>
-              <div>相関の高い特徴は有力候補。同じ情報の重複は減らしてシンプルに。</div>
+              <div className="font-bold text-lg">読み取りポイント</div>
+              <div className="text-base">相関の高い特徴は有力候補。同じ情報の重複は減らしてシンプルに。</div>
             </div>
           </div>
         )}
         {activeTab === 'scatter' && (
-          <div className="text-sm text-slate-800 flex items-start space-x-2">
-            <Maximize2 className="w-4 h-4 mt-0.5" />
+          <div className="text-base text-blue-900 flex items-start space-x-3">
+            <Maximize2 className="w-5 h-5 mt-1 text-yellow-500" />
             <div>
-              <div className="font-bold">読み取りポイント</div>
-              <div>
+              <div className="font-bold text-lg">読み取りポイント</div>
+              <div className="text-base">
                 {dataset.classes && dataset.classes.length > 0 
                   ? '直線/曲線の形が見えたら、それに合うモデル（線形/非線形）を選ぼう。'
                   : '特徴量と目的変数の関係を確認し、予測に有効な特徴量を見つけよう。'
                 }
               </div>
-              <div className="text-xs text-gray-600 mt-1">
+              <div className="text-sm text-blue-700 mt-2">
                 💡 {dataset.classes && dataset.classes.length > 0 
                   ? '新問題例：毛利氏の海戦では風速と船数、加賀の布教では人口密度と経済状況、長宗我部氏の戦略では兵力と装備の関係を確認しよう'
                   : '回帰問題例：甲斐の産出量では労働者数と気温、越後の収穫量では降水量と日照時間、出羽の輸送効率では距離と標高の関係を確認しよう'
@@ -132,20 +127,20 @@ export function DataExplorer({ dataset }: Props) {
           </div>
         )}
         {activeTab === 'statistics' && (
-          <div className="text-sm text-blue-800 flex items-start space-x-2">
-            <TrendingUp className="w-4 h-4 mt-0.5" />
+          <div className="text-base text-blue-900 flex items-start space-x-3">
+            <TrendingUp className="w-5 h-5 mt-1 text-yellow-500" />
             <div>
-              <div className="font-bold">読み取りポイント</div>
-              <div>平均±標準偏差の範囲が常識的か、外れ値が多すぎないかを確認しよう。</div>
+              <div className="font-bold text-lg">読み取りポイント</div>
+              <div className="text-base">平均±標準偏差の範囲が常識的か、外れ値が多すぎないかを確認しよう。</div>
             </div>
           </div>
         )}
         {activeTab === 'insights' && (
-          <div className="text-sm text-slate-800 flex items-start space-x-2">
-            <Lightbulb className="w-4 h-4 mt-0.5" />
+          <div className="text-base text-blue-900 flex items-start space-x-3">
+            <Lightbulb className="w-5 h-5 mt-1 text-yellow-500" />
             <div>
-              <div className="font-bold">次の一手</div>
-              <div>必要に応じて前処理タブで正規化/標準化を試し、相関の高い特徴を中心に選んでみよう。</div>
+              <div className="font-bold text-lg">次の一手</div>
+              <div className="text-base">必要に応じて前処理タブで正規化/標準化を試し、相関の高い特徴を中心に選んでみよう。</div>
             </div>
           </div>
         )}
@@ -154,19 +149,19 @@ export function DataExplorer({ dataset }: Props) {
       <div className="p-6">
         {activeTab === 'overview' && (
           <div className="space-y-3">
-            <div className="bg-blue-50 p-3 rounded border border-blue-300">
-              <div className="text-sm font-medium text-blue-900 mb-1">データ数</div>
-              <div className="text-lg font-bold text-blue-800">
+            <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-300 shadow-sm">
+              <div className="text-lg font-bold text-blue-900 mb-2">データ数</div>
+              <div className="text-2xl font-bold text-blue-800">
                 訓練: {dataset.train.length} / テスト: {dataset.test.length}
               </div>
             </div>
 
-            <div className="bg-blue-50 p-3 rounded border border-blue-300">
-              <div className="text-sm font-medium text-blue-900 mb-2">特徴量</div>
-              <div className="space-y-1">
+            <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-300 shadow-sm">
+              <div className="text-lg font-bold text-blue-900 mb-3">特徴量</div>
+              <div className="space-y-2">
                 {dataset.featureNames.map((name, i) => (
-                  <div key={i} className="text-xs text-blue-800 flex items-center">
-                    <span className="w-2 h-2 bg-blue-600 rounded-full mr-2" />
+                  <div key={i} className="text-base text-blue-800 flex items-center">
+                    <span className="w-3 h-3 bg-blue-600 rounded-full mr-3" />
                     {name}
                   </div>
                 ))}
@@ -174,13 +169,13 @@ export function DataExplorer({ dataset }: Props) {
             </div>
 
             {dataset.classes && (
-              <div className="bg-blue-50 p-3 rounded border border-blue-300">
-                <div className="text-sm font-medium text-blue-900 mb-2">クラス</div>
+              <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-300 shadow-sm">
+                <div className="text-lg font-bold text-blue-900 mb-3">クラス</div>
                 <div className="flex flex-wrap gap-2">
                   {dataset.classes.map((cls, i) => (
                     <span
                       key={i}
-                      className="px-2 py-1 bg-blue-200 text-blue-900 text-xs rounded font-medium"
+                      className="px-3 py-2 bg-blue-200 text-blue-900 text-base rounded-lg font-bold"
                     >
                       {cls}
                     </span>
@@ -191,32 +186,32 @@ export function DataExplorer({ dataset }: Props) {
 
             {/* 生データ（前処理前） */}
             {dataset.raw && (
-              <div className="bg-green-50 p-3 rounded border border-green-300">
-                <div className="text-sm font-medium text-green-900 mb-2">生データ（前処理前）</div>
-                <div className="overflow-x-auto bg-white rounded border border-green-200">
-                  <table className="w-full text-sm">
-                    <thead className="bg-green-100">
-                      <tr className="border-b border-green-300">
+              <div className="bg-slate-50 p-4 rounded-lg border-2 border-slate-300 shadow-sm">
+                <div className="text-lg font-bold text-slate-900 mb-3">生データ（前処理前）</div>
+                <div className="overflow-x-auto bg-white rounded-lg border-2 border-slate-200">
+                  <table className="w-full text-base">
+                    <thead className="bg-slate-100">
+                      <tr className="border-b-2 border-slate-300">
                         {dataset.featureNames.map((name, i) => (
-                          <th key={i} className="px-2 py-2 text-left text-green-900 font-semibold">
+                          <th key={i} className="px-3 py-3 text-left text-slate-900 font-bold">
                             {name}
                             {dataset.raw?.featureUnits?.[i] && (
-                              <span className="text-green-700 ml-1">({dataset.raw.featureUnits[i]})</span>
+                              <span className="text-slate-600 ml-1">({dataset.raw.featureUnits[i]})</span>
                             )}
                           </th>
                         ))}
-                        <th className="px-2 py-2 text-left text-green-900 font-semibold">ラベル</th>
+                        <th className="px-3 py-3 text-left text-slate-900 font-bold">ラベル</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
                       {dataset.raw.train.slice(0, 5).map((point, i) => (
-                        <tr key={i} className="border-b border-green-200 hover:bg-green-50">
+                        <tr key={i} className="border-b border-slate-200 hover:bg-slate-50">
                           {point.features.map((val, j) => (
-                            <td key={j} className="px-2 py-2 text-green-900">
+                            <td key={j} className="px-3 py-3 text-slate-900">
                               {typeof val === 'number' ? formatNumber(val) : val}
                             </td>
                           ))}
-                          <td className="px-2 py-2 text-green-900 font-medium">
+                          <td className="px-3 py-3 text-slate-900 font-bold">
                             {Array.isArray(dataset.classes) && typeof point.label === 'number'
                               ? dataset.classes[point.label] ?? point.label
                               : point.label}

@@ -207,37 +207,33 @@ export function ModelSelector({ selectedModel, parameters, onModelChange, onPara
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--ink)' }}>
+          <label className="block text-lg font-bold mb-3 text-blue-900">
             AIモデルの種類
           </label>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {availableModels.map((model) => (
               <div
                 key={model.id}
-                className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
                   selectedModel === model.id
-                    ? 'shadow-md'
-                    : 'hover:bg-gray-50'
+                    ? 'shadow-lg bg-yellow-50 border-yellow-400'
+                    : 'hover:bg-blue-50 border-slate-300'
                 }`}
-                style={{
-                  background: selectedModel === model.id ? 'var(--silver-light)' : 'var(--ink-white)',
-                  borderColor: selectedModel === model.id ? 'var(--accent)' : 'var(--silver)'
-                }}
                 onClick={() => onModelChange(model.id)}
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`w-4 h-4 rounded-full border-2 ${
+                  <div className={`w-5 h-5 rounded-full border-2 ${
                     selectedModel === model.id
-                      ? 'bg-blue-500 border-blue-500'
-                      : 'border-gray-300'
+                      ? 'bg-blue-600 border-blue-600'
+                      : 'border-slate-400'
                   }`}>
                     {selectedModel === model.id && (
                       <div className="w-full h-full rounded-full bg-white scale-50" />
                     )}
                   </div>
                   <div>
-                    <div className="font-medium" style={{ color: 'var(--ink)' }}>{model.name}</div>
-                    <div className="text-sm" style={{ color: 'var(--ink-light)' }}>{model.description}</div>
+                    <div className="font-bold text-lg text-blue-900">{model.name}</div>
+                    <div className="text-sm text-blue-700">{model.description}</div>
                   </div>
                 </div>
                 <button

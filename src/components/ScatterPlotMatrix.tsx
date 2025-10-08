@@ -49,18 +49,17 @@ export function ScatterPlotMatrix({ dataset }: Props) {
   const sampledData = rawSource.slice(0, sampleSize) as { features: number[]; label: number | string }[];
   const isClassification = dataset.classes && dataset.classes.length > 0;
   
-  // デバッグ情報
-  console.log('ScatterPlotMatrix Debug:', {
-    hasRaw: !!dataset.raw,
-    rawLength: dataset.raw?.train?.length,
-    trainLength: dataset.train.length,
-    rawSourceLength: rawSource.length,
-    sampledDataLength: sampledData.length,
-    featureNames: dataset.featureNames,
-    isClassification,
-    classes: dataset.classes,
-    sampleData: sampledData.slice(0, 3)
-  });
+  // データが存在しない場合の早期リターン
+  if (!dataset || !sampledData || sampledData.length === 0) {
+    return (
+      <div className="bg-white/90 rounded-lg p-6 shadow-lg border-2" style={{ borderColor: 'var(--gold)' }}>
+        <div className="text-center text-gray-500">
+          データが読み込まれていません
+        </div>
+      </div>
+    );
+  }
+  
   
   // 問題タイプに応じた色設定
   const colors = getColorsForProblem(
@@ -107,22 +106,28 @@ export function ScatterPlotMatrix({ dataset }: Props) {
             const xValue = dataset.raw ? point.features[i] as number : (point.features[i] as number);
             const yValue = dataset.raw ? point.features[j] as number : (point.features[j] as number);
             
+            // ラベルの処理を改善
+            let labelValue: number;
+            if (isClassification) {
+              if (typeof point.label === 'string') {
+                // 文字列ラベルの場合は、クラス配列のインデックスを取得
+                const classIndex = dataset.classes?.indexOf(point.label) ?? 0;
+                labelValue = classIndex;
+              } else {
+                labelValue = Number(point.label);
+              }
+            } else {
+              labelValue = Number(point.label);
+            }
+            
             return {
               x: xValue,
               y: yValue,
-              label: isClassification ? Number(point.label) : point.label as number,
-              value: point.label as number, // 回帰用の値
+              label: labelValue,
+              value: labelValue, // 回帰用の値
             };
           });
 
-          // デバッグ情報
-          console.log(`Scatter plot ${index} (${dataset.featureNames[i]} vs ${dataset.featureNames[j]}):`, {
-            dataLength: data.length,
-            xRange: data.length > 0 ? [Math.min(...data.map(d => d.x)), Math.max(...data.map(d => d.x))] : [0, 1],
-            yRange: data.length > 0 ? [Math.min(...data.map(d => d.y)), Math.max(...data.map(d => d.y))] : [0, 1],
-            labels: [...new Set(data.map(d => d.label))],
-            sampleData: data.slice(0, 3)
-          });
 
           // データが空の場合はスキップ
           if (data.length === 0) {
@@ -167,13 +172,6 @@ export function ScatterPlotMatrix({ dataset }: Props) {
           const yMin = yValues.length > 0 ? Math.min(...yValues) : 0;
           const yMax = yValues.length > 0 ? Math.max(...yValues) : 1;
           
-          // デバッグ情報
-          console.log(`Scale debug for ${dataset.featureNames[i]} vs ${dataset.featureNames[j]}:`, {
-            xMin, xMax, yMin, yMax,
-            xRange: xMax - xMin,
-            yRange: yMax - yMin,
-            hasData: data.length > 0
-          });
           
           // 戦国時代のデータに適した軸の範囲設定
           const xRange = xMax - xMin;
@@ -185,12 +183,6 @@ export function ScatterPlotMatrix({ dataset }: Props) {
           const xDomain = xRange === 0 ? [xMin - 0.1, xMin + 0.1] : [Math.max(0, xMin - xPadding), xMax + xPadding];
           const yDomain = yRange === 0 ? [yMin - 0.1, yMin + 0.1] : [Math.max(0, yMin - yPadding), yMax + yPadding];
           
-          // デバッグ情報
-          console.log(`Domain debug for ${dataset.featureNames[i]} vs ${dataset.featureNames[j]}:`, {
-            xDomain, yDomain,
-            xPadding, yPadding,
-            xRange, yRange
-          });
 
           const labelGroups = isClassification
             ? [...new Set(data.map(d => d.label))].sort()
@@ -320,7 +312,6 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                   {isClassification ? (
                     labelGroups.map((label, idx) => {
                       const labelData = data.filter(d => d.label === label);
-                      console.log(`Label ${label} data:`, labelData.slice(0, 3));
                       return labelData.length > 0 ? (
                         <Scatter
                           key={label}

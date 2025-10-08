@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, Play, Pause, RotateCcw } from 'lucide-react';
+import { Sparkles, Zap, Target, BarChart3, Settings, Brain, TrendingUp, Rocket } from 'lucide-react';
 
 interface MLFlowAnimationProps {
   onClose: () => void;
@@ -8,315 +8,306 @@ interface MLFlowAnimationProps {
 const steps = [
   {
     id: 'problem',
-    title: '1. 問題を把握する',
-    description: '何を予測したいのか、どんなデータがあるのかを整理する',
-    example: '例：戦で勝つか負けるかを予測したい',
+    title: '1. 問題を決める',
+    description: '何を予測したいか決める',
+    example: '戦で勝つか負けるか？',
     details: [
-      'どんな問題を解決したいのかを明確にする',
-      '予測したい結果（目的変数）を決める',
-      '使えるデータ（特徴量）をリストアップする',
-      '問題の種類（分類か回帰か）を判断する'
+      '予測したいことを決める',
+      '使えるデータを確認する'
     ],
-    tips: '問題がはっきりしていないと、良いAIは作れません。まず「何を知りたいのか」を整理しましょう。',
+    tips: 'まず「何を知りたいか」を決めよう！',
     icon: '🎯',
-    color: 'from-blue-600 to-blue-800'
+    lucideIcon: Target,
+    color: 'from-red-500 to-red-700',
+    animation: 'animate-pulse',
+    visualElements: [
+      { type: 'question', text: '何を予測したい？', position: 'top-left' },
+      { type: 'data', text: '使えるデータは？', position: 'top-right' },
+      { type: 'arrow', from: 'question', to: 'data' }
+    ]
   },
   {
     id: 'eda',
-    title: '2. データを探索する（EDA）',
-    description: 'データの分布や関係性をグラフで確認する',
-    example: '例：兵力と勝率の関係を散布図で確認',
+    title: '2. データを見る',
+    description: 'グラフでデータの特徴を確認',
+    example: '兵力が多いと勝ちやすい？',
     details: [
-      'データの基本統計（平均、最大、最小など）を確認する',
-      'ヒストグラムでデータの分布を見る',
-      '散布図で特徴量同士の関係を調べる',
-      '欠損値や異常値がないかチェックする'
+      'グラフでデータの分布を見る',
+      '特徴量の関係を調べる'
     ],
-    tips: 'データをよく見ることで、どんな特徴があるか、どんな問題があるかが分かります。',
+    tips: 'データをよく見ると、パターンが見えてくる！',
     icon: '📊',
-    color: 'from-blue-600 to-blue-800'
+    lucideIcon: BarChart3,
+    color: 'from-orange-500 to-orange-700',
+    animation: 'animate-bounce',
+    visualElements: [
+      { type: 'chart', text: '散布図', position: 'center' },
+      { type: 'pattern', text: 'パターン発見！', position: 'bottom' }
+    ]
   },
   {
     id: 'preprocess',
-    title: '3. データを前処理する',
-    description: 'データを機械学習に適した形に変換する',
-    example: '例：文字データを数値に変換、データを正規化',
+    title: '3. データを整える',
+    description: 'AIが理解できる形に変換',
+    example: '「勝ち」→1、「負け」→0',
     details: [
-      '文字データ（「勝ち」「負け」など）を数値（1、0）に変換する',
-      'データのスケールを揃える（正規化・標準化）',
-      '欠損値を埋める（平均値で埋めるなど）',
-      '不要なデータを削除する'
+      '文字を数値に変換する',
+      'データのスケールを揃える'
     ],
-    tips: 'AIは数値しか理解できないので、データを数値に変換する必要があります。',
+    tips: 'AIは数値しか分からないから、変換が必要！',
     icon: '🔧',
-    color: 'from-blue-600 to-blue-800'
+    lucideIcon: Settings,
+    color: 'from-yellow-500 to-yellow-700',
+    animation: 'animate-spin',
+    visualElements: [
+      { type: 'transform', text: '文字→数値', position: 'left' },
+      { type: 'normalize', text: '正規化', position: 'right' }
+    ]
+  },
+  {
+    id: 'features',
+    title: '4. 特徴を選ぶ',
+    description: '予測に役立つ特徴を選択',
+    example: '兵力と戦術だけを使う',
+    details: [
+      '予測に役立ちそうな特徴を選ぶ',
+      '不要な特徴は除外する'
+    ],
+    tips: '全部使うと逆に精度が下がることもある！',
+    icon: '🎯',
+    lucideIcon: Target,
+    color: 'from-indigo-500 to-indigo-700',
+    animation: 'animate-pulse',
+    visualElements: [
+      { type: 'select', text: '特徴選択', position: 'center' },
+      { type: 'filter', text: 'フィルタ', position: 'right' }
+    ]
   },
   {
     id: 'model',
-    title: '4. モデルを選択・訓練する',
-    description: '適切なAIモデルを選んで学習させる',
-    example: '例：ロジスティック回帰で境界線を学習',
+    title: '5. AIを学習させる',
+    description: 'データでAIを訓練する',
+    example: '境界線を学習して勝敗を判定',
     details: [
-      '問題の種類に合ったAIモデルを選ぶ',
-      'モデルのパラメータを調整する',
-      '学習データを使ってモデルを訓練する',
-      '学習の進み具合を確認する'
+      '適切なAIモデルを選ぶ',
+      'データで学習させる'
     ],
-    tips: '問題の種類によって使うモデルが違います。分類ならロジスティック回帰、回帰なら線形回帰など。',
+    tips: '問題に合ったAIを選んで、たくさん練習させる！',
     icon: '🤖',
-    color: 'from-blue-600 to-blue-800'
+    lucideIcon: Brain,
+    color: 'from-green-500 to-green-700',
+    animation: 'animate-pulse',
+    visualElements: [
+      { type: 'learning', text: '学習中...', position: 'center' },
+      { type: 'progress', text: '85%', position: 'bottom' }
+    ]
   },
   {
     id: 'evaluate',
-    title: '5. モデルを評価する',
-    description: 'AIの性能を数値で確認する',
-    example: '例：正解率85%、精度90%で良好な性能',
+    title: '6. 性能を確認',
+    description: 'AIの正解率を測る',
+    example: '85%正解！',
     details: [
-      'テストデータでAIの性能を測る',
-      '正解率、精度、再現率などの指標を計算する',
-      '混同行列で間違いのパターンを確認する',
-      '性能が十分かどうか判断する'
+      'テストデータで性能を測る',
+      '正解率を確認する'
     ],
-    tips: 'テストデータは学習に使わない新しいデータで評価することが重要です。',
+    tips: '新しいデータでテストして、本当に使えるか確認！',
     icon: '📈',
-    color: 'from-blue-600 to-blue-800'
+    lucideIcon: TrendingUp,
+    color: 'from-blue-500 to-blue-700',
+    animation: 'animate-bounce',
+    visualElements: [
+      { type: 'accuracy', text: '85%', position: 'center' },
+      { type: 'checkmark', text: '✓', position: 'right' }
+    ]
   },
   {
     id: 'deploy',
-    title: '6. 実用化・改善',
-    description: '学習したAIを実際の問題に適用する',
-    example: '例：新しい戦略の成功確率を予測して活用',
+    title: '7. 実際に使う',
+    description: '学習したAIを活用する',
+    example: '新しい戦略の成功確率を予測',
     details: [
-      '実際のデータでAIを使って予測する',
-      '予測結果を基に意思決定を行う',
-      '新しいデータでAIの性能を継続的に確認する',
-      '必要に応じてモデルを再学習する'
+      '実際のデータで予測する',
+      '結果を活用して判断する'
     ],
-    tips: 'AIは一度作って終わりではありません。新しいデータで継続的に改善していくことが大切です。',
+    tips: 'AIは継続的に改善していくことが大切！',
     icon: '🚀',
-    color: 'from-blue-600 to-blue-800'
+    lucideIcon: Rocket,
+    color: 'from-purple-500 to-purple-700',
+    animation: 'animate-pulse',
+    visualElements: [
+      { type: 'prediction', text: '予測結果', position: 'center' },
+      { type: 'success', text: '成功！', position: 'bottom' }
+    ]
   }
 ];
 
 export function MLFlowAnimation({ onClose }: MLFlowAnimationProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true); // デフォルトで自動再生開始
   const [isCompleted, setIsCompleted] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (isPlaying && currentStep < steps.length - 1) {
+    
+    if (currentStep < steps.length - 1) {
       interval = setInterval(() => {
         setCurrentStep(prev => prev + 1);
-      }, 5000);
+      }, 4000); // 4秒間隔で自動進行
     } else if (currentStep === steps.length - 1) {
       setIsCompleted(true);
-      setIsPlaying(false);
+      // 完了後、5秒後に自動で閉じる
+      setTimeout(() => {
+        onClose();
+      }, 5000);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying, currentStep]);
+  }, [currentStep, onClose]);
 
-  const handlePlay = () => {
-    if (isCompleted) {
-      setCurrentStep(0);
-      setIsCompleted(false);
-    }
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleReset = () => {
-    setCurrentStep(0);
-    setIsPlaying(false);
-    setIsCompleted(false);
-  };
-
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(prev => prev + 1);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    }
-  };
 
   const currentStepData = steps[currentStep];
 
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl border-2 shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto" style={{ borderColor: 'var(--gold)' }}>
-        <div className="p-6">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-1">
+      <div className="bg-white rounded-3xl border-4 shadow-2xl w-[98vw] h-[98vh] overflow-hidden flex flex-col" style={{ borderColor: 'var(--gold)' }}>
+        <div className="p-6 flex-1 flex flex-col min-h-0">
           {/* ヘッダー */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">機械学習の流れ</h2>
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">機械学習の流れ</h2>
+                <p className="text-sm text-gray-600">7つのステップで学ぶAIの作り方</p>
+              </div>
+            </div>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              className="w-7 h-7 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 text-lg font-bold rounded-full transition-all duration-200 flex items-center justify-center"
             >
               ×
             </button>
           </div>
 
           {/* プログレスバー */}
-          <div className="mb-8">
+          <div className="mb-4 flex-shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-base font-medium text-gray-700">進捗</span>
-              <span className="text-base font-medium text-gray-700">{currentStep + 1} / {steps.length}</span>
+              <span className="text-base font-bold text-gray-800">学習進捗</span>
+              <span className="text-base font-bold text-gray-800">{currentStep + 1} / {steps.length}</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
               <div
-                className="h-2 rounded-full transition-all duration-500"
+                className="h-3 rounded-full transition-all duration-700 shadow-lg"
                 style={{
-                  background: 'linear-gradient(to right, var(--accent), var(--accent-strong))',
+                  background: 'linear-gradient(to right, #3B82F6, #8B5CF6, #EC4899)',
                   width: `${((currentStep + 1) / steps.length) * 100}%`
                 }}
               />
             </div>
+            <div className="mt-1 text-center">
+              <span className="text-sm font-medium text-gray-600">
+                {Math.round(((currentStep + 1) / steps.length) * 100)}% 完了
+              </span>
+            </div>
           </div>
 
           {/* 現在のステップ */}
-          <div className="mb-8">
-            <div className={`bg-gradient-to-r ${currentStepData.color} text-white p-6 rounded-xl mb-6`}>
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="text-4xl">{currentStepData.icon}</div>
-                <div>
-                  <h3 className="text-2xl font-bold">{currentStepData.title}</h3>
-                  <p className="text-lg opacity-90">{currentStepData.description}</p>
-                </div>
-              </div>
-              <div className="bg-white/20 p-4 rounded-lg mb-4">
-                <p className="text-base font-medium">{currentStepData.example}</p>
-              </div>
+          <div className="mb-4 relative flex-1 min-h-0">
+            <div className={`bg-gradient-to-br ${currentStepData.color} text-white p-6 rounded-2xl transform transition-all duration-700 hover:scale-105 shadow-xl relative overflow-hidden h-full`}>
+              {/* 背景装飾 */}
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-12 translate-x-12"></div>
+              <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
+              <div className="absolute top-1/2 left-1/2 w-12 h-12 bg-white/5 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
               
-              {/* 詳細な手順 */}
-              <div className="bg-white/10 p-4 rounded-lg mb-4">
-                <h4 className="text-base font-bold mb-3 opacity-90">具体的な手順：</h4>
-                <ul className="text-sm space-y-1">
-                  {currentStepData.details.map((detail, index) => (
-                    <li key={index} className="flex items-start space-x-2">
-                      <span className="text-white/80 text-sm">•</span>
-                      <span className="opacity-90">{detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              {/* ヒント */}
-              <div className="bg-yellow-400/20 p-3 rounded-lg border border-yellow-300/30">
-                <div className="flex items-start space-x-2">
-                  <span className="text-yellow-200 text-lg">💡</span>
-                  <p className="text-sm font-medium text-yellow-100">{currentStepData.tips}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* ステップ一覧 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {steps.map((step, index) => (
-                <div
-                  key={step.id}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer hover:shadow-md ${
-                    index === currentStep
-                      ? 'border-blue-500 bg-blue-50 shadow-lg scale-105'
-                      : index < currentStep
-                      ? 'border-green-500 bg-green-50 hover:border-green-600'
-                      : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                  }`}
-                  onClick={() => setCurrentStep(index)}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`text-2xl ${index <= currentStep ? 'opacity-100' : 'opacity-50'}`}>
-                      {step.icon}
+              <div className="relative z-10 h-full flex flex-col">
+                <div className="flex items-start space-x-4 mb-4">
+                  <div className="relative flex-shrink-0">
+                    <div className="text-5xl">
+                      {currentStepData.icon}
                     </div>
-                    <div className="flex-1">
-                      <h4 className={`text-base font-medium ${index <= currentStep ? 'text-gray-900' : 'text-gray-500'}`}>
-                        {step.title}
-                      </h4>
-                      <p className={`text-xs mt-1 ${index <= currentStep ? 'text-gray-600' : 'text-gray-400'}`}>
-                        {step.description}
-                      </p>
-                      {index === currentStep && (
-                        <div className="text-xs text-blue-600 mt-1 font-medium">
-                          クリックで詳細表示
-                        </div>
-                      )}
-                    </div>
-                    {index < currentStep && (
-                      <div className="text-green-500 text-xl">✓</div>
-                    )}
-                    {index === currentStep && (
-                      <div className="text-blue-500 text-xl">→</div>
+                    {currentStepData.lucideIcon && (
+                      <div className="absolute -top-1 -right-1 text-lg text-white/90 bg-white/20 rounded-full p-1">
+                        <currentStepData.lucideIcon className="w-5 h-5" />
+                      </div>
                     )}
                   </div>
+                  <div className="flex-1">
+                    <h3 className="text-3xl font-bold mb-2 leading-tight">{currentStepData.title}</h3>
+                    <p className="text-xl opacity-95 leading-relaxed">{currentStepData.description}</p>
+                  </div>
                 </div>
-              ))}
+                
+                {/* 例の表示と詳細な手順を横並びに */}
+                <div className="flex gap-4 mb-4 flex-1 min-h-0">
+                  {/* 例の表示 */}
+                  <div className="bg-white/25 p-4 rounded-xl backdrop-blur-sm border-2 border-white/40 flex-shrink-0 w-1/2">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className="w-6 h-6 bg-yellow-400/30 rounded-full flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-yellow-200" />
+                      </div>
+                      <h4 className="text-lg font-bold text-yellow-100">具体例</h4>
+                    </div>
+                    <p className="text-lg font-medium leading-relaxed">{currentStepData.example}</p>
+                  </div>
+                  
+                  {/* 詳細な手順 */}
+                  <div className="bg-white/15 p-4 rounded-xl backdrop-blur-sm border-2 border-white/30 flex-1 min-h-0">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-6 h-6 bg-blue-400/30 rounded-full flex items-center justify-center">
+                        <Zap className="w-4 h-4 text-blue-200" />
+                      </div>
+                      <h4 className="text-lg font-bold text-blue-100">具体的な手順</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {currentStepData.details.map((detail, index) => (
+                        <div key={index} className="flex items-start space-x-3 bg-white/10 p-3 rounded-lg">
+                          <div className="w-6 h-6 bg-white/25 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+                            {index + 1}
+                          </div>
+                          <span className="text-sm opacity-95 leading-relaxed">{detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* ヒント */}
+                <div className="bg-gradient-to-r from-yellow-400/40 to-orange-400/40 p-3 rounded-xl border-2 border-yellow-300/50 backdrop-blur-sm flex-shrink-0">
+                  <div className="flex items-start space-x-3">
+                    <div className="text-2xl flex-shrink-0">💡</div>
+                    <div>
+                      <h5 className="text-base font-bold text-yellow-100 mb-1">重要なコツ</h5>
+                      <p className="text-base font-medium text-yellow-50 leading-relaxed">{currentStepData.tips}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* コントロール */}
-          <div className="flex items-center justify-between mt-6">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handlePlay}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-base font-medium"
-              >
-                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                <span>{isPlaying ? '一時停止' : isCompleted ? '最初から' : '再生'}</span>
-              </button>
-              
-              <button
-                onClick={handleReset}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-base font-medium"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>リセット</span>
-              </button>
-            </div>
-
+          {/* 自動進行表示 */}
+          <div className="flex items-center justify-center mt-2 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border-2 border-blue-200 shadow-sm flex-shrink-0">
             <div className="flex items-center space-x-3">
-              <button
-                onClick={handlePrev}
-                disabled={currentStep === 0}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium"
-              >
-                前へ
-              </button>
-              <button
-                onClick={handleNext}
-                disabled={currentStep === steps.length - 1}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium"
-              >
-                次へ
-              </button>
+              <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+              <span className="text-base font-bold text-blue-700">自動進行中...</span>
+              <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
             </div>
           </div>
 
           {/* 完了メッセージ */}
           {isCompleted && (
-            <div className="mt-6 p-6 bg-green-50 border-2 border-green-200 rounded-xl text-center">
+            <div className="mt-2 p-4 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-lg text-center flex-shrink-0">
               <div className="text-4xl mb-3">🎉</div>
-              <h3 className="text-xl font-bold text-green-800 mb-3">機械学習の流れ完了！</h3>
-              <p className="text-base text-green-700 mb-4">
-                これで機械学習の基本的な流れを理解できました。<br />
-                実際のゲームでこの流れを体験してみましょう！
+              <h3 className="text-xl font-bold text-green-800 mb-2">機械学習の流れ完了！</h3>
+              <p className="text-base text-green-700">
+                これで機械学習の基本的な流れを理解できました！<br />
+                自動で閉じます...
               </p>
-              <div className="bg-white p-4 rounded-lg border border-green-300">
-                <h4 className="text-base font-bold text-green-800 mb-3">学習のポイント</h4>
-                <ul className="text-sm text-green-700 text-left space-y-1">
-                  <li>• 問題を明確にすることが最も重要</li>
-                  <li>• データをよく観察して特徴を理解する</li>
-                  <li>• 適切な前処理でデータの質を向上させる</li>
-                  <li>• 問題に合ったモデルを選択する</li>
-                  <li>• 客観的な評価で性能を確認する</li>
-                  <li>• 継続的な改善でAIを向上させる</li>
-                </ul>
-              </div>
             </div>
           )}
         </div>
