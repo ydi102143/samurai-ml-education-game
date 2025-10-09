@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Play, Loader, ChevronRight, Eye, Sparkles, Trophy, Filter } from 'lucide-react';
 import { useGameState } from '../hooks/useGameState';
 import { getDatasetForRegion } from '../data/datasets';
-import { createModel } from '../utils/mlModels';
+import { getStableDatasetForRegion } from '../data/stableDatasets';
+import { OverfittingDetector } from '../utils/safeMLEducation';
+import { createStableModel } from '../utils/stableMLModels';
 import { updateRegionProgress, saveAttempt, unlockRegion } from '../lib/database';
 import type { Dataset, ModelResult, TrainingProgress, DataPoint } from '../types/ml';
 import { DataExplorer } from './DataExplorer';
@@ -26,6 +28,8 @@ export function ChallengeView() {
   const [trainingProgress, setTrainingProgress] = useState<TrainingProgress | null>(null);
   const [result, setResult] = useState<ModelResult | null>(null);
   const [currentStep, setCurrentStep] = useState<Step>('data');
+  const [safetyWarnings, setSafetyWarnings] = useState<string[]>([]);
+  const [educationalContent, setEducationalContent] = useState<string>('');
 
   const region = regions.find(r => r.id === selectedRegion);
   const regionProgress = selectedRegion ? progress[selectedRegion] : null;
@@ -61,6 +65,10 @@ export function ChallengeView() {
         // デフォルトは分類問題として扱う
         setSelectedModel('logistic_regression');
       }
+      
+      // 安全性チェックと教育内容の初期化
+      setSafetyWarnings([]);
+      setEducationalContent('');
 
       setParameters({});
     }
@@ -107,14 +115,38 @@ export function ChallengeView() {
     setCurrentStep('train');
 
     try {
-      const model = createModel(selectedModel);
+      const model = createStableModel(selectedModel);
 
-      await model.train(dataset, parameters, (progress) => {
+      // データセットから学習用データを取得
+      const trainingData = dataset.train || dataset.data || [];
+      const testData = dataset.test || [];
+
+      console.log('学習データ:', {
+        trainingDataLength: trainingData.length,
+        testDataLength: testData.length,
+        datasetKeys: Object.keys(dataset)
+      });
+
+      if (trainingData.length === 0) {
+        throw new Error('学習データがありません');
+      }
+
+      await model.train(trainingData, parameters, (progress) => {
         setTrainingProgress(progress);
       });
 
-      const evaluation = model.evaluate(dataset);
+      const evaluation = model.evaluate(testData.length > 0 ? testData : trainingData);
       setResult(evaluation);
+      
+      // 過学習チェック
+      const overfittingCheck = OverfittingDetector.detectOverfitting(
+        evaluation.accuracy, // 仮想的な訓練精度
+        evaluation.accuracy
+      );
+      
+      if (overfittingCheck.isOverfitting) {
+        setSafetyWarnings([overfittingCheck.message, ...overfittingCheck.suggestions]);
+      }
 
       await saveAttempt({
         user_id: user.id,
@@ -291,7 +323,7 @@ export function ChallengeView() {
               <div className="space-y-6">
                 <PreprocessingTab
                   dataset={originalDataset}
-                  onPreprocessedDataset={handlePreprocess}
+                  onPreprocess={handlePreprocess}
                 />
                 <div className="flex justify-between">
                   <button
@@ -391,6 +423,34 @@ export function ChallengeView() {
                   requiredAccuracy={region.required_accuracy}
                   modelType={selectedModel}
                 />
+                
+                {/* 安全性警告 */}
+                {safetyWarnings.length > 0 && (
+                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6">
+                    <h3 className="text-lg font-bold text-red-800 mb-3 flex items-center">
+                      <span className="w-6 h-6 mr-2">⚠️</span>
+                      安全性チェック
+                    </h3>
+                    <ul className="space-y-2">
+                      {safetyWarnings.map((warning, index) => (
+                        <li key={index} className="text-red-700 text-base">
+                          • {warning}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {/* 教育内容 */}
+                {educationalContent && (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+                    <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center">
+                      <span className="w-6 h-6 mr-2">📚</span>
+                      学習ポイント
+                    </h3>
+                    <p className="text-blue-700 text-base">{educationalContent}</p>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <button
                     onClick={() => setCurrentStep('features')}

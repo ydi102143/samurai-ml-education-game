@@ -23,34 +23,21 @@ export function generateKyotoDataset(): Dataset {
   const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
-    const isReal = i < 150;
+    // 学習しやすい線形関係でデータを生成
+    const age = Math.max(1200, Math.min(1600, normalRandom(1400, 100))); // 年代（1200-1600年）
+    const craftsmanship = Math.max(1, Math.min(10, normalRandom(6, 2))); // 職人技（1-10点）
+    const materialQuality = Math.max(1, Math.min(10, normalRandom(6, 2))); // 材質（1-10点）
+    const patina = Math.max(1, Math.min(10, normalRandom(6, 2))); // 古色（1-10点）
     
-    // 戦国時代の特徴量分布（茶器の年代は戦国時代以前が本物）
-    const age = isReal 
-      ? Math.max(1300, normalRandom(1300, 50)) // 本物は戦国時代以前（1200-1400年頃）
-      : Math.max(1400, normalRandom(1400, 50)); // 贋作は戦国時代以降（1500-1600年頃）
-    
-    const craftsmanship = isReal 
-      ? Math.min(10, Math.max(1, normalRandom(8, 1.5))) // 本物は高い職人技（1-10点）
-      : Math.min(10, Math.max(1, normalRandom(4, 1.5))); // 贋作は低い職人技（1-10点）
-    
-    const materialQuality = isReal 
-      ? Math.min(10, Math.max(1, normalRandom(8, 1)))   // 本物は高品質材質（1-10点）
-      : Math.min(10, Math.max(1, normalRandom(5, 1.5))); // 贋作は低品質材質（1-10点）
-    
-    const patina = isReal 
-      ? Math.min(10, Math.max(1, normalRandom(8, 1.5))) // 本物は深い古色（1-10点）
-      : Math.min(10, Math.max(1, normalRandom(3, 1)));  // 贋作は薄い古色（1-10点）
-    
-    // 現実的な真贋判定（重み付きスコア）
+    // シンプルな線形関係で真贋を判定
     const authenticityScore = 
       (craftsmanship / 10) * 0.4 +
       (materialQuality / 10) * 0.3 +
       (patina / 10) * 0.2 +
-      (age < 1500 ? 0.1 : 0) + // 戦国時代以前ボーナス
-      normalRandom(0, 0.05);   // ノイズ
+      ((1600 - age) / 400) * 0.1 + // 古いほど本物
+      normalRandom(0, 0.1); // ノイズ
 
-    const isAuthentic = authenticityScore > 0.6;
+    const isAuthentic = authenticityScore > 0.5;
 
     // 生データ（前処理前）を保持
     raw.push({
@@ -100,34 +87,34 @@ export function generateSakaiDataset(): Dataset {
   for (let i = 0; i < 300; i++) {
     const originIdx = Math.floor(Math.random() * 4);
     
-    // 産地別の現実的な特徴パターン（1-10点スケール）
+    // 産地別の学習しやすい特徴パターン（1-10点スケール）
     let material, decoration, craftsmanship, price;
     
     switch (originIdx) {
       case 0: // 中国 - 高品質、高装飾、中価格
-        material = Math.min(10, Math.max(1, normalRandom(8, 1.5)));
-        decoration = Math.min(10, Math.max(1, normalRandom(8.5, 1)));
-        craftsmanship = Math.min(10, Math.max(1, normalRandom(7, 1.5)));
-        price = Math.min(500, Math.max(50, normalRandom(300, 100))); // 50-500文（戦国時代の価格）
+        material = Math.min(10, Math.max(1, normalRandom(8, 1)));
+        decoration = Math.min(10, Math.max(1, normalRandom(8, 1)));
+        craftsmanship = Math.min(10, Math.max(1, normalRandom(7, 1)));
+        price = Math.min(500, Math.max(50, normalRandom(300, 50)));
         break;
       case 1: // 南蛮 - 中品質、低装飾、高価格（希少性）
-        material = Math.min(10, Math.max(1, normalRandom(6, 1.5)));
-        decoration = Math.min(10, Math.max(1, normalRandom(3, 2)));
-        craftsmanship = Math.min(10, Math.max(1, normalRandom(5, 2)));
-        price = Math.min(500, Math.max(50, normalRandom(400, 80))); // 50-500文（戦国時代の価格）
+        material = Math.min(10, Math.max(1, normalRandom(6, 1)));
+        decoration = Math.min(10, Math.max(1, normalRandom(3, 1)));
+        craftsmanship = Math.min(10, Math.max(1, normalRandom(5, 1)));
+        price = Math.min(500, Math.max(50, normalRandom(400, 50)));
         break;
       case 2: // 朝鮮 - 高品質、中装飾、低価格
-        material = Math.min(10, Math.max(1, normalRandom(7.5, 1)));
-        decoration = Math.min(10, Math.max(1, normalRandom(6, 1.5)));
+        material = Math.min(10, Math.max(1, normalRandom(7, 1)));
+        decoration = Math.min(10, Math.max(1, normalRandom(6, 1)));
         craftsmanship = Math.min(10, Math.max(1, normalRandom(8, 1)));
-        price = Math.min(500, Math.max(50, normalRandom(200, 80))); // 50-500文（戦国時代の価格）
+        price = Math.min(500, Math.max(50, normalRandom(200, 50)));
         break;
       case 3: // 日本 - 中品質、高装飾、中価格
       default:
-        material = Math.min(10, Math.max(1, normalRandom(6, 1.5)));
-        decoration = Math.min(10, Math.max(1, normalRandom(7, 1.5)));
-        craftsmanship = Math.min(10, Math.max(1, normalRandom(6.5, 1.5)));
-        price = Math.min(500, Math.max(50, normalRandom(250, 80))); // 50-500文（戦国時代の価格）
+        material = Math.min(10, Math.max(1, normalRandom(6, 1)));
+        decoration = Math.min(10, Math.max(1, normalRandom(7, 1)));
+        craftsmanship = Math.min(10, Math.max(1, normalRandom(6, 1)));
+        price = Math.min(500, Math.max(50, normalRandom(250, 50)));
         break;
     }
 
@@ -143,15 +130,15 @@ export function generateSakaiDataset(): Dataset {
     });
 
     // 正規化データ
-    data.push({
+      data.push({
       features: [
         material / 10,      // 材質（正規化）
         decoration / 10,    // 装飾（正規化）
         craftsmanship / 10, // 職人技（正規化）
         price / 500         // 価格（正規化）
       ],
-      label: originIdx,
-    });
+        label: originIdx,
+      });
   }
 
   const shuffled = shuffle(data);
@@ -177,22 +164,25 @@ export function generateKaiDataset(): Dataset {
   const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
-    // 戦国時代の鉱山の特徴量
-    const workers = Math.max(5, Math.min(100, normalRandom(40, 20))); // 労働者数（5-100人、戦国時代の規模）
-    const experience = Math.max(1, Math.min(15, normalRandom(6, 3))); // 経験値（1-15年）
+    // 学習しやすい線形関係でデータを生成（二値分類用）
+    const workers = Math.max(5, Math.min(100, normalRandom(50, 20))); // 労働者数（5-100人）
+    const experience = Math.max(1, Math.min(15, normalRandom(8, 3))); // 経験値（1-15年）
     const temp = Math.max(-5, Math.min(30, normalRandom(15, 8))); // 気温（-5〜30℃）
     const rainfall = Math.max(0, Math.min(300, normalRandom(100, 40))); // 降水量（0-300mm）
-    const equipment = Math.max(1, Math.min(8, normalRandom(4, 2))); // 機具の質（1-8点、戦国時代の技術）
-    const oreQuality = Math.max(1, Math.min(8, normalRandom(4, 2))); // 鉱石の品質（1-8点）
+    const equipment = Math.max(1, Math.min(8, normalRandom(5, 2))); // 機具の質（1-8点）
+    const oreQuality = Math.max(1, Math.min(8, normalRandom(5, 2))); // 鉱石の品質（1-8点）
     
-    // 戦国時代の産出量計算（非線形関係を含む）
-    const workerEffect = Math.log(workers) * experience / 15; // 対数効果
-    const weatherEffect = Math.max(0.1, 1 - Math.abs(temp - 15) / 25) * (1 - rainfall / 300);
-    const techEffect = Math.pow(equipment / 8, 1.5); // 非線形効果
-    const geologicalEffect = Math.pow(oreQuality / 8, 2); // 非線形効果
+    // シンプルな線形関係で成功/失敗を判定
+    const successScore = 
+      (workers / 100) * 0.3 +
+      (experience / 15) * 0.25 +
+      (equipment / 8) * 0.2 +
+      (oreQuality / 8) * 0.15 +
+      (1 - Math.abs(temp - 15) / 25) * 0.05 +
+      (1 - rainfall / 300) * 0.05 +
+      normalRandom(0, 0.1); // ノイズ
     
-    const baseOutput = workerEffect * weatherEffect * techEffect * geologicalEffect;
-    const output = Math.max(0, baseOutput * 50 * (0.7 + Math.random() * 0.6)); // 産出量（両、戦国時代の規模）
+    const isSuccessful = successScore > 0.5;
 
     // 生データ（単位付き）
     raw.push({
@@ -204,7 +194,7 @@ export function generateKaiDataset(): Dataset {
         Math.round(equipment),    // 機具の質（1-10点）
         Math.round(oreQuality)    // 鉱石の品質（1-10点）
       ],
-      label: Math.round(output * 10) / 10, // 産出量（両）
+      label: isSuccessful ? '成功' : '失敗',
     });
 
     data.push({
@@ -216,7 +206,7 @@ export function generateKaiDataset(): Dataset {
         equipment / 8,        // 機具の質（正規化）
         oreQuality / 8        // 鉱石の品質（正規化）
       ],
-      label: output,
+      label: isSuccessful ? 1 : 0, // 二値分類（1: 成功, 0: 失敗）
     });
   }
 
@@ -243,25 +233,46 @@ export function generateEchigoDataset(): Dataset {
   const raw = [] as { features: number[]; label: number | string }[];
 
   for (let i = 0; i < 300; i++) {
-    // 戦国時代の農業の特徴量
-    const temperature = Math.max(-5, Math.min(30, normalRandom(18, 6))); // 気温（-5〜30℃）
-    const rainfall = Math.max(0, Math.min(300, normalRandom(120, 40))); // 降水量（0-300mm）
-    const sunshine = Math.max(80, Math.min(250, normalRandom(160, 40))); // 日照時間（80-250時間）
-    const soilQuality = Math.max(1, Math.min(8, normalRandom(5, 1.5))); // 土壌の質（1-8点、戦国時代の技術）
-    const seedQuality = Math.max(1, Math.min(8, normalRandom(5, 1.5))); // 種子の質（1-8点）
-    const fertilizer = Math.max(0, Math.min(50, normalRandom(25, 15))); // 肥料の量（0-50kg、戦国時代の施肥）
+    // 戦国時代の農業の特徴量（学習しやすい範囲）
+    const temperature = Math.max(10, Math.min(30, normalRandom(20, 5))); // 気温（10〜30℃）
+    const rainfall = Math.max(50, Math.min(300, normalRandom(150, 50))); // 降水量（50-300mm）
+    const sunshine = Math.max(100, Math.min(300, normalRandom(200, 50))); // 日照時間（100-300時間）
+    const soilQuality = Math.max(1, Math.min(10, normalRandom(5, 2))); // 土壌の質（1-10点）
+    const seedQuality = Math.max(1, Math.min(10, normalRandom(5, 2))); // 種子の質（1-10点）
+    const fertilizer = Math.max(0, Math.min(50, normalRandom(25, 15))); // 肥料の量（0-50kg）
     
-    // 戦国時代の収穫量計算（最適条件からの偏差）
-    const tempOptimal = 18;
-    const rainOptimal = 120;
-    const sunOptimal = 160;
+    // シンプルな線形関係で収穫量を計算
+    const baseYield = 100; // 基本収穫量
+    const tempEffect = (temperature - 10) / 20; // 気温効果（0-1）
+    const rainEffect = (rainfall - 50) / 250; // 降水量効果（0-1）
+    const sunEffect = (sunshine - 100) / 200; // 日照効果（0-1）
+    const soilEffect = (soilQuality - 1) / 9; // 土壌効果（0-1）
+    const seedEffect = (seedQuality - 1) / 9; // 種子効果（0-1）
+    const fertilizerEffect = fertilizer / 50; // 肥料効果（0-1）
     
-    const tempEffect = Math.exp(-Math.pow(temperature - tempOptimal, 2) / 80);
-    const rainEffect = Math.exp(-Math.pow(rainfall - rainOptimal, 2) / 3000);
-    const sunEffect = Math.min(1, sunshine / sunOptimal);
-    const soilEffect = Math.pow((soilQuality / 8) * (seedQuality / 8) * (fertilizer / 50), 0.8);
+    // 線形結合で収穫量を計算（重み付き）
+    const harvestYield = baseYield + 
+      (tempEffect * 30) + 
+      (rainEffect * 40) + 
+      (sunEffect * 35) + 
+      (soilEffect * 25) + 
+      (seedEffect * 20) + 
+      (fertilizerEffect * 15) + 
+      (Math.random() - 0.5) * 20; // ノイズ
     
-    const harvestYield = tempEffect * rainEffect * sunEffect * soilEffect * 500 * (0.6 + Math.random() * 0.8); // 収穫量（石、戦国時代の規模）
+    // デバッグ情報（最初の5個のみ）
+    if (i < 5) {
+      console.log(`上杉謙信問題 サンプル ${i + 1}:`, {
+        temperature,
+        rainfall,
+        sunshine,
+        soilQuality,
+        seedQuality,
+        fertilizer,
+        harvestYield,
+        normalizedLabel: harvestYield / 200
+      });
+    }
 
     // 生データ（単位付き）
     raw.push({
@@ -278,15 +289,30 @@ export function generateEchigoDataset(): Dataset {
 
     data.push({
       features: [
-        (temperature + 5) / 35,  // 気温（正規化）
-        rainfall / 300,          // 降水量（正規化）
-        sunshine / 250,          // 日照時間（正規化）
-        soilQuality / 8,         // 土壌の質（正規化）
-        seedQuality / 8,         // 種子の質（正規化）
-        fertilizer / 50          // 肥料の量（正規化）
+        (temperature - 10) / 20,  // 気温（正規化 0-1）
+        (rainfall - 50) / 250,    // 降水量（正規化 0-1）
+        (sunshine - 100) / 200,   // 日照時間（正規化 0-1）
+        (soilQuality - 1) / 9,    // 土壌の質（正規化 0-1）
+        (seedQuality - 1) / 9,    // 種子の質（正規化 0-1）
+        fertilizer / 50           // 肥料の量（正規化 0-1）
       ],
-      label: harvestYield,
+      label: harvestYield / 200,  // 収穫量（正規化 0-1）
     });
+    
+    // デバッグ情報（最初の5個のみ）
+    if (i < 5) {
+      console.log(`正規化後 サンプル ${i + 1}:`, {
+        features: [
+          (temperature - 10) / 20,
+          (rainfall - 50) / 250,
+          (sunshine - 100) / 200,
+          (soilQuality - 1) / 9,
+          (seedQuality - 1) / 9,
+          fertilizer / 50
+        ],
+        label: harvestYield / 200
+      });
+    }
   }
 
   const shuffled = shuffle(data);
@@ -325,7 +351,7 @@ export function generateOwariDataset(): Dataset {
     const adjustedStrength = Math.min(10, Math.max(1, strength * ageEffect));
     const adjustedAgility = Math.min(10, Math.max(1, agility * ageEffect));
     
-    // 戦国時代の役職判定（重み付きスコア）
+    // シンプルな線形関係で戦闘力を計算（回帰用）
     const physicalScore = (adjustedStrength + adjustedAgility) / 20; // 正規化
     const mentalScore = intelligence / 10; // 正規化
     const experienceScore = experience / 20; // 正規化
@@ -333,13 +359,10 @@ export function generateOwariDataset(): Dataset {
     
     const totalScore = physicalScore * 0.35 + mentalScore * 0.25 + experienceScore * 0.25 + socialScore * 0.15;
     
-    let role = 0; // 槍兵（デフォルト）
-    if (totalScore > 0.75) role = 3; // 騎馬隊（最高）
-    else if (totalScore > 0.55) role = 2; // 鉄砲隊（高）
-    else if (totalScore > 0.35) role = 1; // 弓兵（中）
+    // 戦闘力（0-100点）を計算
+    const combatPower = totalScore * 100 + normalRandom(0, 10); // ノイズ付き
 
     // 生データ（単位付き）
-    const roles = ['槍兵', '弓兵', '鉄砲隊', '騎馬隊'];
     raw.push({
       features: [
         Math.round(age),           // 年齢（歳）
@@ -349,19 +372,19 @@ export function generateOwariDataset(): Dataset {
         Math.round(experience),       // 戦闘経験（年）
         Math.round(socialClass)       // 社会階級（1-5段階）
       ],
-      label: roles[role], // 文字列で保存
+      label: Math.round(combatPower * 10) / 10, // 戦闘力（0-100点）
     });
 
-      data.push({
+    data.push({
       features: [
-        age / 50,              // 年齢（正規化）
-        adjustedStrength / 10, // 筋力（正規化）
-        adjustedAgility / 10,  // 敏捷性（正規化）
-        intelligence / 10,     // 知力（正規化）
-        experience / 20,       // 戦闘経験（正規化）
-        socialClass / 5        // 社会階級（正規化）
+        (age - 16) / 34,          // 年齢（正規化 0-1）
+        (adjustedStrength - 1) / 9, // 筋力（正規化 0-1）
+        (adjustedAgility - 1) / 9,  // 敏捷性（正規化 0-1）
+        (intelligence - 1) / 9,     // 知力（正規化 0-1）
+        experience / 20,            // 戦闘経験（正規化 0-1）
+        (socialClass - 1) / 4       // 社会階級（正規化 0-1）
       ],
-      label: role,
+      label: combatPower / 100,    // 戦闘力（正規化 0-1）
     });
   }
 
@@ -1248,7 +1271,624 @@ export function getDatasetForRegion(regionId: string): Dataset {
       return generateKagaDataset();
     case 'tosa':
       return generateTosaDataset();
+    // 現代の問題データセット（オンライン対戦用）
+    case 'modern_stock_prediction':
+      return generateModernStockPredictionDataset();
+    case 'modern_sentiment_analysis':
+      return generateModernSentimentAnalysisDataset();
+    case 'modern_image_classification':
+      return generateModernImageClassificationDataset();
+    case 'modern_recommendation':
+      return generateModernRecommendationDataset();
+    case 'modern_fraud_detection':
+      return generateModernFraudDetectionDataset();
     default:
       return generateKyotoDataset();
   }
+}
+
+// 不均衡データセット（織田信長の家臣データ）
+export function generateImbalancedDataset(): Dataset {
+  const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
+
+  for (let i = 0; i < 1000; i++) {
+    // 現実的な家臣データ（99%が忠実、1%が謀反）
+    const age = Math.max(20, Math.min(60, normalRandom(35, 10)));
+    const experience = Math.min(1, Math.max(0, normalRandom(0.6, 0.2)));
+    const loyalty = Math.min(1, Math.max(0, normalRandom(0.7, 0.2)));
+    const socialStatus = Math.min(1, Math.max(0, normalRandom(0.5, 0.3)));
+    const education = Math.min(1, Math.max(0, normalRandom(0.4, 0.3)));
+    
+    // 謀反の確率（非常に低い）
+    const betrayalRisk = Math.random() < 0.01 ? 1 : 0;
+    
+    // 生データ
+    raw.push({
+      features: [
+        Math.round(age),
+        Math.round(experience * 10) / 10,
+        Math.round(loyalty * 10) / 10,
+        Math.round(socialStatus * 10) / 10,
+        Math.round(education * 10) / 10
+      ],
+      label: betrayalRisk === 1 ? '謀反' : '忠実'
+    });
+
+    data.push({
+      features: [
+        age / 60,           // 年齢（正規化）
+        experience,         // 経験値
+        loyalty,            // 忠誠度
+        socialStatus,      // 社会的地位
+        education          // 教育レベル
+      ],
+      label: betrayalRisk
+    });
+  }
+
+  const shuffled = shuffle(data);
+  const splitIdx = Math.floor(data.length * 0.7);
+
+  return {
+    train: shuffled.slice(0, splitIdx),
+    test: shuffled.slice(splitIdx),
+    featureNames: ['年齢', '経験値', '忠誠度', '社会的地位', '教育レベル'],
+    classes: ['忠実', '謀反'],
+    labelName: '忠誠度',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureNames: ['年齢', '経験値', '忠誠度', '社会的地位', '教育レベル'],
+      featureUnits: ['歳', '', '', '', '']
+    }
+  };
+}
+
+// 時系列データセット（城下町の人口推移）
+export function generateTimeSeriesDataset(): Dataset {
+  const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
+
+  // 12ヶ月のデータを生成
+  for (let month = 1; month <= 12; month++) {
+    for (let i = 0; i < 50; i++) {
+      // 季節性を含む特徴量
+      const season = Math.sin((month - 1) * Math.PI / 6); // 季節性
+      const temperature = 15 + 10 * season + normalRandom(0, 5);
+      const rainfall = Math.max(0, 50 + 30 * season + normalRandom(0, 20));
+      const harvest = Math.min(1, Math.max(0, 0.5 + 0.3 * season + normalRandom(0, 0.2)));
+      const war = Math.random() < 0.1 ? 1 : 0; // 戦争の影響
+      const disease = Math.random() < 0.05 ? 1 : 0; // 疫病の影響
+      
+      // 人口変化率（季節性 + ランダム要素）
+      const baseGrowth = 0.02 + 0.01 * season; // 基本成長率
+      const warEffect = war * -0.1; // 戦争による人口減少
+      const diseaseEffect = disease * -0.05; // 疫病による人口減少
+      const harvestEffect = (harvest - 0.5) * 0.02; // 収穫による影響
+      
+      const populationChange = baseGrowth + warEffect + diseaseEffect + harvestEffect + normalRandom(0, 0.01);
+      
+      // 生データ
+      raw.push({
+        features: [
+          month,
+          Math.round(temperature * 10) / 10,
+          Math.round(rainfall * 10) / 10,
+          Math.round(harvest * 10) / 10,
+          war,
+          disease
+        ],
+        label: Math.round(populationChange * 1000) / 1000
+      });
+
+      data.push({
+        features: [
+          month / 12,        // 月（正規化）
+          temperature / 40, // 気温（正規化）
+          rainfall / 100,   // 降水量（正規化）
+          harvest,          // 収穫量
+          war,              // 戦争
+          disease           // 疫病
+        ],
+        label: populationChange
+      });
+    }
+  }
+
+  const shuffled = shuffle(data);
+  const splitIdx = Math.floor(data.length * 0.7);
+
+  return {
+    train: shuffled.slice(0, splitIdx),
+    test: shuffled.slice(splitIdx),
+    featureNames: ['月', '気温', '降水量', '収穫量', '戦争', '疫病'],
+    labelName: '人口変化率',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureNames: ['月', '気温', '降水量', '収穫量', '戦争', '疫病'],
+      featureUnits: ['月', '℃', 'mm', '', '', '']
+    }
+  };
+}
+
+// 高次元データセット（合戦の戦略分析）
+export function generateHighDimensionalDataset(): Dataset {
+  const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
+
+  for (let i = 0; i < 500; i++) {
+    // 50次元の特徴量
+    const features = Array.from({ length: 50 }, () => Math.random());
+    
+    // 複雑な関係性を持つ目的変数
+    const complexity = features.slice(0, 10).reduce((sum, val) => sum + val, 0) / 10;
+    const interaction = features[0] * features[1] * features[2];
+    const noise = normalRandom(0, 0.1);
+    
+    const outcome = complexity + interaction + noise;
+    const result = outcome > 0.5 ? 1 : 0;
+    
+    // 生データ（最初の10次元のみ表示）
+    raw.push({
+      features: features.slice(0, 10),
+      label: result === 1 ? '勝利' : '敗北'
+    });
+
+    data.push({
+      features: features,
+      label: result
+    });
+  }
+
+  const shuffled = shuffle(data);
+  const splitIdx = Math.floor(data.length * 0.7);
+
+  return {
+    train: shuffled.slice(0, splitIdx),
+    test: shuffled.slice(splitIdx),
+    featureNames: Array.from({ length: 50 }, (_, i) => `特徴量${i + 1}`),
+    classes: ['敗北', '勝利'],
+    labelName: '戦果',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureNames: Array.from({ length: 10 }, (_, i) => `特徴量${i + 1}`),
+      featureUnits: Array(10).fill('')
+    }
+  };
+}
+
+// マルチモーダルデータセット（城の防御力評価）
+export function generateMultimodalDataset(): Dataset {
+  const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
+
+  for (let i = 0; i < 300; i++) {
+    // 数値データ
+    const wallHeight = Math.max(5, Math.min(20, normalRandom(12, 3)));
+    const moatDepth = Math.max(2, Math.min(8, normalRandom(5, 1.5)));
+    const garrison = Math.max(100, Math.min(1000, normalRandom(500, 150)));
+    
+    // カテゴリデータ（数値化）
+    const architecture = Math.random() < 0.3 ? 0 : Math.random() < 0.6 ? 1 : 2; // 0: 和風, 1: 南蛮風, 2: 混合
+    const location = Math.random() < 0.4 ? 0 : Math.random() < 0.7 ? 1 : 2; // 0: 平地, 1: 丘陵, 2: 山地
+    
+    // テキストデータ（数値化）
+    const reputation = Math.min(1, Math.max(0, normalRandom(0.6, 0.2)));
+    const historical = Math.min(1, Math.max(0, normalRandom(0.5, 0.3)));
+    
+    // 複合スコア
+    const defenseScore = (wallHeight / 20) * 0.3 + 
+                        (moatDepth / 8) * 0.2 + 
+                        (garrison / 1000) * 0.2 + 
+                        (architecture / 2) * 0.1 + 
+                        (location / 2) * 0.1 + 
+                        reputation * 0.1;
+    
+    const defenseLevel = defenseScore > 0.7 ? 2 : defenseScore > 0.4 ? 1 : 0;
+    
+    // 生データ
+    const levelNames = ['弱い', '中程度', '強い'];
+    
+    raw.push({
+      features: [
+        Math.round(wallHeight),
+        Math.round(moatDepth),
+        Math.round(garrison),
+        architecture,
+        location,
+        Math.round(reputation * 10) / 10,
+        Math.round(historical * 10) / 10
+      ],
+      label: levelNames[defenseLevel]
+    });
+
+    data.push({
+      features: [
+        wallHeight / 20,    // 石垣の高さ（正規化）
+        moatDepth / 8,      // 堀の深さ（正規化）
+        garrison / 1000,    // 兵数（正規化）
+        architecture / 2,   // 建築様式（正規化）
+        location / 2,       // 立地（正規化）
+        reputation,         // 評判
+        historical          // 歴史的価値
+      ],
+      label: defenseLevel
+    });
+  }
+
+  const shuffled = shuffle(data);
+  const splitIdx = Math.floor(data.length * 0.7);
+
+  return {
+    train: shuffled.slice(0, splitIdx),
+    test: shuffled.slice(splitIdx),
+    featureNames: ['石垣の高さ', '堀の深さ', '兵数', '建築様式', '立地', '評判', '歴史的価値'],
+    classes: ['弱い', '中程度', '強い'],
+    labelName: '防御力',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureNames: ['石垣の高さ', '堀の深さ', '兵数', '建築様式', '立地', '評判', '歴史的価値'],
+      featureUnits: ['m', 'm', '人', '', '', '', '']
+    }
+  };
+}
+
+// 現代の株価予測データセット
+export function generateModernStockPredictionDataset(): Dataset {
+  const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
+
+  for (let i = 0; i < 1000; i++) {
+    // 株価関連の特徴量
+    const openPrice = Math.max(100, Math.min(1000, normalRandom(500, 150)));
+    const volume = Math.max(1000, Math.min(1000000, normalRandom(100000, 50000)));
+    const marketCap = Math.max(1000000, Math.min(1000000000, normalRandom(10000000, 5000000)));
+    const peRatio = Math.max(5, Math.min(50, normalRandom(20, 8)));
+    const debtRatio = Math.min(1, Math.max(0, normalRandom(0.3, 0.2)));
+    const revenueGrowth = normalRandom(0.05, 0.15);
+    const profitMargin = Math.min(0.5, Math.max(-0.2, normalRandom(0.1, 0.1)));
+    
+    // 株価変化率（回帰問題）
+    const priceChange = normalRandom(0, 0.05) + revenueGrowth * 0.3 + profitMargin * 0.2;
+    
+    // 生データ
+    raw.push({
+      features: [
+        Math.round(openPrice * 100) / 100,
+        Math.round(volume),
+        Math.round(marketCap),
+        Math.round(peRatio * 10) / 10,
+        Math.round(debtRatio * 100) / 100,
+        Math.round(revenueGrowth * 1000) / 1000,
+        Math.round(profitMargin * 1000) / 1000
+      ],
+      label: Math.round(priceChange * 10000) / 10000
+    });
+
+    data.push({
+      features: [
+        openPrice / 1000,      // 始値（正規化）
+        volume / 1000000,      // 出来高（正規化）
+        marketCap / 1000000000, // 時価総額（正規化）
+        peRatio / 50,          // PER（正規化）
+        debtRatio,             // 負債比率
+        revenueGrowth,         // 売上成長率
+        profitMargin          // 利益率
+      ],
+      label: priceChange
+    });
+  }
+
+  const shuffled = shuffle(data);
+  const splitIdx = Math.floor(data.length * 0.7);
+
+  return {
+    train: shuffled.slice(0, splitIdx),
+    test: shuffled.slice(splitIdx),
+    featureNames: ['始値', '出来高', '時価総額', 'PER', '負債比率', '売上成長率', '利益率'],
+    labelName: '株価変化率',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureNames: ['始値', '出来高', '時価総額', 'PER', '負債比率', '売上成長率', '利益率'],
+      featureUnits: ['円', '株', '円', '', '', '', '']
+    }
+  };
+}
+
+// 現代の感情分析データセット
+export function generateModernSentimentAnalysisDataset(): Dataset {
+  const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
+
+  for (let i = 0; i < 2000; i++) {
+    // テキストの特徴量（数値化）
+    const wordCount = Math.max(5, Math.min(100, normalRandom(30, 15)));
+    const positiveWords = Math.min(wordCount, Math.floor(Math.random() * 5));
+    const negativeWords = Math.min(wordCount - positiveWords, Math.floor(Math.random() * 5));
+    const neutralWords = wordCount - positiveWords - negativeWords;
+    const exclamationMarks = Math.floor(Math.random() * 3);
+    const questionMarks = Math.floor(Math.random() * 2);
+    const capsRatio = Math.min(1, Math.random() * 0.3);
+    
+    // 感情ラベル
+    let sentiment = 0; // 0: negative, 1: neutral, 2: positive
+    if (positiveWords > negativeWords && positiveWords > neutralWords) {
+      sentiment = 2;
+    } else if (neutralWords > positiveWords && neutralWords > negativeWords) {
+      sentiment = 1;
+    }
+    
+    // 生データ
+    const sentimentNames = ['ネガティブ', 'ニュートラル', 'ポジティブ'];
+    raw.push({
+      features: [
+        wordCount,
+        positiveWords,
+        negativeWords,
+        neutralWords,
+        exclamationMarks,
+        questionMarks,
+        Math.round(capsRatio * 100) / 100
+      ],
+      label: sentimentNames[sentiment]
+    });
+
+    data.push({
+      features: [
+        wordCount / 100,       // 単語数（正規化）
+        positiveWords / wordCount, // ポジティブ単語比率
+        negativeWords / wordCount, // ネガティブ単語比率
+        neutralWords / wordCount,  // ニュートラル単語比率
+        exclamationMarks / wordCount, // 感嘆符比率
+        questionMarks / wordCount,    // 疑問符比率
+        capsRatio             // 大文字比率
+      ],
+      label: sentiment
+    });
+  }
+
+  const shuffled = shuffle(data);
+  const splitIdx = Math.floor(data.length * 0.7);
+
+  return {
+    train: shuffled.slice(0, splitIdx),
+    test: shuffled.slice(splitIdx),
+    featureNames: ['単語数', 'ポジティブ単語比率', 'ネガティブ単語比率', 'ニュートラル単語比率', '感嘆符比率', '疑問符比率', '大文字比率'],
+    classes: ['ネガティブ', 'ニュートラル', 'ポジティブ'],
+    labelName: '感情',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureNames: ['単語数', 'ポジティブ単語比率', 'ネガティブ単語比率', 'ニュートラル単語比率', '感嘆符比率', '疑問符比率', '大文字比率'],
+      featureUnits: ['語', '', '', '', '', '', '']
+    }
+  };
+}
+
+// 現代の画像分類データセット（数値化）
+export function generateModernImageClassificationDataset(): Dataset {
+  const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
+
+  const imageTypes = ['猫', '犬', '車', '飛行機', '建物', '花', '食べ物', '人物'];
+
+  for (let i = 0; i < 1500; i++) {
+    // 画像の特徴量（数値化）
+    const brightness = Math.min(1, Math.max(0, normalRandom(0.5, 0.2)));
+    const contrast = Math.min(1, Math.max(0, normalRandom(0.5, 0.2)));
+    const colorfulness = Math.min(1, Math.max(0, normalRandom(0.6, 0.3)));
+    const edgeDensity = Math.min(1, Math.max(0, normalRandom(0.4, 0.2)));
+    const textureComplexity = Math.min(1, Math.max(0, normalRandom(0.5, 0.3)));
+    const symmetry = Math.min(1, Math.max(0, normalRandom(0.6, 0.3)));
+    const aspectRatio = Math.max(0.5, Math.min(2, normalRandom(1, 0.3)));
+    
+    // 画像タイプの決定（簡易的なルール）
+    let imageType = 0;
+    if (brightness > 0.7 && colorfulness > 0.6) {
+      imageType = 6; // 食べ物
+    } else if (edgeDensity > 0.6 && textureComplexity > 0.5) {
+      imageType = 0; // 猫
+    } else if (symmetry > 0.7 && aspectRatio > 1.5) {
+      imageType = 2; // 車
+    } else if (brightness < 0.4 && edgeDensity > 0.5) {
+      imageType = 4; // 建物
+    } else {
+      imageType = Math.floor(Math.random() * imageTypes.length);
+    }
+    
+    // 生データ
+    raw.push({
+      features: [
+        Math.round(brightness * 100) / 100,
+        Math.round(contrast * 100) / 100,
+        Math.round(colorfulness * 100) / 100,
+        Math.round(edgeDensity * 100) / 100,
+        Math.round(textureComplexity * 100) / 100,
+        Math.round(symmetry * 100) / 100,
+        Math.round(aspectRatio * 100) / 100
+      ],
+      label: imageTypes[imageType]
+    });
+
+    data.push({
+      features: [
+        brightness,      // 明度
+        contrast,        // コントラスト
+        colorfulness,    // 色彩豊かさ
+        edgeDensity,     // エッジ密度
+        textureComplexity, // テクスチャ複雑さ
+        symmetry,        // 対称性
+        aspectRatio      // アスペクト比
+      ],
+      label: imageType
+    });
+  }
+
+  const shuffled = shuffle(data);
+  const splitIdx = Math.floor(data.length * 0.7);
+
+  return {
+    train: shuffled.slice(0, splitIdx),
+    test: shuffled.slice(splitIdx),
+    featureNames: ['明度', 'コントラスト', '色彩豊かさ', 'エッジ密度', 'テクスチャ複雑さ', '対称性', 'アスペクト比'],
+    classes: imageTypes,
+    labelName: '画像タイプ',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureNames: ['明度', 'コントラスト', '色彩豊かさ', 'エッジ密度', 'テクスチャ複雑さ', '対称性', 'アスペクト比'],
+      featureUnits: ['', '', '', '', '', '', '']
+    }
+  };
+}
+
+// 現代の推薦システムデータセット
+export function generateModernRecommendationDataset(): Dataset {
+  const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
+
+  for (let i = 0; i < 3000; i++) {
+    // ユーザーとアイテムの特徴量
+    const userAge = Math.max(18, Math.min(80, normalRandom(35, 15)));
+    const userIncome = Math.max(200, Math.min(1000, normalRandom(500, 200)));
+    const userActivity = Math.min(1, Math.max(0, normalRandom(0.6, 0.3)));
+    const itemPrice = Math.max(10, Math.min(1000, normalRandom(200, 150)));
+    const itemRating = Math.min(5, Math.max(1, normalRandom(3.5, 1)));
+    const itemCategory = Math.floor(Math.random() * 10); // 0-9のカテゴリ
+    const itemPopularity = Math.min(1, Math.max(0, normalRandom(0.5, 0.3)));
+    
+    // 購入確率（回帰問題）
+    const purchaseProbability = Math.min(1, Math.max(0, 
+      (userActivity * 0.3) + 
+      (itemRating / 5 * 0.2) + 
+      (itemPopularity * 0.2) + 
+      (userIncome / 1000 * 0.1) + 
+      (itemPrice / 1000 * -0.1) + 
+      normalRandom(0, 0.1)
+    ));
+    
+    // 生データ
+    raw.push({
+      features: [
+        userAge,
+        Math.round(userIncome),
+        Math.round(userActivity * 100) / 100,
+        Math.round(itemPrice),
+        Math.round(itemRating * 10) / 10,
+        itemCategory,
+        Math.round(itemPopularity * 100) / 100
+      ],
+      label: Math.round(purchaseProbability * 1000) / 1000
+    });
+
+    data.push({
+      features: [
+        userAge / 80,          // ユーザー年齢（正規化）
+        userIncome / 1000,     // ユーザー収入（正規化）
+        userActivity,          // ユーザー活動度
+        itemPrice / 1000,      // アイテム価格（正規化）
+        itemRating / 5,        // アイテム評価（正規化）
+        itemCategory / 10,     // アイテムカテゴリ（正規化）
+        itemPopularity         // アイテム人気度
+      ],
+      label: purchaseProbability
+    });
+  }
+
+  const shuffled = shuffle(data);
+  const splitIdx = Math.floor(data.length * 0.7);
+
+  return {
+    train: shuffled.slice(0, splitIdx),
+    test: shuffled.slice(splitIdx),
+    featureNames: ['ユーザー年齢', 'ユーザー収入', 'ユーザー活動度', 'アイテム価格', 'アイテム評価', 'アイテムカテゴリ', 'アイテム人気度'],
+    labelName: '購入確率',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureNames: ['ユーザー年齢', 'ユーザー収入', 'ユーザー活動度', 'アイテム価格', 'アイテム評価', 'アイテムカテゴリ', 'アイテム人気度'],
+      featureUnits: ['歳', '万円', '', '円', '', '', '']
+    }
+  };
+}
+
+// 現代の不正検出データセット
+export function generateModernFraudDetectionDataset(): Dataset {
+  const data = [];
+  const raw = [] as { features: number[]; label: number | string }[];
+
+  for (let i = 0; i < 5000; i++) {
+    // 取引の特徴量
+    const amount = Math.max(1, Math.min(100000, normalRandom(5000, 3000)));
+    const timeOfDay = Math.floor(Math.random() * 24);
+    const dayOfWeek = Math.floor(Math.random() * 7);
+    const location = Math.floor(Math.random() * 100); // 地域ID
+    const merchantType = Math.floor(Math.random() * 20); // 店舗タイプ
+    const userHistory = Math.min(1, Math.max(0, normalRandom(0.7, 0.3)));
+    const deviceType = Math.floor(Math.random() * 5); // デバイスタイプ
+    
+    // 不正の確率（不均衡データ）
+    const fraudProbability = Math.random() < 0.02 ? 1 : 0; // 2%が不正
+    
+    // 不正の特徴を追加
+    let adjustedAmount = amount;
+    let adjustedTime = timeOfDay;
+    let adjustedLocation = location;
+    
+    if (fraudProbability === 1) {
+      // 不正の場合、異常な値を設定
+      adjustedAmount = Math.max(50000, amount * 2); // 高額
+      adjustedTime = Math.random() < 0.5 ? 2 : 3; // 深夜
+      adjustedLocation = Math.floor(Math.random() * 10); // 遠方
+    }
+    
+    // 生データ
+    raw.push({
+      features: [
+        Math.round(adjustedAmount),
+        adjustedTime,
+        dayOfWeek,
+        adjustedLocation,
+        merchantType,
+        Math.round(userHistory * 100) / 100,
+        deviceType
+      ],
+      label: fraudProbability === 1 ? '不正' : '正常'
+    });
+
+    data.push({
+      features: [
+        adjustedAmount / 100000,  // 取引金額（正規化）
+        adjustedTime / 24,         // 時間（正規化）
+        dayOfWeek / 7,            // 曜日（正規化）
+        adjustedLocation / 100,    // 地域（正規化）
+        merchantType / 20,         // 店舗タイプ（正規化）
+        userHistory,              // ユーザー履歴
+        deviceType / 5            // デバイスタイプ（正規化）
+      ],
+      label: fraudProbability
+    });
+  }
+
+  const shuffled = shuffle(data);
+  const splitIdx = Math.floor(data.length * 0.7);
+
+  return {
+    train: shuffled.slice(0, splitIdx),
+    test: shuffled.slice(splitIdx),
+    featureNames: ['取引金額', '時間', '曜日', '地域', '店舗タイプ', 'ユーザー履歴', 'デバイスタイプ'],
+    classes: ['正常', '不正'],
+    labelName: '不正検出',
+    raw: {
+      train: raw.slice(0, Math.floor(raw.length * 0.7)),
+      test: raw.slice(Math.floor(raw.length * 0.7)),
+      featureNames: ['取引金額', '時間', '曜日', '地域', '店舗タイプ', 'ユーザー履歴', 'デバイスタイプ'],
+      featureUnits: ['円', '時', '', '', '', '', '']
+    }
+  };
 }

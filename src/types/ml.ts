@@ -26,8 +26,13 @@ export interface ModelParameters {
 
 export interface TrainingProgress {
   epoch: number;
+  total: number;
+  message: string;
   loss: number;
   accuracy: number;
+  progress?: number;
+  elapsed?: number;
+  eta?: number;
 }
 
 export interface FeatureImportance {
@@ -47,9 +52,13 @@ export interface ModelResult {
   precision?: number;
   recall?: number;
   f1_score?: number;
+  mae?: number;
+  mse?: number;
+  rmse?: number;
   confusion_matrix?: number[][];
   predictions: (number | string)[];
   actual: (number | string)[];
+  probabilities?: number[];
   training_time: number;
   feature_importance?: FeatureImportance[];
 }

@@ -4,7 +4,7 @@ import type { Dataset, DataPoint } from '../types/ml';
 
 interface Props {
   dataset: Dataset;
-  onPreprocessedDataset: (processed: Dataset) => void;
+  onPreprocess: (processed: Dataset) => void;
 }
 
 function normalizeDataset(ds: Dataset): Dataset {
@@ -42,24 +42,66 @@ function normalizeDataset(ds: Dataset): Dataset {
 
 // 標準化は仕様変更により廃止
 
-export function PreprocessingTab({ dataset, onPreprocessedDataset }: Props) {
+export function PreprocessingTab({ dataset, onPreprocess }: Props) {
   const [method, setMethod] = useState<'none' | 'normalize' | 'encode'>('none');
   const [encodeTargets, setEncodeTargets] = useState<number[]>([]);
 
   function encodeSelected(ds: Dataset, featureIndexes: number[]): Dataset {
     const mapCache: Record<number, Map<string, number>> = {};
+    
+    // カテゴリ変数のみを処理（数値変数は除外）
+    const categoricalFeatures = featureIndexes.filter(i => {
+      // 特徴量が文字列または離散値かどうかを判定
+      const sampleValues = ds.train.slice(0, 20).map(p => p.features[i]);
+      const uniqueValues = new Set(sampleValues.map(v => String(v)));
+      
+      // より厳密な判定条件
+      const isCategorical = uniqueValues.size <= 5 && // 5種類以下の値
+        sampleValues.every(v => {
+          const str = String(v);
+          // 数値でない、または整数値のみ
+          return isNaN(Number(str)) || Number.isInteger(Number(str));
+        });
+      
+      console.log(`特徴量 ${i}: ユニーク値数=${uniqueValues.size}, カテゴリ判定=${isCategorical}`);
+      return isCategorical;
+    });
+    
+    console.log('カテゴリ変数として処理される特徴量:', categoricalFeatures);
+    
+    // 訓練データからカテゴリマッピングを作成
     ds.train.forEach(p => {
       p.features.forEach((v, i) => {
-        if (!featureIndexes.includes(i)) return;
+        if (!categoricalFeatures.includes(i)) return;
         const key = String(v);
         if (!mapCache[i]) mapCache[i] = new Map();
-        if (!mapCache[i].has(key)) mapCache[i].set(key, mapCache[i].size);
+        if (!mapCache[i].has(key)) {
+          mapCache[i].set(key, mapCache[i].size);
+        }
       });
     });
+
+    // テストデータの未知のカテゴリも考慮
+    ds.test.forEach(p => {
+      p.features.forEach((v, i) => {
+        if (!categoricalFeatures.includes(i)) return;
+        const key = String(v);
+        if (!mapCache[i]) mapCache[i] = new Map();
+        if (!mapCache[i].has(key)) {
+          mapCache[i].set(key, mapCache[i].size);
+        }
+      });
+    });
+
     const transformPoint = (p: DataPoint): DataPoint => ({
-      features: p.features.map((v, i) => featureIndexes.includes(i) ? (mapCache[i].get(String(v)) ?? 0) : v),
+      features: p.features.map((v, i) => {
+        if (!categoricalFeatures.includes(i)) return v; // カテゴリ変数以外はそのまま
+        const key = String(v);
+        return mapCache[i].get(key) ?? 0; // 未知のカテゴリは0にマッピング
+      }),
       label: p.label,
     });
+
     return {
       ...ds,
       train: ds.train.map(transformPoint),
@@ -195,7 +237,7 @@ export function PreprocessingTab({ dataset, onPreprocessedDataset }: Props) {
 
         <div className="flex justify-end">
           <button
-            onClick={() => onPreprocessedDataset(preview)}
+            onClick={() => onPreprocess(preview)}
             className="text-white px-8 py-3 rounded-lg font-bold shadow-lg transition-all"
             style={{ background: 'linear-gradient(to right, var(--accent), var(--accent-strong))' }}
           >

@@ -1,5 +1,5 @@
 // import { supabase } from './supabase';
-import type { Region, UserProfile, UserRegionProgress, MLModel, ChallengeAttempt } from '../types/database';
+import type { Region, UserProfile, UserRegionProgress, MLModel, ChallengeAttempt, LearningPath, Skill, UserSkillProgress, SafetyCheck, EducationalContent } from '../types/database';
 
 // ローカル開発用のモックデータ
 const mockRegions: Region[] = [
@@ -323,6 +323,100 @@ const mockRegions: Region[] = [
       samples: 300
     },
     created_at: new Date().toISOString()
+  },
+  // 現代の問題（オンライン対戦用）
+  {
+    id: 'modern_stock_prediction',
+    name: '株価予測',
+    daimyo: '現代金融',
+    description: '現代の金融市場で株価の変動を予測し、投資戦略を最適化する。',
+    problem_type: 'regression',
+    problem_description: '企業の財務データから株価変化率を予測する。',
+    required_accuracy: 0.7,
+    unlock_condition: null, // すべて開放
+    difficulty: 5,
+    reward_xp: 500,
+    order_index: 30,
+    dataset_info: {
+      features: ['始値', '出来高', '時価総額', 'PER', '負債比率', '売上成長率', '利益率'],
+      samples: 1000
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'modern_sentiment_analysis',
+    name: '感情分析',
+    daimyo: 'テキスト解析',
+    description: 'SNSやレビューのテキストから感情を分析し、顧客満足度を向上させる。',
+    problem_type: 'classification',
+    problem_description: 'テキストの特徴から感情を分類する。',
+    required_accuracy: 0.8,
+    unlock_condition: null, // すべて開放
+    difficulty: 4,
+    reward_xp: 400,
+    order_index: 31,
+    dataset_info: {
+      features: ['単語数', 'ポジティブ単語比率', 'ネガティブ単語比率', 'ニュートラル単語比率', '感嘆符比率', '疑問符比率', '大文字比率'],
+      classes: ['ネガティブ', 'ニュートラル', 'ポジティブ'],
+      samples: 2000
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'modern_image_classification',
+    name: '画像分類',
+    daimyo: 'コンピュータビジョン',
+    description: '画像の特徴量から物体を分類し、自動認識システムを構築する。',
+    problem_type: 'classification',
+    problem_description: '画像の特徴量から物体を分類する。',
+    required_accuracy: 0.85,
+    unlock_condition: null, // すべて開放
+    difficulty: 5,
+    reward_xp: 500,
+    order_index: 32,
+    dataset_info: {
+      features: ['明度', 'コントラスト', '色彩豊かさ', 'エッジ密度', 'テクスチャ複雑さ', '対称性', 'アスペクト比'],
+      classes: ['猫', '犬', '車', '飛行機', '建物', '花', '食べ物', '人物'],
+      samples: 1500
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'modern_recommendation',
+    name: '推薦システム',
+    daimyo: 'ECサイト',
+    description: 'ユーザーの行動データから購入確率を予測し、パーソナライズされた推薦を行う。',
+    problem_type: 'regression',
+    problem_description: 'ユーザーとアイテムの特徴から購入確率を予測する。',
+    required_accuracy: 0.75,
+    unlock_condition: null, // すべて開放
+    difficulty: 4,
+    reward_xp: 400,
+    order_index: 33,
+    dataset_info: {
+      features: ['ユーザー年齢', 'ユーザー収入', 'ユーザー活動度', 'アイテム価格', 'アイテム評価', 'アイテムカテゴリ', 'アイテム人気度'],
+      samples: 3000
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'modern_fraud_detection',
+    name: '不正検出',
+    daimyo: 'セキュリティ',
+    description: '取引データから不正な行為を検出し、金融システムの安全性を守る。',
+    problem_type: 'classification',
+    problem_description: '取引の特徴から不正を検出する（不均衡データ）。',
+    required_accuracy: 0.95,
+    unlock_condition: null, // すべて開放
+    difficulty: 5,
+    reward_xp: 600,
+    order_index: 34,
+    dataset_info: {
+      features: ['取引金額', '時間', '曜日', '地域', '店舗タイプ', 'ユーザー履歴', 'デバイスタイプ'],
+      classes: ['正常', '不正'],
+      samples: 5000
+    },
+    created_at: new Date().toISOString()
   }
 ];
 
@@ -513,4 +607,197 @@ export async function unlockAllRegions(userId: string): Promise<void> {
       is_unlocked: true,
     });
   }
+}
+
+// 段階的学習システムのデータ
+const mockLearningPaths: LearningPath[] = [
+  {
+    id: 'beginner_path',
+    name: '侍見習いの道',
+    description: '機械学習の基礎を学ぶ',
+    difficulty_level: 1,
+    prerequisites: [],
+    unlock_conditions: {
+      required_regions: [],
+      min_accuracy: 0,
+      required_skills: []
+    },
+    order_index: 1,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'intermediate_path',
+    name: '侍の道',
+    description: '応用的な機械学習手法を学ぶ',
+    difficulty_level: 2,
+    prerequisites: ['beginner_path'],
+    unlock_conditions: {
+      required_regions: ['kyoto'],
+      min_accuracy: 0.8,
+      required_skills: ['basic_classification']
+    },
+    order_index: 2,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'advanced_path',
+    name: '武将の道',
+    description: '高度な機械学習技術を学ぶ',
+    difficulty_level: 3,
+    prerequisites: ['intermediate_path'],
+    unlock_conditions: {
+      required_regions: ['kyoto', 'sakai'],
+      min_accuracy: 0.85,
+      required_skills: ['feature_engineering', 'model_selection']
+    },
+    order_index: 3,
+    created_at: new Date().toISOString()
+  }
+];
+
+const mockSkills: Skill[] = [
+  {
+    id: 'basic_classification',
+    name: '基本分類',
+    category: 'modeling',
+    description: '2クラス分類の基本概念を理解する',
+    required_level: 1,
+    prerequisites: [],
+    learning_objectives: [
+      '分類問題の理解',
+      'ロジスティック回帰の基本',
+      '精度の評価方法'
+    ],
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'feature_engineering',
+    name: '特徴量エンジニアリング',
+    category: 'preprocessing',
+    description: '効果的な特徴量を作成する技術',
+    required_level: 2,
+    prerequisites: ['basic_classification'],
+    learning_objectives: [
+      '特徴量の重要性理解',
+      '新しい特徴量の作成',
+      '特徴量選択の方法'
+    ],
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'model_selection',
+    name: 'モデル選択',
+    category: 'modeling',
+    description: '適切なモデルを選択する技術',
+    required_level: 2,
+    prerequisites: ['basic_classification'],
+    learning_objectives: [
+      'モデルの比較方法',
+      '交差検証の理解',
+      '過学習の防止'
+    ],
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'overfitting_prevention',
+    name: '過学習防止',
+    category: 'evaluation',
+    description: '過学習を防ぐ技術',
+    required_level: 3,
+    prerequisites: ['model_selection'],
+    learning_objectives: [
+      '過学習の理解',
+      '正則化の手法',
+      '適切な検証方法'
+    ],
+    created_at: new Date().toISOString()
+  }
+];
+
+const mockSafetyChecks: SafetyCheck[] = [
+  {
+    id: 'overfitting_safety',
+    concept: '過学習',
+    risk_level: 'high',
+    mitigation_strategies: [
+      '段階的な説明の導入',
+      '適切な検証の強制',
+      '過学習の早期発見システム'
+    ],
+    expert_reviewed: true,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'model_complexity_safety',
+    concept: 'モデル複雑性',
+    risk_level: 'medium',
+    mitigation_strategies: [
+      '段階的な複雑さの制限',
+      '適切な評価指標の使用',
+      '解釈可能性の重視'
+    ],
+    expert_reviewed: true,
+    created_at: new Date().toISOString()
+  }
+];
+
+const mockEducationalContent: EducationalContent[] = [
+  {
+    id: 'overfitting_explanation',
+    concept: '過学習',
+    level: 'beginner',
+    explanation: {
+      intuitive: 'テストの答えを暗記してしまうと、新しい問題が解けなくなる',
+      conceptual: '訓練データに過度に適合し、汎化性能が低下する現象',
+      technical: 'モデルの複雑さが増すと、訓練誤差は減少するが汎化誤差は増加する',
+      mathematical: 'E[L(f(x), y)] = E[L(f(x), y)|D_train] + E[L(f(x), y)|D_test]'
+    },
+    examples: [
+      '学生が過去問を暗記して新しい問題が解けない',
+      'AIが訓練データを覚えてしまい、新しいデータで性能が悪い'
+    ],
+    common_misconceptions: [
+      '精度が高いほど良い',
+      '複雑なモデルが常に良い'
+    ],
+    safety_notes: [
+      '過学習は機械学習の重要な問題',
+      '適切な検証が不可欠',
+      '段階的な複雑さの導入が重要'
+    ],
+    created_at: new Date().toISOString()
+  }
+];
+
+// 段階的学習システムの関数
+export async function getLearningPaths(): Promise<LearningPath[]> {
+  return mockLearningPaths;
+}
+
+export async function getSkills(): Promise<Skill[]> {
+  return mockSkills;
+}
+
+export async function getSafetyChecks(): Promise<SafetyCheck[]> {
+  return mockSafetyChecks;
+}
+
+export async function getEducationalContent(concept: string, level: string): Promise<EducationalContent | null> {
+  return mockEducationalContent.find(content => 
+    content.concept === concept && content.level === level
+  ) || null;
+}
+
+export async function getUserSkillProgress(_userId: string): Promise<UserSkillProgress[]> {
+  // モックデータ - 実際の実装ではデータベースから取得
+  return [];
+}
+
+export async function updateUserSkillProgress(
+  userId: string, 
+  skillId: string, 
+  progress: Partial<UserSkillProgress>
+): Promise<void> {
+  // モック実装 - 実際の実装ではデータベースを更新
+  console.log(`Updating skill progress for user ${userId}, skill ${skillId}:`, progress);
 }

@@ -103,3 +103,64 @@ export interface UserAchievement {
   achievement_id: string;
   earned_at: string;
 }
+
+// 段階的学習システムの型定義
+export interface LearningPath {
+  id: string;
+  name: string;
+  description: string;
+  difficulty_level: number;
+  prerequisites: string[];
+  unlock_conditions: {
+    required_regions: string[];
+    min_accuracy: number;
+    required_skills: string[];
+  };
+  order_index: number;
+  created_at: string;
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  category: 'preprocessing' | 'modeling' | 'evaluation' | 'interpretation';
+  description: string;
+  required_level: number;
+  prerequisites: string[];
+  learning_objectives: string[];
+  created_at: string;
+}
+
+export interface UserSkillProgress {
+  user_id: string;
+  skill_id: string;
+  level: number;
+  experience_points: number;
+  last_practiced_at: string;
+  proficiency_score: number;
+}
+
+export interface SafetyCheck {
+  id: string;
+  concept: string;
+  risk_level: 'low' | 'medium' | 'high';
+  mitigation_strategies: string[];
+  expert_reviewed: boolean;
+  created_at: string;
+}
+
+export interface EducationalContent {
+  id: string;
+  concept: string;
+  level: 'beginner' | 'intermediate' | 'advanced';
+  explanation: {
+    intuitive: string;
+    conceptual: string;
+    technical: string;
+    mathematical?: string;
+  };
+  examples: string[];
+  common_misconceptions: string[];
+  safety_notes: string[];
+  created_at: string;
+}

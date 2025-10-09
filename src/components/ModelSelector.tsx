@@ -141,6 +141,111 @@ const models = [
       },
     },
   },
+  {
+    id: 'ensemble',
+    name: 'アンサンブル学習',
+    description: '複数のAIを組み合わせた強力なAI',
+    category: 'both',
+    difficulty: '難しい',
+    detailedDescription: '複数の異なるモデルを組み合わせて、より正確な予測を行う手法です。各モデルの長所を活かして、単体では難しい問題も解決できます。',
+    tips: [
+      '🤝 例：複数の専門家の意見をまとめる',
+      '⚡ 単体のモデルより高い精度を実現',
+      '🎯 多様性のあるモデルを組み合わせると効果的',
+      '⚠️ 計算量が多く、解釈が困難'
+    ],
+    useCases: '高精度な予測が必要な場合、複雑な問題の解決など',
+    params: {
+      n_estimators: { 
+        default: 10, 
+        min: 5, 
+        max: 50, 
+        step: 1, 
+        label: 'モデル数', 
+        description: '組み合わせるモデルの数。多いほど精度が上がるが、計算量も増える',
+        tips: '10個が一般的。問題が簡単な場合は5個、複雑な場合は20-30個を試してみよう'
+      },
+      voting_method: { 
+        default: 0, 
+        min: 0, 
+        max: 1, 
+        step: 1, 
+        label: '投票方法', 
+        description: '0: 多数決、1: 重み付き平均',
+        tips: '分類問題は多数決、回帰問題は重み付き平均が一般的'
+      },
+    },
+  },
+  {
+    id: 'random_forest',
+    name: 'ランダムフォレスト',
+    description: '多数の決定木を組み合わせたAI',
+    category: 'both',
+    difficulty: '中程度',
+    detailedDescription: '複数の決定木をランダムに作成し、それらの結果をまとめて予測する手法です。過学習に強く、特徴量の重要度も分かります。',
+    tips: [
+      '🌳 例：多数の専門家が独立して判断し、その結果をまとめる',
+      '⚡ 過学習に強く、安定した性能',
+      '🎯 特徴量の重要度が分かる',
+      '⚠️ 大量のデータが必要'
+    ],
+    useCases: '特徴量の重要度を知りたい場合、安定した予測が必要な場合など',
+    params: {
+      n_trees: { 
+        default: 100, 
+        min: 10, 
+        max: 500, 
+        step: 10, 
+        label: '木の数', 
+        description: '作成する決定木の数。多いほど精度が上がるが、計算量も増える',
+        tips: '100本が一般的。問題が簡単な場合は50本、複雑な場合は200-300本を試してみよう'
+      },
+      max_depth: { 
+        default: 10, 
+        min: 3, 
+        max: 20, 
+        step: 1, 
+        label: '木の深さ', 
+        description: '各決定木の最大の深さ。深いほど複雑なパターンを学習できるが、過学習しやすくなる',
+        tips: '10が一般的。データが少ない場合は5-8、大量のデータがある場合は15-20を試してみよう'
+      },
+    },
+  },
+  {
+    id: 'svm',
+    name: 'サポートベクターマシン',
+    description: '境界線を最適化するAI',
+    category: 'classification',
+    difficulty: '中程度',
+    detailedDescription: 'データを分ける境界線を最適化する手法です。マージン（余裕）を最大化することで、汎化性能の高いモデルを作ります。',
+    tips: [
+      '📏 例：2つのグループを最も明確に分ける線を引く',
+      '⚡ 高次元データに強い',
+      '🎯 少ないデータでも高い性能',
+      '⚠️ 大量のデータには向かない'
+    ],
+    useCases: '高次元データの分類、少ないデータでの学習など',
+    params: {
+      kernel: { 
+        default: 0, 
+        min: 0, 
+        max: 2, 
+        step: 1, 
+        label: 'カーネル', 
+        description: '0: 線形、1: 多項式、2: RBF',
+        tips: '線形データは線形、非線形データはRBFが一般的'
+      },
+      c: { 
+        default: 1, 
+        min: 0.1, 
+        max: 10, 
+        step: 0.1, 
+        label: '正則化パラメータ', 
+        description: '誤分類の許容度。小さいほど誤分類を許容し、大きいほど厳密に分類',
+        tips: '1が一般的。過学習している場合は0.1、未学習の場合は10を試してみよう'
+      },
+    },
+  },
 ];
 
 export function ModelSelector({ selectedModel, parameters, onModelChange, onParametersChange, regionType }: Props) {

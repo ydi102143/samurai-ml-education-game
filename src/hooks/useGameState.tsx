@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { Region, UserProfile, UserRegionProgress, MLModel } from '../types/database';
-import { getRegions, getUserProfile, getUserRegionProgress, getMLModels, createUserProfile, initializeUserProgress } from '../lib/database';
+import { getRegions, getUserRegionProgress, getMLModels, createUserProfile, initializeUserProgress } from '../lib/database';
 
 interface GameState {
   user: UserProfile | null;
@@ -116,80 +116,65 @@ export function GameProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log('useGameState: データ読み込み開始');
         setLoading(true);
         setError(null);
 
         // ローカル開発用：モックデータを直接使用
+        console.log('useGameState: getRegions()を呼び出し');
         const regionsData = await getRegions();
+        console.log('useGameState: getRegions()完了:', regionsData?.length);
+        
+        console.log('useGameState: getMLModels()を呼び出し');
         const modelsData = await getMLModels();
+        console.log('useGameState: getMLModels()完了:', modelsData?.length);
 
         if (!regionsData || regionsData.length === 0) {
+          console.error('useGameState: 地域データが空です');
           throw new Error('No regions data available');
         }
 
         if (!modelsData || modelsData.length === 0) {
+          console.error('useGameState: モデルデータが空です');
           throw new Error('No models data available');
         }
 
         setRegions(regionsData);
         setModels(modelsData);
 
-        const storedUserId = localStorage.getItem('samurai_user_id');
-        if (storedUserId) {
-          const userData = await getUserProfile(storedUserId);
-          if (userData) {
-            setUser(userData);
-            // 既存ユーザーの場合、段階的に開放
-            const userProgress = await getUserRegionProgress(userData.id);
-            const progressMap: Record<string, UserRegionProgress> = {};
+        // userManagerから現在のユーザーを取得
+        const currentUser = JSON.parse(localStorage.getItem('samurai_current_user') || 'null');
+        if (currentUser) {
+          // userManagerのユーザー情報をuseGameStateの形式に変換
+          const userData: UserProfile = {
+            id: currentUser.id,
+            shogun_name: currentUser.username,
+            title: currentUser.title || '足軽',
+            level: currentUser.level || 1,
+            total_xp: currentUser.experience || 0,
+            created_at: currentUser.createdAt || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          setUser(userData);
+          
+          // 既存ユーザーの場合、段階的に開放
+          const userProgress = await getUserRegionProgress(userData.id);
+          const progressMap: Record<string, UserRegionProgress> = {};
+          
+          // 開放条件をチェックして進捗を更新
+          for (const region of regionsData) {
+            const existingProgress = userProgress.find(p => p.region_id === region.id);
+            const isUnlocked = checkUnlockCondition(region, progressMap, regionsData);
             
-            // 開放条件をチェックして進捗を更新
-            for (const region of regionsData) {
-              const existingProgress = userProgress.find(p => p.region_id === region.id);
-              const isUnlocked = checkUnlockCondition(region, progressMap, regionsData);
-              
-              if (existingProgress) {
-                progressMap[region.id] = {
-                  ...existingProgress,
-                  is_unlocked: isUnlocked
-                };
-              } else {
-                progressMap[region.id] = {
-                  id: `progress_${region.id}`,
-                  user_id: userData.id,
-                  region_id: region.id,
-                  is_unlocked: isUnlocked,
-                  is_completed: false,
-                  best_accuracy: 0,
-                  stars: 0,
-                  attempts: 0,
-                  first_completed_at: null,
-                  last_attempt_at: null,
-                  created_at: new Date().toISOString()
-                };
-              }
-            }
-            setProgress(progressMap);
-          } else {
-            // ユーザーが見つからない場合、モックユーザーを作成
-            const mockUser: UserProfile = {
-              id: storedUserId,
-              shogun_name: 'テスト将軍',
-              level: 1,
-              total_xp: 0,
-              title: '足軽',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-            setUser(mockUser);
-            
-            // 段階的に開放
-            const progressMap: Record<string, UserRegionProgress> = {};
-            for (const region of regionsData) {
-              const isUnlocked = checkUnlockCondition(region, progressMap, regionsData);
+            if (existingProgress) {
+              progressMap[region.id] = {
+                ...existingProgress,
+                is_unlocked: isUnlocked
+              };
+            } else {
               progressMap[region.id] = {
                 id: `progress_${region.id}`,
-                user_id: mockUser.id,
+                user_id: userData.id,
                 region_id: region.id,
                 is_unlocked: isUnlocked,
                 is_completed: false,
@@ -201,21 +186,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
                 created_at: new Date().toISOString()
               };
             }
-            setProgress(progressMap);
           }
+          setProgress(progressMap);
         } else {
-          // 新規ユーザーの場合、段階的に開放
-          const defaultUserId = `user_${Date.now()}`;
-          const defaultUser: UserProfile = {
-            id: defaultUserId,
-            shogun_name: 'ゲスト将軍',
+          // ユーザーが見つからない場合、モックユーザーを作成
+          const mockUser: UserProfile = {
+            id: 'mock_user',
+            shogun_name: 'テスト将軍',
             level: 1,
             total_xp: 0,
             title: '足軽',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
-          setUser(defaultUser);
+          setUser(mockUser);
           
           // 段階的に開放
           const progressMap: Record<string, UserRegionProgress> = {};
@@ -223,7 +207,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
             const isUnlocked = checkUnlockCondition(region, progressMap, regionsData);
             progressMap[region.id] = {
               id: `progress_${region.id}`,
-              user_id: defaultUserId,
+              user_id: mockUser.id,
               region_id: region.id,
               is_unlocked: isUnlocked,
               is_completed: false,
@@ -238,19 +222,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
           setProgress(progressMap);
         }
       } catch (error) {
-        console.error('Failed to load game data:', error);
+        console.error('useGameState: データ読み込みエラー:', error);
         if (error instanceof Error) {
           if (error.message === 'Timeout') {
             setError('データの読み込みに時間がかかりすぎています。ネットワーク接続を確認してください。');
           } else if (error.message.includes('No regions') || error.message.includes('No models')) {
             setError('データベースが空です。管理者に連絡してください。');
           } else {
-            setError('データの読み込みに失敗しました。ページを再読み込みしてください。');
+            setError(`データの読み込みに失敗しました: ${error.message}`);
           }
         } else {
-          setError('予期しないエラーが発生しました。');
+          setError(`予期しないエラーが発生しました: ${String(error)}`);
         }
       } finally {
+        console.log('useGameState: データ読み込み完了、loading=false');
         setLoading(false);
       }
     };

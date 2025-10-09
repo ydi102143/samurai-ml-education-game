@@ -1,37 +1,98 @@
 import { GameProvider, useGameState } from './hooks/useGameState';
 import { QuoteIntro } from './components/QuoteIntro';
-import { WelcomeScreen } from './components/WelcomeScreen';
 import { ShogunRoom } from './components/ShogunRoom';
 import { JapanMap } from './components/JapanMap';
 import { ChallengeView } from './components/ChallengeView';
+import { UserAuth } from './components/UserAuth';
+import { userManager } from './utils/userManager';
 
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 function GameContent() {
-  const { user, currentView, loading, error, initializeUser } = useGameState();
-  const [showQuoteIntro, setShowQuoteIntro] = useState(true);
+  const { user, currentView, loading, error } = useGameState();
+  const [showUserAuth, setShowUserAuth] = useState(false);
+  const [showQuoteIntro, setShowQuoteIntro] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   
-  // 現在の画面を判定（簡素化）
-  const getCurrentScreen = (): string => {
-    if (showQuoteIntro) return 'intro';
-    if (!user) return 'home';
-    return currentView || 'home';
-  };
-
   useEffect(() => {
-    // 毎回イントロを表示（デバッグ用）
-    setShowQuoteIntro(true);
+    try {
+      console.log('GameContent useEffect開始');
+      // ユーザー認証を最初に確認
+      const user = userManager.getCurrentUser();
+      console.log('userManager.getCurrentUser():', user);
+      
+      if (user) {
+        setCurrentUser(user);
+        setDebugInfo('ユーザーが見つかりました - イントロ表示');
+        // ユーザーがいる場合はイントロを表示
+        setShowQuoteIntro(true);
+      } else {
+        setDebugInfo('ユーザーが見つかりません - 認証画面表示');
+        // ユーザーがいない場合は認証画面を表示
+        setShowUserAuth(true);
+      }
+    } catch (error) {
+      console.error('GameContent useEffect エラー:', error);
+      setDebugInfo(`エラー: ${error}`);
+    }
   }, []);
 
-  const handleQuoteIntroComplete = () => {
+  // useGameStateのユーザーと同期
+  useEffect(() => {
+    if (currentUser && user) {
+      console.log('ユーザー同期完了:', { currentUser, user });
+    }
+  }, [currentUser, user]);
+
+  // デバッグ用ログ
+  console.log('App.tsx state:', { 
+    showUserAuth, 
+    showQuoteIntro, 
+    currentUser: !!currentUser, 
+    user: !!user, 
+    currentView,
+    loading,
+    error,
+    debugInfo
+  });
+
+  const handleUserReady = (user: any) => {
+    setCurrentUser(user);
+    setShowUserAuth(false);
+    // 認証後は直接メイン画面に遷移（イントロをスキップ）
     setShowQuoteIntro(false);
-    localStorage.setItem('samurai_has_seen_intro', 'true');
   };
+
+
+  if (showUserAuth) {
+    return (
+      <div>
+        <UserAuth onUserReady={handleUserReady} />
+        {debugInfo && (
+          <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
+            <div>デバッグ: {debugInfo}</div>
+            <div>Loading: {loading ? 'Yes' : 'No'}</div>
+            <div>Error: {error || 'None'}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (showQuoteIntro) {
     return (
-      <QuoteIntro onComplete={handleQuoteIntroComplete} durationScale={1.3} />
+      <div>
+        <QuoteIntro onComplete={() => setShowQuoteIntro(false)} durationScale={1.3} />
+        {debugInfo && (
+          <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
+            <div>デバッグ: {debugInfo}</div>
+            <div>Loading: {loading ? 'Yes' : 'No'}</div>
+            <div>Error: {error || 'None'}</div>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -65,32 +126,71 @@ function GameContent() {
     );
   }
 
-  if (!user) {
-    return (
-      <WelcomeScreen onStart={initializeUser} />
-    );
+  // 認証されたユーザーがいる場合はメイン画面を表示
+  if (currentUser || user) {
+    console.log('App.tsx currentView:', currentView);
+    // currentViewに基づいて適切なコンポーネントを表示
+    if (currentView === 'map') {
+      console.log('日本地図を表示します');
+      return (
+        <div>
+          <JapanMap />
+          {debugInfo && (
+            <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
+              <div>デバッグ: {debugInfo}</div>
+              <div>View: {currentView}</div>
+              <div>Loading: {loading ? 'Yes' : 'No'}</div>
+              <div>Error: {error || 'None'}</div>
+            </div>
+          )}
+        </div>
+      );
+    } else if (currentView === 'challenge') {
+      console.log('チャレンジ画面を表示します');
+      return (
+        <div>
+          <ChallengeView />
+          {debugInfo && (
+            <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
+              <div>デバッグ: {debugInfo}</div>
+              <div>View: {currentView}</div>
+              <div>Loading: {loading ? 'Yes' : 'No'}</div>
+              <div>Error: {error || 'None'}</div>
+            </div>
+          )}
+        </div>
+      );
+    } else {
+      console.log('ホーム画面を表示します');
+      return (
+        <div>
+          <ShogunRoom />
+          {debugInfo && (
+            <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
+              <div>デバッグ: {debugInfo}</div>
+              <div>View: {currentView}</div>
+              <div>Loading: {loading ? 'Yes' : 'No'}</div>
+              <div>Error: {error || 'None'}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
   }
 
-  const currentScreen = getCurrentScreen();
-
-  switch (currentView) {
-    case 'home':
-      return (
-        <ShogunRoom />
-      );
-    case 'map':
-      return (
-        <JapanMap />
-      );
-    case 'challenge':
-      return (
-        <ChallengeView />
-      );
-    default:
-      return (
-        <ShogunRoom />
-      );
-  }
+  // ユーザーがいない場合は認証画面を表示
+  return (
+    <div>
+      <UserAuth onUserReady={handleUserReady} />
+      {debugInfo && (
+        <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
+          <div>デバッグ: {debugInfo}</div>
+          <div>Loading: {loading ? 'Yes' : 'No'}</div>
+          <div>Error: {error || 'None'}</div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function App() {

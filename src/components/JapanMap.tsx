@@ -20,7 +20,7 @@ const regionPositions = {
   kumamoto: { x: 23, y: 81, name: '熊本', daimyo: '加藤清正' },
   yamaguchi: { x: 26, y: 67, name: '長門', daimyo: '毛利元就' },
   kaga: { x: 52, y: 57, name: '加賀', daimyo: '一向一揆' },
-  tosa: { x: 35, y: 74, name: '土佐', daimyo: '長宗我部元親' }
+  tosa: { x: 35, y: 74, name: '土佐', daimyo: '長宗我部元親' },
 } as const;
 
 // ピン重なりの軽減用微調整（px）
@@ -42,11 +42,48 @@ const pinOffsets: Record<string, { dx: number; dy: number }> = {
   yamaguchi: { dx: -6, dy: 4 },
   kaga: { dx: 2, dy: -2 },
   tosa: { dx: -4, dy: 10 },
+  // 現代の問題
+  modern_stock_prediction: { dx: -20, dy: -20 },
+  modern_sentiment_analysis: { dx: -15, dy: -15 },
+  modern_image_classification: { dx: -10, dy: -10 },
+  modern_recommendation: { dx: -5, dy: -5 },
+  modern_fraud_detection: { dx: 0, dy: 0 },
 };
 
 export function JapanMap() {
-  const { regions, progress, setCurrentView, setSelectedRegion } = useGameState();
+  const { user, regions, progress, setCurrentView, setSelectedRegion, loading } = useGameState();
   const [selectedRegion, setSelectedRegionState] = useState<string | null>(null);
+
+  // デバッグログ
+  console.log('JapanMap render:', { user: !!user, regions: regions.length, progress: Object.keys(progress).length, loading });
+
+  // ローディング中の表示
+  if (loading) {
+    return (
+      <div className="min-h-screen p-4 md:p-8" style={{ background: 'var(--paper)' }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-yellow-400 mx-auto mb-4" />
+            <p className="text-2xl text-yellow-100 font-bold">読み込み中...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ユーザーがいない場合の表示
+  if (!user) {
+    return (
+      <div className="min-h-screen p-4 md:p-8" style={{ background: 'var(--paper)' }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center">
+            <p className="text-2xl text-yellow-100 font-bold">ユーザーが認証されていません</p>
+            <p className="text-lg text-yellow-200 mt-4">ホーム画面に戻ってユーザー認証を行ってください</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleRegionClick = (regionId: string) => {
     const regionProgress = progress[regionId];
