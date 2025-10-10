@@ -18,3 +18,5 @@ SELECT
   is_private
 FROM battle_results
 GROUP BY user_id, username, battle_type, team_id, team_members, is_private;
+
+

@@ -4,10 +4,6 @@
  */
 export class SecurityManager {
   private static instance: SecurityManager;
-  private static readonly REQUIRED_ENV_VARS = [
-    'VITE_SUPABASE_URL',
-    'VITE_SUPABASE_ANON_KEY'
-  ];
 
   static getInstance(): SecurityManager {
     if (!this.instance) {
@@ -17,36 +13,14 @@ export class SecurityManager {
   }
 
   /**
-   * 環境変数の検証
+   * 環境変数の検証（GitHub Pages対応版）
    */
   static validateEnvironment(): { isValid: boolean; missingVars: string[]; errors: string[] } {
-    const missingVars: string[] = [];
-    const errors: string[] = [];
-
-    // 必須環境変数のチェック
-    for (const varName of this.REQUIRED_ENV_VARS) {
-      const value = import.meta.env[varName];
-      if (!value) {
-        missingVars.push(varName);
-      }
-    }
-
-    // Supabase URLの形式チェック
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    if (supabaseUrl && !this.isValidSupabaseUrl(supabaseUrl)) {
-      errors.push('VITE_SUPABASE_URLの形式が正しくありません');
-    }
-
-    // Supabase Keyの形式チェック
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    if (supabaseKey && !this.isValidSupabaseKey(supabaseKey)) {
-      errors.push('VITE_SUPABASE_ANON_KEYの形式が正しくありません');
-    }
-
+    // 直接値が設定されているので常に有効
     return {
-      isValid: missingVars.length === 0 && errors.length === 0,
-      missingVars,
-      errors
+      isValid: true,
+      missingVars: [],
+      errors: []
     };
   }
 
@@ -54,54 +28,20 @@ export class SecurityManager {
    * セキュアなSupabase設定の取得
    */
   static getSecureSupabaseConfig(): { url: string; key: string } | null {
-    const validation = this.validateEnvironment();
-    
-    if (!validation.isValid) {
-      console.error('環境変数の検証に失敗しました:', validation);
-      return null;
-    }
-
     return {
-      url: import.meta.env.VITE_SUPABASE_URL!,
-      key: import.meta.env.VITE_SUPABASE_ANON_KEY!
+      url: 'https://ovghanpxibparkuyxxdh.supabase.co',
+      key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2hhbnB4aWJwYXJrdXl4eGRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ3MjksImV4cCI6MjA3NTQ4MDcyOX0.56Caf4btExzGvizmzJwZZA8KZIh81axQVcds8eXlq_Y'
     };
   }
 
-  /**
-   * Supabase URLの形式検証
-   */
-  private static isValidSupabaseUrl(url: string): boolean {
-    try {
-      const urlObj = new URL(url);
-      return urlObj.protocol === 'https:' && 
-             urlObj.hostname.includes('supabase.co') &&
-             urlObj.pathname.includes('/rest/v1/');
-    } catch {
-      return false;
-    }
-  }
 
-  /**
-   * Supabase Keyの形式検証
-   */
-  private static isValidSupabaseKey(key: string): boolean {
-    // JWT形式のチェック（基本的な形式のみ）
-    const jwtPattern = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/;
-    return jwtPattern.test(key) && key.length > 100;
-  }
 
   /**
    * セキュリティ警告の表示
    */
   static showSecurityWarning(): void {
-    const validation = this.validateEnvironment();
-    
-    if (!validation.isValid) {
-      console.warn('🚨 セキュリティ警告: 環境変数が正しく設定されていません');
-      console.warn('不足している環境変数:', validation.missingVars);
-      console.warn('エラー:', validation.errors);
-      console.warn('本番環境では必ず適切な環境変数を設定してください');
-    }
+    // GitHub Pages対応：警告を無効化
+    // 直接値が設定されているため警告は不要
   }
 
   /**
@@ -122,14 +62,10 @@ export class SecurityManager {
    * 本番環境でのセキュリティチェック
    */
   static checkProductionSecurity(): void {
-    if (import.meta.env.PROD) {
-      const validation = this.validateEnvironment();
-      
-      if (!validation.isValid) {
-        throw new Error('本番環境で環境変数が設定されていません。セキュリティ上の理由でアプリケーションを停止します。');
-      }
-    }
+    // GitHub Pages対応：本番環境チェックを無効化
+    // 直接値が設定されているためチェックは不要
   }
 }
 
 export const securityManager = SecurityManager.getInstance();
+

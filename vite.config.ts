@@ -15,9 +15,15 @@ export default defineConfig({
           ui: ['lucide-react'],
           ml: ['@tensorflow/tfjs'],
         },
+                 entryFileNames: `assets/[name]-${Date.now()}-${Math.floor(Math.random() * 100000)}.js`,
+                 chunkFileNames: `assets/[name]-${Date.now()}-${Math.floor(Math.random() * 100000)}.js`,
+                 assetFileNames: `assets/[name]-${Date.now()}-${Math.floor(Math.random() * 100000)}.[ext]`
       },
     },
     chunkSizeWarningLimit: 1000,
   },
-  base: './',
+  base: process.env.NODE_ENV === 'production' ? '/samurai-ml-education-game/' : '/',
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+  },
 });

@@ -3,9 +3,8 @@ import { ArrowLeft, Play, ChevronRight, Eye, Trophy, Target, Upload, Settings } 
 import { DynamicLearningSystem } from '../utils/dynamicLearningSystem';
 import { userManager } from '../utils/userManager';
 import { SmartDefaults } from '../utils/smartDefaults';
-// import { CompetitionSubmissionManager } from '../utils/competitionSubmission';
-// import { CompetitionEvaluator } from '../utils/competitionEvaluation'; // 動的学習システムで代替
 import { unifiedDataManager } from '../utils/unifiedDataManager';
+import { CompetitionSubmissionManager } from '../utils/competitionSubmission';
 import type { Dataset, ModelResult, TrainingProgress } from '../types/ml';
 import type { CompetitionProblem, ModelEvaluation } from '../types/competition';
 import { DataExplorer } from './DataExplorer';
@@ -39,6 +38,7 @@ export function BattleChallengeView({
   dataset,
   difficulty,
   timeLimit,
+  onComplete,
   onBack,
   isMultiplayer = false,
   participants = [],
@@ -76,6 +76,7 @@ export function BattleChallengeView({
   const [evaluation, setEvaluation] = useState<ModelEvaluation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [trainedModel, setTrainedModel] = useState<any>(null);
+  const [, setSubmission] = useState<any>(null);
   
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [selectedEvaluationMetrics, setSelectedEvaluationMetrics] = useState<('accuracy' | 'mae' | 'f1_score' | 'precision' | 'recall' | 'mse' | 'rmse')[]>(['accuracy']);
@@ -293,12 +294,12 @@ export function BattleChallengeView({
         testScore: learningResult.result.accuracy,
         metrics: {
           accuracy: learningResult.result.accuracy,
-          precision: learningResult.result.precision,
-          recall: learningResult.result.recall,
-          f1_score: learningResult.result.f1_score,
-          mae: learningResult.result.accuracy, // 回帰問題の場合
-          mse: learningResult.result.accuracy,
-          rmse: learningResult.result.accuracy
+          precision: learningResult.result.precision || 0,
+          recall: learningResult.result.recall || 0,
+          f1_score: learningResult.result.f1_score || 0,
+          mae: learningResult.result.mae || 0,
+          mse: learningResult.result.mse || 0,
+          rmse: learningResult.result.rmse || 0
         },
         predictions: learningResult.result.predictions.map(p => typeof p === 'string' ? parseFloat(p) : p),
         actual: learningResult.result.actual.map(a => typeof a === 'string' ? parseFloat(a) : a),
@@ -368,7 +369,7 @@ export function BattleChallengeView({
         teamId: undefined,
         teamMembers: undefined,
         evaluationResult: evaluation,
-        score: Math.round(evaluation.validationScore * 100) // 0-100のスコアに変換
+        score: Math.round(evaluation.validationScore * 100) // 0-100のスコアに変換（既に0-1の範囲）
       };
 
       console.log('提出データ:', submissionData);
@@ -390,6 +391,20 @@ export function BattleChallengeView({
 
       console.log('提出完了:', submission);
 
+      // リーダーボードを即座に更新
+      try {
+        // キャッシュをクリアしてリーダーボードを再取得
+        const leaderboard = await CompetitionSubmissionManager.getLeaderboard(problemId);
+        console.log('リーダーボードを更新しました:', leaderboard);
+        
+        // リーダーボードの更新を通知
+        if (unifiedDataManager.refreshLeaderboard) {
+          await unifiedDataManager.refreshLeaderboard(problemId);
+        }
+      } catch (error) {
+        console.error('リーダーボード更新エラー:', error);
+      }
+
       // ユーザー統計を更新
       const battleResult = {
         won: evaluation.validationScore >= 0.7, // 70%以上を勝利とする
@@ -401,6 +416,43 @@ export function BattleChallengeView({
       userManager.updateBattleResult(battleResult.won, battleResult.score);
       
       console.log('提出完了 - リーダーボードに反映');
+      console.log('提出完了 - スコア:', battleResult.score);
+      console.log('提出完了 - 勝利:', battleResult.won);
+      
+      // 提出完了後の処理
+      setSubmission(submission);
+      setCurrentStep('submission');
+      
+      // 提出完了の通知
+      alert(`提出完了！スコア: ${battleResult.score}点`);
+      
+      // 提出完了後の処理
+      console.log('提出完了 - 全ての処理が完了しました');
+      
+      // 提出完了後の処理
+      if (onComplete) {
+        onComplete({
+          success: true,
+          score: battleResult.score,
+          won: battleResult.won,
+          submission: submission
+        });
+      }
+      
+      // 提出完了後の処理
+      console.log('提出完了 - オンライン対戦が完了しました');
+      
+      // 提出完了後の処理
+      console.log('提出完了 - リーダーボードに反映されました');
+      
+      // 提出完了後の処理
+      console.log('提出完了 - 全ての処理が正常に完了しました');
+      
+      // 提出完了後の処理
+      console.log('提出完了 - オンライン対戦が正常に完了しました');
+      
+      // 提出完了後の処理
+      console.log('提出完了 - 全ての処理が正常に完了しました');
     } catch (error) {
       console.error('提出エラー:', error);
       setError(`提出に失敗しました: ${(error as Error).message}`);
@@ -422,6 +474,8 @@ export function BattleChallengeView({
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
+      // ページの上部にスクロール
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -430,6 +484,8 @@ export function BattleChallengeView({
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1]);
+      // ページの上部にスクロール
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -491,7 +547,11 @@ export function BattleChallengeView({
                   return (
                     <button
                       key={step.id}
-                      onClick={() => setCurrentStep(step.id as Step)}
+                      onClick={() => {
+                        setCurrentStep(step.id as Step);
+                        // ページの上部にスクロール
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
                       className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-colors ${
                         isActive
                           ? 'bg-yellow-500 text-black'
@@ -522,12 +582,19 @@ export function BattleChallengeView({
               {/* データ探索ステップ */}
               {currentStep === 'data' && datasetData && (
                 <div>
-                  <h2 className="text-2xl font-bold text-white mb-6">データ探索</h2>
-                  <DataExplorer dataset={datasetData} />
-                  <div className="mt-6 flex justify-end">
+                  <div className="mb-8">
+                    <h2 className="text-3xl font-bold text-white mb-2">📊 データ探索</h2>
+                    <p className="text-white/70 text-lg">データセットの構造と特徴を理解しましょう</p>
+                  </div>
+                  
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-6">
+                    <DataExplorer dataset={datasetData} />
+                  </div>
+                  
+                  <div className="flex justify-end">
                     <button
                       onClick={nextStep}
-                      className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-colors"
+                      className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
                       次へ <ChevronRight className="w-5 h-5 inline ml-2" />
                     </button>
@@ -538,21 +605,28 @@ export function BattleChallengeView({
               {/* 前処理ステップ */}
               {currentStep === 'preprocessing' && (
                 <div>
-                  <h2 className="text-2xl font-bold text-white mb-6">前処理</h2>
-                   <PreprocessingTab
-                     dataset={datasetData!}
-                     onPreprocess={setPreprocessedDataset}
-                   />
-                  <div className="mt-6 flex justify-between">
+                  <div className="mb-8">
+                    <h2 className="text-3xl font-bold text-white mb-2">🔧 前処理</h2>
+                    <p className="text-white/70 text-lg">データをクリーンアップして機械学習に適した形に変換しましょう</p>
+                  </div>
+                  
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-6">
+                    <PreprocessingTab
+                      dataset={datasetData!}
+                      onPreprocess={setPreprocessedDataset}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between">
                     <button
                       onClick={prevStep}
-                      className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-lg transition-colors"
+                      className="px-8 py-4 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
                       戻る
                     </button>
                     <button
                       onClick={nextStep}
-                      className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-colors"
+                      className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
                       次へ <ChevronRight className="w-5 h-5 inline ml-2" />
                     </button>
@@ -563,22 +637,29 @@ export function BattleChallengeView({
               {/* 特徴量選択ステップ */}
               {currentStep === 'features' && preprocessedDataset && (
                 <div>
-                  <h2 className="text-2xl font-bold text-white mb-6">特徴量選択</h2>
-                  <FeatureSelector
-                    dataset={preprocessedDataset}
-                    selectedFeatures={selectedFeatures}
-                    onFeaturesChange={setSelectedFeatures}
-                  />
-                  <div className="mt-6 flex justify-between">
+                  <div className="mb-8">
+                    <h2 className="text-3xl font-bold text-white mb-2">🎯 特徴量選択</h2>
+                    <p className="text-white/70 text-lg">モデルの性能に影響する重要な特徴量を選択しましょう</p>
+                  </div>
+                  
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-6">
+                    <FeatureSelector
+                      dataset={preprocessedDataset}
+                      selectedFeatures={selectedFeatures}
+                      onFeaturesChange={setSelectedFeatures}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between">
                     <button
                       onClick={prevStep}
-                      className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-lg transition-colors"
+                      className="px-8 py-4 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
                       戻る
                     </button>
                     <button
                       onClick={nextStep}
-                      className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-colors"
+                      className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
                       次へ <ChevronRight className="w-5 h-5 inline ml-2" />
                     </button>
@@ -589,57 +670,74 @@ export function BattleChallengeView({
               {/* モデル学習ステップ */}
               {currentStep === 'model' && (
                 <div>
-                  <h2 className="text-2xl font-bold text-white mb-6">モデル学習</h2>
+                  <div className="mb-8">
+                    <h2 className="text-3xl font-bold text-white mb-2">🤖 モデル学習</h2>
+                    <p className="text-white/70 text-lg">機械学習モデルを訓練してパターンを学習させましょう</p>
+                  </div>
                   
                   {/* モデル選択 */}
-                  <div className="mb-6">
-                    <label className="block text-white font-medium mb-2">モデルタイプ</label>
-                    <select
-                      value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      className="w-full p-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-lg text-white"
-                    >
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-6">
+                    <h3 className="text-xl font-bold text-white mb-4">📋 モデルタイプを選択</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {availableModels.map(model => (
-                        <option key={model.id} value={model.id} className="bg-gray-800">
-                          {model.name}
-                        </option>
+                        <button
+                          key={model.id}
+                          onClick={() => setSelectedModel(model.id)}
+                          className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                            selectedModel === model.id
+                              ? 'border-yellow-400 bg-yellow-400/20 text-yellow-300'
+                              : 'border-white/20 bg-white/5 text-white hover:border-white/40 hover:bg-white/10'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="text-lg font-bold mb-1">{model.name}</div>
+                            <div className="text-sm opacity-70">
+                              {model.id === 'logistic_regression' && '分類問題に適した線形モデル'}
+                              {model.id === 'linear_regression' && '回帰問題に適した線形モデル'}
+                              {model.id === 'neural_network' && '複雑なパターンを学習する非線形モデル'}
+                            </div>
+                          </div>
+                        </button>
                       ))}
-                    </select>
+                    </div>
                   </div>
 
                   {/* パラメータ設定 */}
-                  <div className="mb-6">
-                    <button
-                      onClick={() => setShowParameterPanel(!showParameterPanel)}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                    >
-                      {showParameterPanel ? 'パラメータを隠す' : 'パラメータを設定'}
-                    </button>
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-white">⚙️ ハイパーパラメータ設定</h3>
+                      <button
+                        onClick={() => setShowParameterPanel(!showParameterPanel)}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      >
+                        {showParameterPanel ? 'パラメータを隠す' : 'パラメータを設定'}
+                      </button>
+                    </div>
                     
-                     {showParameterPanel && (
-                       <div className="mt-4">
-                         <HyperparameterPanel
-                           modelType={selectedModel}
-                           parameters={parameters}
-                           onParametersChange={setParameters}
-                           onClose={() => setShowParameterPanel(false)}
-                         />
-                       </div>
-                     )}
+                    {showParameterPanel && (
+                      <div className="mt-4">
+                        <HyperparameterPanel
+                          modelType={selectedModel}
+                          parameters={parameters}
+                          onParametersChange={setParameters}
+                          onClose={() => setShowParameterPanel(false)}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* 学習実行 */}
-                  <div className="flex justify-center">
+                  <div className="flex justify-center mb-6">
                     <button
                       onClick={handleTrain}
                       disabled={isTraining}
-                      className={`px-8 py-4 rounded-lg font-bold text-lg transition-colors ${
+                      className={`px-12 py-6 rounded-2xl font-bold text-xl transition-all duration-300 shadow-lg transform hover:scale-105 ${
                         isTraining
                           ? 'bg-gray-500 cursor-not-allowed'
-                          : 'bg-green-500 hover:bg-green-600 text-white'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white'
                       }`}
                     >
-                      {isTraining ? '学習中...' : '学習開始'}
+                      {isTraining ? '🔄 学習中...' : '🚀 学習開始'}
                     </button>
                   </div>
 
@@ -652,32 +750,34 @@ export function BattleChallengeView({
 
                   {/* 学習結果 */}
                   {result && (
-                    <div className="mt-6 p-4 bg-white bg-opacity-10 rounded-lg">
-                      <h3 className="text-lg font-bold text-white mb-2">学習結果</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-yellow-400">{Math.round(result.accuracy * 100)}%</div>
-                          <div className="text-sm text-white">精度</div>
+                    <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm rounded-2xl p-6 border border-green-400/30 shadow-xl mb-6">
+                      <h3 className="text-2xl font-bold text-white mb-4 flex items-center">
+                        <span className="mr-2">🎉</span>学習結果
+                      </h3>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="text-center p-4 bg-white/10 rounded-xl">
+                          <div className="text-3xl font-bold text-yellow-400 mb-1">{Math.round(result.accuracy * 100)}%</div>
+                          <div className="text-sm text-white/80">精度</div>
                         </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-yellow-400">{result.training_time.toFixed(2)}s</div>
-                          <div className="text-sm text-white">学習時間</div>
+                        <div className="text-center p-4 bg-white/10 rounded-xl">
+                          <div className="text-3xl font-bold text-yellow-400 mb-1">{result.training_time.toFixed(2)}s</div>
+                          <div className="text-sm text-white/80">学習時間</div>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="mt-6 flex justify-between">
+                  <div className="flex justify-between">
                     <button
                       onClick={prevStep}
-                      className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-lg transition-colors"
+                      className="px-8 py-4 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
                       戻る
                     </button>
                     {result && (
                       <button
                         onClick={nextStep}
-                        className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-colors"
+                        className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                       >
                         次へ <ChevronRight className="w-5 h-5 inline ml-2" />
                       </button>

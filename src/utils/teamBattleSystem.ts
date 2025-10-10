@@ -422,3 +422,5 @@ export class TeamBattleSystem {
 }
 
 export const teamBattleSystem = TeamBattleSystem.getInstance();
+
+

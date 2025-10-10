@@ -94,3 +94,4 @@ INSERT INTO battle_results (room_id, user_id, username, problem_id, accuracy, sc
 
 -- 9. スキーマキャッシュをリフレッシュ
 NOTIFY pgrst, 'reload schema';
+

@@ -2,6 +2,7 @@ import type { CompetitionSubmission, CompetitionLeaderboard, ModelEvaluation } f
 import { CompetitionEvaluator } from './competitionEvaluation';
 import { CompetitionProblemManager } from './competitionProblemManager';
 import { BattleDatabase } from './battleDatabase';
+import { realtimeManager } from './realtimeManager';
 
 export class CompetitionSubmissionManager {
   private static submissions: Map<string, CompetitionSubmission[]> = new Map();
@@ -68,13 +69,16 @@ export class CompetitionSubmissionManager {
 
     // BattleDatabaseに保存
     try {
+      const score = Math.round(evaluation.validationScore * 100); // 0-100のスコアに変換
+      console.log('保存するスコア:', score, 'validationScore:', evaluation.validationScore);
+      
       await BattleDatabase.saveBattleResult({
         problemId: submission.problemId,
         roomId: `comp_${submission.problemId}`,
         userId: submission.userId,
         username: submission.username,
         accuracy: evaluation.validationScore,
-        score: evaluation.validationScore * 100, // スコアを追加
+        score: score, // 正しいスコアを保存
         trainingTime: evaluation.trainingTime,
         modelType: submission.modelType,
         parameters: submission.parameters,
@@ -83,14 +87,34 @@ export class CompetitionSubmissionManager {
         teamId: submission.teamId,
         teamMembers: submission.teamMembers?.map(member => ({ userId: member, username: member }))
       });
+      
+      console.log('BattleDatabaseに保存完了 - スコア:', score);
     } catch (error) {
       console.error('BattleDatabaseへの保存に失敗:', error);
     }
 
     // リーダーボードを更新
     await this.updateLeaderboard(problemId);
+    
+    // リアルタイム更新をブロードキャスト
+    this.broadcastLeaderboardUpdate(problemId);
 
     return submission;
+  }
+
+  /**
+   * リーダーボード更新をブロードキャスト
+   */
+  private static broadcastLeaderboardUpdate(problemId: string) {
+    try {
+      const leaderboard = this.getLeaderboard(problemId);
+      if (leaderboard) {
+        realtimeManager.broadcastLeaderboardUpdate(problemId, leaderboard);
+        console.log('リーダーボード更新をブロードキャスト:', problemId);
+      }
+    } catch (error) {
+      console.error('リーダーボードブロードキャストエラー:', error);
+    }
   }
 
   /**

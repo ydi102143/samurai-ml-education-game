@@ -148,3 +148,5 @@ echo "VITE_SUPABASE_ANON_KEY=your-anon-key" >> .env.local
 
 **これらの修正により、オンライン対戦システムは本格的な運用が可能になります。**
 
+
+

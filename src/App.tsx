@@ -14,8 +14,6 @@ function GameContent() {
   const [showUserAuth, setShowUserAuth] = useState(false);
   const [showQuoteIntro, setShowQuoteIntro] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [debugInfo, setDebugInfo] = useState<string>('');
-  
   useEffect(() => {
     try {
       console.log('GameContent useEffect開始');
@@ -25,17 +23,14 @@ function GameContent() {
       
       if (user) {
         setCurrentUser(user);
-        setDebugInfo('ユーザーが見つかりました - イントロ表示');
         // ユーザーがいる場合はイントロを表示
         setShowQuoteIntro(true);
       } else {
-        setDebugInfo('ユーザーが見つかりません - 認証画面表示');
         // ユーザーがいない場合は認証画面を表示
         setShowUserAuth(true);
       }
     } catch (error) {
       console.error('GameContent useEffect エラー:', error);
-      setDebugInfo(`エラー: ${error}`);
     }
   }, []);
 
@@ -54,8 +49,7 @@ function GameContent() {
     user: !!user, 
     currentView,
     loading,
-    error,
-    debugInfo
+    error
   });
 
   const handleUserReady = (user: any) => {
@@ -67,33 +61,11 @@ function GameContent() {
 
 
   if (showUserAuth) {
-    return (
-      <div>
-        <UserAuth onUserReady={handleUserReady} />
-        {debugInfo && (
-          <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
-            <div>デバッグ: {debugInfo}</div>
-            <div>Loading: {loading ? 'Yes' : 'No'}</div>
-            <div>Error: {error || 'None'}</div>
-          </div>
-        )}
-      </div>
-    );
+    return <UserAuth onUserReady={handleUserReady} />;
   }
 
   if (showQuoteIntro) {
-    return (
-      <div>
-        <QuoteIntro onComplete={() => setShowQuoteIntro(false)} durationScale={1.3} />
-        {debugInfo && (
-          <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
-            <div>デバッグ: {debugInfo}</div>
-            <div>Loading: {loading ? 'Yes' : 'No'}</div>
-            <div>Error: {error || 'None'}</div>
-          </div>
-        )}
-      </div>
-    );
+    return <QuoteIntro onComplete={() => setShowQuoteIntro(false)} durationScale={1.3} />;
   }
 
   if (loading) {
@@ -132,65 +104,18 @@ function GameContent() {
     // currentViewに基づいて適切なコンポーネントを表示
     if (currentView === 'map') {
       console.log('日本地図を表示します');
-      return (
-        <div>
-          <JapanMap />
-          {debugInfo && (
-            <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
-              <div>デバッグ: {debugInfo}</div>
-              <div>View: {currentView}</div>
-              <div>Loading: {loading ? 'Yes' : 'No'}</div>
-              <div>Error: {error || 'None'}</div>
-            </div>
-          )}
-        </div>
-      );
+      return <JapanMap />;
     } else if (currentView === 'challenge') {
       console.log('チャレンジ画面を表示します');
-      return (
-        <div>
-          <ChallengeView />
-          {debugInfo && (
-            <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
-              <div>デバッグ: {debugInfo}</div>
-              <div>View: {currentView}</div>
-              <div>Loading: {loading ? 'Yes' : 'No'}</div>
-              <div>Error: {error || 'None'}</div>
-            </div>
-          )}
-        </div>
-      );
+      return <ChallengeView />;
     } else {
       console.log('ホーム画面を表示します');
-      return (
-        <div>
-          <ShogunRoom />
-          {debugInfo && (
-            <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
-              <div>デバッグ: {debugInfo}</div>
-              <div>View: {currentView}</div>
-              <div>Loading: {loading ? 'Yes' : 'No'}</div>
-              <div>Error: {error || 'None'}</div>
-            </div>
-          )}
-        </div>
-      );
+      return <ShogunRoom />;
     }
   }
 
   // ユーザーがいない場合は認証画面を表示
-  return (
-    <div>
-      <UserAuth onUserReady={handleUserReady} />
-      {debugInfo && (
-        <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs max-w-xs">
-          <div>デバッグ: {debugInfo}</div>
-          <div>Loading: {loading ? 'Yes' : 'No'}</div>
-          <div>Error: {error || 'None'}</div>
-        </div>
-      )}
-    </div>
-  );
+  return <UserAuth onUserReady={handleUserReady} />;
 }
 
 function App() {

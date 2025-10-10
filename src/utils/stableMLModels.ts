@@ -64,7 +64,23 @@ export class StableLogisticRegression implements SimpleModel {
       
       if (onProgress) {
         const avgLoss = validSamples > 0 ? totalLoss / validSamples : 0;
-        const accuracy = this.calculateAccuracy(features, labels);
+        
+        // 学習中の精度計算（現在の重みで予測）
+        let correct = 0;
+        for (let i = 0; i < features.length; i++) {
+          const prediction = this.sigmoid(this.dotProduct(features[i], this.weights) + this.bias);
+          const predictedClass = prediction > 0.5 ? 1 : 0;
+          if (predictedClass === labels[i]) {
+            correct++;
+          }
+        }
+        const accuracy = features.length > 0 ? correct / features.length : 0;
+        
+        // デバッグログ
+        if (epoch % 10 === 0) {
+          console.log(`ロジスティック回帰 エポック ${epoch + 1}: 精度=${accuracy.toFixed(3)}, 損失=${avgLoss.toFixed(6)}`);
+        }
+        
         const progress = ((epoch + 1) / epochs) * 100;
         const elapsed = Date.now() - startTime;
         
@@ -121,21 +137,10 @@ export class StableLogisticRegression implements SimpleModel {
     return 1 / (1 + Math.exp(-x));
   }
 
-  private calculateAccuracy(features: number[][], labels: number[]): number {
-    if (features.length === 0) return 0;
-    
-    let correct = 0;
-    for (let i = 0; i < features.length; i++) {
-      const prediction = this.sigmoid(this.dotProduct(features[i], this.weights) + this.bias);
-      const predictedClass = prediction > 0.5 ? 1 : 0;
-      if (predictedClass === labels[i]) {
-        correct++;
-      }
-    }
-    return correct / features.length;
-  }
 
   private calculateAccuracyFromPredictions(predictions: number[], labels: number[]): number {
+    if (predictions.length === 0 || predictions.length !== labels.length) return 0;
+    
     let correct = 0;
     for (let i = 0; i < predictions.length; i++) {
       const predictedClass = predictions[i] > 0.5 ? 1 : 0;
@@ -143,7 +148,15 @@ export class StableLogisticRegression implements SimpleModel {
         correct++;
       }
     }
-    return correct / predictions.length;
+    const accuracy = correct / predictions.length;
+    
+    // NaN、無限大、負の値をチェック
+    if (isNaN(accuracy) || !isFinite(accuracy) || accuracy < 0) {
+      console.warn('Invalid accuracy detected:', { accuracy, correct, total: predictions.length });
+      return 0;
+    }
+    
+    return Math.max(0, Math.min(1, accuracy)); // 0-1の範囲に制限
   }
 
   private calculateMetrics(predictions: number[], actual: number[]): { precision: number; recall: number; f1_score: number } {
@@ -219,7 +232,33 @@ export class StableLinearRegression implements SimpleModel {
       
       if (onProgress) {
         const avgLoss = validSamples > 0 ? totalLoss / validSamples : 0;
-        const accuracy = this.calculateR2(features, labels);
+        
+        // 学習中のR²計算（現在の重みで予測）
+        let totalSumSquares = 0;
+        let residualSumSquares = 0;
+        let meanLabel = 0;
+        
+        // 平均値を計算
+        for (let i = 0; i < labels.length; i++) {
+          meanLabel += labels[i];
+        }
+        meanLabel /= labels.length;
+        
+        // R²を計算
+        for (let i = 0; i < features.length; i++) {
+          const prediction = this.dotProduct(features[i], this.weights) + this.bias;
+          totalSumSquares += Math.pow(labels[i] - meanLabel, 2);
+          residualSumSquares += Math.pow(labels[i] - prediction, 2);
+        }
+        
+        const r2 = totalSumSquares > 0 ? 1 - (residualSumSquares / totalSumSquares) : 0;
+        const accuracy = Math.max(0, Math.min(1, r2)); // 0-1の範囲に制限
+        
+        // デバッグログ
+        if (epoch % 10 === 0) {
+          console.log(`線形回帰 エポック ${epoch + 1}: R²=${accuracy.toFixed(3)}, 損失=${avgLoss.toFixed(6)}`);
+        }
+        
         const progress = ((epoch + 1) / epochs) * 100;
         const elapsed = Date.now() - startTime;
         
@@ -343,12 +382,28 @@ export class StableNeuralNetwork implements SimpleModel {
         const progress = ((epoch + 1) / epochs) * 100;
         const elapsed = Date.now() - startTime;
         
+        // 学習中の精度計算（現在の重みで予測）
+        let correct = 0;
+        for (let i = 0; i < features.length; i++) {
+          const prediction = this.forward(features[i]);
+          const predictedClass = prediction > 0.5 ? 1 : 0;
+          if (predictedClass === labels[i]) {
+            correct++;
+          }
+        }
+        const accuracy = features.length > 0 ? correct / features.length : 0;
+        
+        // デバッグログ
+        if (epoch % 10 === 0) {
+          console.log(`ニューラルネットワーク エポック ${epoch + 1}: 精度=${accuracy.toFixed(3)}, 損失=${(totalLoss / features.length).toFixed(6)}`);
+        }
+        
         onProgress({
           epoch: epoch + 1,
           total: epochs,
           message: `ニューラルネットワーク - エポック ${epoch + 1}/${epochs} (${progress.toFixed(1)}%)`,
           loss: totalLoss / features.length,
-          accuracy: this.calculateAccuracy(features, labels),
+          accuracy: isFinite(accuracy) ? accuracy : 0,
           progress: Math.round(progress),
           elapsed: elapsed,
           eta: Math.round((elapsed / (epoch + 1)) * (epochs - epoch - 1))
@@ -400,18 +455,10 @@ export class StableNeuralNetwork implements SimpleModel {
     return 1 / (1 + Math.exp(-x));
   }
 
-  private calculateAccuracy(features: number[][], labels: number[]): number {
-    let correct = 0;
-    for (let i = 0; i < features.length; i++) {
-      const prediction = this.forward(features[i]);
-      if ((prediction > 0.5 ? 1 : 0) === labels[i]) {
-        correct++;
-      }
-    }
-    return correct / features.length;
-  }
 
   private calculateAccuracyFromPredictions(predictions: number[], labels: number[]): number {
+    if (predictions.length === 0 || predictions.length !== labels.length) return 0;
+    
     let correct = 0;
     for (let i = 0; i < predictions.length; i++) {
       const predictedClass = predictions[i] > 0.5 ? 1 : 0;
@@ -419,7 +466,15 @@ export class StableNeuralNetwork implements SimpleModel {
         correct++;
       }
     }
-    return correct / predictions.length;
+    const accuracy = correct / predictions.length;
+    
+    // NaN、無限大、負の値をチェック
+    if (isNaN(accuracy) || !isFinite(accuracy) || accuracy < 0) {
+      console.warn('Invalid accuracy detected:', { accuracy, correct, total: predictions.length });
+      return 0;
+    }
+    
+    return Math.max(0, Math.min(1, accuracy)); // 0-1の範囲に制限
   }
 
   private calculateMetrics(predictions: number[], actual: number[]): { precision: number; recall: number; f1_score: number } {
@@ -550,7 +605,7 @@ export class StableKNN implements SimpleModel {
   }
 
   private calculateAccuracy(predictions: number[], actual: number[]): number {
-    if (predictions.length === 0) return 0;
+    if (predictions.length === 0 || predictions.length !== actual.length) return 0;
     
     let correct = 0;
     for (let i = 0; i < predictions.length; i++) {
@@ -559,7 +614,15 @@ export class StableKNN implements SimpleModel {
       }
     }
     
-    return correct / predictions.length;
+    const accuracy = correct / predictions.length;
+    
+    // NaN、無限大、負の値をチェック
+    if (isNaN(accuracy) || !isFinite(accuracy) || accuracy < 0) {
+      console.warn('Invalid accuracy detected in KNN:', { accuracy, correct, total: predictions.length });
+      return 0;
+    }
+    
+    return Math.max(0, Math.min(1, accuracy)); // 0-1の範囲に制限
   }
 }
 
@@ -693,13 +756,24 @@ export class StableSVM implements SimpleModel {
   }
 
   private calculateAccuracyFromPredictions(predictions: number[], labels: number[]): number {
+    if (predictions.length === 0 || predictions.length !== labels.length) return 0;
+    
     let correct = 0;
     for (let i = 0; i < predictions.length; i++) {
       if (predictions[i] === labels[i]) {
         correct++;
       }
     }
-    return correct / predictions.length;
+    
+    const accuracy = correct / predictions.length;
+    
+    // NaN、無限大、負の値をチェック
+    if (isNaN(accuracy) || !isFinite(accuracy) || accuracy < 0) {
+      console.warn('Invalid accuracy detected in SVM:', { accuracy, correct, total: predictions.length });
+      return 0;
+    }
+    
+    return Math.max(0, Math.min(1, accuracy)); // 0-1の範囲に制限
   }
 
   private calculateMetrics(predictions: number[], actual: number[]): { precision: number; recall: number; f1_score: number } {

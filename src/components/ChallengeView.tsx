@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Play, Loader, ChevronRight, Eye, Sparkles, Trophy, Filter } from 'lucide-react';
 import { useGameState } from '../hooks/useGameState';
 import { getDatasetForRegion } from '../data/datasets';
-import { getStableDatasetForRegion } from '../data/stableDatasets';
 import { OverfittingDetector } from '../utils/safeMLEducation';
 import { createStableModel } from '../utils/stableMLModels';
 import { updateRegionProgress, saveAttempt, unlockRegion } from '../lib/database';
@@ -104,6 +103,8 @@ export function ChallengeView() {
     setDataset(processed);
     // 特徴量選択は既存の選択を維持する
     setCurrentStep('features');
+    // ページの上部にスクロール
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleTrain = async () => {
@@ -118,7 +119,7 @@ export function ChallengeView() {
       const model = createStableModel(selectedModel);
 
       // データセットから学習用データを取得
-      const trainingData = dataset.train || dataset.data || [];
+      const trainingData = dataset.train || [];
       const testData = dataset.test || [];
 
       console.log('学習データ:', {
@@ -250,7 +251,13 @@ export function ChallengeView() {
                 return (
                   <div key={step.id} className="flex items-center">
                     <button
-                      onClick={() => isClickable && setCurrentStep(step.id)}
+                      onClick={() => {
+                        if (isClickable) {
+                          setCurrentStep(step.id);
+                          // ページの上部にスクロール
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
                       disabled={!isClickable}
                       className={`flex items-center space-x-2 px-3 md:px-4 py-2 rounded-lg transition-all border-2 ${
                         isCurrent
@@ -309,7 +316,11 @@ export function ChallengeView() {
                 <DataExplorer dataset={originalDataset} />
                 <div className="flex justify-end">
                   <button
-                    onClick={() => setCurrentStep('preprocessing')}
+                    onClick={() => {
+                      setCurrentStep('preprocessing');
+                      // ページの上部にスクロール
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     className="flex items-center space-x-2 text-white px-8 py-4 rounded-lg font-bold shadow-lg transition-all bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 border-2 border-yellow-400 text-lg"
                   >
                     <span>次へ：前処理</span>
@@ -327,14 +338,22 @@ export function ChallengeView() {
                 />
                 <div className="flex justify-between">
                   <button
-                    onClick={() => setCurrentStep('data')}
+                    onClick={() => {
+                      setCurrentStep('data');
+                      // ページの上部にスクロール
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 px-6 py-4 rounded-lg font-medium transition-colors border-2 border-slate-300 hover:border-slate-400 text-lg"
                   >
                     <ArrowLeft className="w-6 h-6" />
                     <span>戻る：データを見る</span>
                   </button>
                   <button
-                    onClick={() => setCurrentStep('features')}
+                    onClick={() => {
+                      setCurrentStep('features');
+                      // ページの上部にスクロール
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     className="flex items-center space-x-2 text-white px-8 py-4 rounded-lg font-bold shadow-lg transition-all bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 border-2 border-yellow-400 text-lg"
                   >
                     <span>前処理なしで次へ：特徴を選ぶ</span>
@@ -353,14 +372,22 @@ export function ChallengeView() {
                 />
                 <div className="flex justify-between">
                   <button
-                    onClick={() => setCurrentStep('data')}
+                    onClick={() => {
+                      setCurrentStep('data');
+                      // ページの上部にスクロール
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 px-6 py-4 rounded-lg font-medium transition-colors border-2 border-slate-300 hover:border-slate-400 text-lg"
                   >
                     <ArrowLeft className="w-6 h-6" />
                     <span>戻る：データを見る</span>
                   </button>
                   <button
-                    onClick={() => setCurrentStep('model')}
+                    onClick={() => {
+                      setCurrentStep('model');
+                      // ページの上部にスクロール
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={selectedFeatures.length === 0}
                     className="flex items-center space-x-2 text-white px-8 py-4 rounded-lg font-bold shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 border-2 border-yellow-400 text-lg"
                   >
@@ -389,7 +416,11 @@ export function ChallengeView() {
                     <span>戻る：特徴を選ぶ</span>
                   </button>
                   <button
-                    onClick={handleTrain}
+                    onClick={() => {
+                      handleTrain();
+                      // ページの上部にスクロール
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={isTraining}
                     className="flex items-center space-x-2 text-white px-8 py-4 rounded-lg font-bold shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 border-2 border-blue-600 text-lg"
                   >
@@ -453,7 +484,11 @@ export function ChallengeView() {
                 )}
                 <div className="flex justify-between">
                   <button
-                    onClick={() => setCurrentStep('features')}
+                    onClick={() => {
+                      setCurrentStep('features');
+                      // ページの上部にスクロール
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 px-6 py-3 rounded-lg font-medium transition-colors"
                   >
                     <ArrowLeft className="w-5 h-5" />

@@ -1,14 +1,12 @@
-import { Map, Sword, Trophy } from 'lucide-react';
+import { Map, Sword } from 'lucide-react';
 import { useState } from 'react';
 import { useGameState } from '../hooks/useGameState';
 import { OnlineBattle } from './OnlineBattle';
-import { Leaderboard } from './Leaderboard';
 import { userManager } from '../utils/userManager';
 
 export function ShogunRoom() {
   const { user, regions, progress, setCurrentView } = useGameState();
   const [showOnlineBattle, setShowOnlineBattle] = useState(false);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   if (!user) return null;
 
@@ -24,58 +22,71 @@ export function ShogunRoom() {
     return <OnlineBattle onBack={() => setShowOnlineBattle(false)} />;
   }
 
-  if (showLeaderboard) {
-    return <Leaderboard onBack={() => setShowLeaderboard(false)} />;
-  }
-
 
   return (
-    <div className="min-h-screen p-8" style={{ background: 'var(--paper)' }}>
+    <div className="min-h-screen p-4 md:p-8" style={{ background: 'var(--paper)' }}>
       <div className="max-w-7xl mx-auto">
-        <div className="rounded-lg shadow-2xl overflow-hidden border-4" style={{ borderColor: 'var(--gold)', background: 'var(--ink-white)' }}>
-          <div className="p-6" style={{ background: 'linear-gradient(to right, var(--accent-strong), var(--accent))' }}>
-            <h1 className="text-4xl font-bold text-white text-center tracking-wide">
-              samurAI - 機械学習で天下統一
-            </h1>
+        <div className="rounded-2xl shadow-2xl overflow-hidden border-4" style={{ borderColor: 'var(--gold)', background: 'var(--ink-white)' }}>
+          <div className="p-6 md:p-8 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, var(--accent-strong), var(--accent), var(--gold-light))' }}>
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="relative z-10">
+              <h1 className="text-3xl md:text-5xl font-bold text-white text-center tracking-wide mb-2">
+                samurAI
+              </h1>
+              <p className="text-lg md:text-xl text-white/90 text-center font-medium">
+                機械学習で天下統一
+              </p>
+            </div>
           </div>
 
-          <div className="p-6 md:p-12">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-              <div className="lg:col-span-2 space-y-8">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 md:p-8 shadow-xl border-2" style={{ borderColor: 'var(--gold)' }}>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-2 sm:space-y-0">
-                    <h2 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--ink)' }}>{displayName}様</h2>
-                    <span className="text-lg md:text-2xl font-bold text-white px-4 py-2 rounded-full border-2 self-start sm:self-auto" style={{ background: 'var(--accent-strong)', borderColor: 'var(--gold)' }}>
-                      {user.title}
-                    </span>
+          <div className="p-4 md:p-8 lg:p-12">
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 md:gap-8">
+              <div className="xl:col-span-3 space-y-6 md:space-y-8">
+                <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-sm rounded-2xl p-6 md:p-8 shadow-xl border-2 relative overflow-hidden" style={{ borderColor: 'var(--gold)' }}>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-var(--gold-light)/20 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
+                  <div className="relative z-10">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-3 sm:space-y-0">
+                      <div>
+                        <h2 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--ink)' }}>{displayName}様</h2>
+                        <p className="text-sm md:text-base mt-1" style={{ color: 'var(--ink-light)' }}>戦国大名としての道を歩む</p>
+                      </div>
+                      <span className="text-lg md:text-xl font-bold text-white px-4 py-2 rounded-full border-2 self-start sm:self-auto shadow-lg" style={{ background: 'linear-gradient(135deg, var(--accent-strong), var(--accent))', borderColor: 'var(--gold)' }}>
+                        {user.title}
+                      </span>
+                    </div>
+
+                  <div className="grid grid-cols-3 gap-3 md:gap-4 mt-6">
+                    <div className="text-center p-4 md:p-5 rounded-xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" style={{ background: 'linear-gradient(135deg, var(--silver-light), white)', borderColor: 'var(--gold)' }}>
+                      <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: 'var(--ink)' }}>{user.level}</div>
+                      <div className="text-sm font-medium" style={{ color: 'var(--ink-light)' }}>レベル</div>
+                    </div>
+                    <div className="text-center p-4 md:p-5 rounded-xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" style={{ background: 'linear-gradient(135deg, var(--silver-light), white)', borderColor: 'var(--gold)' }}>
+                      <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: 'var(--ink)' }}>{completedRegions}/{regions.length}</div>
+                      <div className="text-sm font-medium" style={{ color: 'var(--ink-light)' }}>地域制覇</div>
+                    </div>
+                    <div className="text-center p-4 md:p-5 rounded-xl border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" style={{ background: 'linear-gradient(135deg, var(--silver-light), white)', borderColor: 'var(--gold)' }}>
+                      <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: 'var(--ink)' }}>{totalStars}</div>
+                      <div className="text-sm font-medium" style={{ color: 'var(--ink-light)' }}>獲得星数</div>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 md:gap-4 mt-6">
-                    <div className="text-center p-3 md:p-4 rounded-lg border-2" style={{ background: 'var(--silver-light)', borderColor: 'var(--gold)' }}>
-                      <div className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--ink)' }}>{user.level}</div>
-                      <div className="text-xs md:text-sm mt-1" style={{ color: 'var(--ink-light)' }}>レベル</div>
+                  <div className="mt-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium" style={{ color: 'var(--ink-light)' }}>経験値</span>
+                      <span className="text-sm font-bold" style={{ color: 'var(--ink)' }}>{user.total_xp} / {Math.ceil(user.total_xp / 1000) * 1000}</span>
                     </div>
-                    <div className="text-center p-3 md:p-4 rounded-lg border-2" style={{ background: 'var(--silver-light)', borderColor: 'var(--gold)' }}>
-                      <div className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--ink)' }}>{completedRegions}/{regions.length}</div>
-                      <div className="text-xs md:text-sm mt-1" style={{ color: 'var(--ink-light)' }}>地域制覇</div>
-                    </div>
-                    <div className="text-center p-3 md:p-4 rounded-lg border-2" style={{ background: 'var(--silver-light)', borderColor: 'var(--gold)' }}>
-                      <div className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--ink)' }}>{totalStars}</div>
-                      <div className="text-xs md:text-sm mt-1" style={{ color: 'var(--ink-light)' }}>獲得星数</div>
+                    <div className="rounded-full h-6 border-2 overflow-hidden shadow-inner" style={{ background: 'var(--silver-light)', borderColor: 'var(--gold)' }}>
+                      <div
+                        className="h-full transition-all duration-700 relative"
+                        style={{
+                          background: 'linear-gradient(90deg, var(--accent), var(--accent-strong), var(--gold-light))',
+                          width: `${Math.min((user.total_xp % 1000) / 10, 100)}%`,
+                        }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="mt-6 rounded-full h-6 border-2 overflow-hidden" style={{ background: 'var(--silver-light)', borderColor: 'var(--gold)' }}>
-                    <div
-                      className="h-full transition-all duration-500"
-                      style={{
-                        background: 'linear-gradient(to right, var(--accent), var(--accent-strong))',
-                        width: `${Math.min((user.total_xp % 1000) / 10, 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="text-center text-sm mt-2" style={{ color: 'var(--ink-light)' }}>
-                    経験値: {user.total_xp} / {Math.ceil(user.total_xp / 1000) * 1000}
                   </div>
                 </div>
 
@@ -84,14 +95,18 @@ export function ShogunRoom() {
                     console.log('日本地図ボタンがクリックされました');
                     setCurrentView('map');
                   }}
-                  className="w-full text-white p-8 rounded-lg shadow-xl border-4 transition-all transform hover:scale-105 group"
-                  style={{ background: 'linear-gradient(to right, var(--accent), var(--accent-strong))', borderColor: 'var(--gold)' }}
+                  className="w-full text-white p-8 rounded-2xl shadow-2xl border-4 transition-all transform hover:scale-105 group relative overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-strong), var(--gold-light))', borderColor: 'var(--gold)' }}
                 >
-                  <div className="flex items-center justify-center space-x-4">
-                    <Map className="w-16 h-16 group-hover:rotate-12 transition-transform" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <div className="flex items-center justify-center space-x-6 relative z-10">
+                    <div className="p-4 rounded-full bg-white/20 group-hover:bg-white/30 transition-colors shadow-lg">
+                      <Map className="w-16 h-16 group-hover:rotate-12 transition-transform duration-300" />
+                    </div>
                     <div className="text-left">
                       <div className="text-3xl font-bold">日本地図を開く</div>
-                      <div className="text-xl mt-2" style={{ color: 'var(--gold-light)' }}>各地の課題に挑戦しよう</div>
+                      <div className="text-xl mt-2 opacity-90">各地の課題に挑戦しよう</div>
+                      <div className="text-sm mt-1 opacity-75">戦国時代の日本を制覇せよ！</div>
                     </div>
                   </div>
                 </button>
@@ -99,40 +114,35 @@ export function ShogunRoom() {
 
               <div className="space-y-6">
                 {/* オンライン対戦 */}
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-xl border-2" style={{ borderColor: 'var(--gold)' }}>
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Sword className="w-6 h-6" style={{ color: 'var(--accent-strong)' }} />
-                    <h3 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>オンライン対戦</h3>
+                <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border-2 relative overflow-hidden" style={{ borderColor: 'var(--gold)' }}>
+                  <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-var(--accent)/20 to-transparent rounded-full -translate-y-12 -translate-x-12"></div>
+                  <div className="relative z-10">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="p-3 rounded-full bg-gradient-to-br from-var(--accent-strong) to-var(--accent) shadow-lg">
+                        <Sword className="w-7 h-7 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>オンライン対戦</h3>
+                        <p className="text-xs" style={{ color: 'var(--ink-light)' }}>リアルタイム競技</p>
+                      </div>
+                    </div>
+                    <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--ink-light)' }}>
+                      週次問題で他のプレイヤーと競い合おう！
+                    </p>
+                    <button
+                      onClick={() => setShowOnlineBattle(true)}
+                      className="w-full text-white py-4 px-4 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg text-base group relative overflow-hidden"
+                      style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-strong))' }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                      <span className="relative z-10 flex items-center justify-center space-x-2">
+                        <Sword className="w-5 h-5" />
+                        <span>オンライン対戦</span>
+                      </span>
+                    </button>
                   </div>
-                  <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--ink-light)' }}>
-                    週次問題で他のプレイヤーと競い合おう！
-                  </p>
-                  <button
-                    onClick={() => setShowOnlineBattle(true)}
-                    className="w-full text-white py-3 px-4 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg"
-                    style={{ background: 'linear-gradient(to right, var(--accent), var(--accent-strong))' }}
-                  >
-                    ⚔️ オンライン対戦
-                  </button>
                 </div>
 
-                       {/* リーダーボード */}
-                       <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-xl border-2" style={{ borderColor: 'var(--gold)' }}>
-                         <div className="flex items-center space-x-2 mb-4">
-                           <Trophy className="w-6 h-6" style={{ color: 'var(--accent-strong)' }} />
-                           <h3 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>リーダーボード</h3>
-                         </div>
-                         <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--ink-light)' }}>
-                           他のプレイヤーとスコアを競い合おう！
-                         </p>
-                         <button
-                           onClick={() => setShowLeaderboard(true)}
-                           className="w-full text-white py-3 px-4 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg"
-                           style={{ background: 'linear-gradient(to right, #f59e0b, #d97706)' }}
-                         >
-                           🏆 リーダーボードを見る
-                         </button>
-                       </div>
 
 
               </div>

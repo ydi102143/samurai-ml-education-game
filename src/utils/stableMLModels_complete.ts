@@ -683,3 +683,5 @@ export function createStableModel(modelType: string): SimpleModel {
       throw new Error(`未知のモデルタイプ: ${modelType}`);
   }
 }
+
+

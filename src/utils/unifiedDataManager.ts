@@ -121,6 +121,29 @@ export class UnifiedDataManager {
   }
 
   /**
+   * リーダーボードの即座更新
+   */
+  async refreshLeaderboard(problemId: string) {
+    try {
+      // キャッシュをクリア
+      this.clearCache(`leaderboard_${problemId}`);
+      
+      // リーダーボードを再取得
+      const leaderboard = await CompetitionSubmissionManager.getLeaderboard(problemId);
+      
+      // リアルタイム更新をブロードキャスト
+      if (leaderboard) {
+        realtimeManager.broadcastLeaderboardUpdate(problemId, leaderboard);
+      }
+      
+      return leaderboard;
+    } catch (error) {
+      console.error('リーダーボード更新エラー:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 週次統計の統一取得
    */
   getWeeklyStats() {

@@ -48,16 +48,49 @@ export class DynamicLearningSystem {
         testSize: test.length
       });
       
-      // 特徴量を選択
-      const filteredTrain = train.map(point => ({
-        features: config.selectedFeatures.map(i => point.features[i]),
-        label: point.label
-      }));
+      // データの検証
+      if (train.length === 0) {
+        throw new Error('学習データが空です');
+      }
       
-      const filteredTest = test.map(point => ({
-        features: config.selectedFeatures.map(i => point.features[i]),
-        label: point.label
-      }));
+      // 特徴量を選択（安全に）
+      const filteredTrain = train.map(point => {
+        if (!point.features || !Array.isArray(point.features)) {
+          throw new Error('無効なデータポイント: featuresが配列ではありません');
+        }
+        return {
+          features: config.selectedFeatures.map(i => {
+            if (i >= point.features.length) {
+              console.warn(`特徴量インデックス ${i} が範囲外です。データ長: ${point.features.length}`);
+              return 0;
+            }
+            return point.features[i];
+          }),
+          label: point.label
+        };
+      });
+      
+      const filteredTest = test.map(point => {
+        if (!point.features || !Array.isArray(point.features)) {
+          throw new Error('無効なデータポイント: featuresが配列ではありません');
+        }
+        return {
+          features: config.selectedFeatures.map(i => {
+            if (i >= point.features.length) {
+              console.warn(`特徴量インデックス ${i} が範囲外です。データ長: ${point.features.length}`);
+              return 0;
+            }
+            return point.features[i];
+          }),
+          label: point.label
+        };
+      });
+      
+      console.log('特徴量選択完了:', {
+        filteredTrainSize: filteredTrain.length,
+        filteredTestSize: filteredTest.length,
+        selectedFeatures: config.selectedFeatures
+      });
       
       // モデルを作成
       console.log('モデル作成中:', config.modelType);
@@ -123,14 +156,15 @@ export class DynamicLearningSystem {
   ): { train: any[]; validation: any[]; test: any[] } {
     const { trainRatio, validationRatio, testRatio, randomSeed, stratified } = splitConfig;
     
-    // ランダムシードを設定
+    // ランダムシードを設定（改良版）
     const originalRandom = Math.random;
-    if (randomSeed !== undefined) {
-      Math.random = () => {
-        const x = Math.sin(randomSeed) * 10000;
-        return x - Math.floor(x);
-      };
-    }
+    let seed = randomSeed || 42;
+    
+    // シード値に基づいてランダム関数を初期化
+    Math.random = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
     
     // データをシャッフル
     const allData = [...dataset.train, ...dataset.test];
@@ -186,8 +220,12 @@ export class DynamicLearningSystem {
       const trainSize = Math.floor(classSize * trainRatio);
       const validationSize = Math.floor(classSize * validationRatio);
       
-      // クラス内でシャッフル
-      const shuffled = [...classData].sort(() => Math.random() - 0.5);
+      // クラス内でシャッフル（Fisher-Yatesアルゴリズム）
+      const shuffled = [...classData];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
       
       train.push(...shuffled.slice(0, trainSize));
       validation.push(...shuffled.slice(trainSize, trainSize + validationSize));

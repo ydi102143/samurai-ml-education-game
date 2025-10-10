@@ -226,7 +226,7 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-blue-900">
-                        {((entry.score || 0) * 100).toFixed(1)}%
+                        {isNaN(entry.score) ? '0.0' : ((entry.score || 0)).toFixed(1)}%
                       </div>
                       <div className="text-sm text-slate-600">
                         {activeTab === 'public' ? 'Public' : 'Private'}スコア

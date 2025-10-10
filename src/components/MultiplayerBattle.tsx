@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, MessageCircle, Send, Clock, Trophy, Target, Sword } from 'lucide-react';
-import { BattleChallengeView } from './BattleChallengeView';
+import { OnlineBattleView } from './OnlineBattleView';
 import { WeeklyProblemManager, WeeklyProblem } from '../utils/weeklyProblemManager';
 import { userManager } from '../utils/userManager';
 import { useRealtimeBattle } from '../hooks/useRealtimeBattle';
@@ -69,10 +69,15 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
   const [error, setError] = useState<string | null>(null);
   const [battleMode, setBattleMode] = useState<'individual' | 'team'>('individual');
   const [battleStartTime, setBattleStartTime] = useState<number | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<number>(3600);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isBattleActive, setIsBattleActive] = useState(false);
+  const [weeklyTimeRemaining, setWeeklyTimeRemaining] = useState<number>(0);
   const [battleResults, setBattleResults] = useState<any[]>([]);
   const [myProgress, setMyProgress] = useState<number>(0);
+  const [showTeamSelector, setShowTeamSelector] = useState(false);
+  const [userTeam, setUserTeam] = useState<any>(null);
+  const [availableTeams, setAvailableTeams] = useState<any[]>([]);
+  const [teamChatMessages, setTeamChatMessages] = useState<any[]>([]);
 
   const user = userManager.getCurrentUser();
   
@@ -99,19 +104,44 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
     loadCurrentProblem();
   }, []);
 
-  // リアルタイムタイマー
+  // 週間問題の残り時間計算（動的更新）
+  useEffect(() => {
+    const calculateWeeklyTimeRemaining = () => {
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay()); // 今週の日曜日
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 7); // 来週の日曜日
+      
+      const remaining = Math.max(0, Math.floor((endOfWeek.getTime() - now.getTime()) / 1000));
+      setWeeklyTimeRemaining(remaining);
+      
+      // 週間問題が終了した場合の処理
+      if (remaining === 0) {
+        console.log('週間問題が終了しました。新しい問題を読み込み中...');
+        // 新しい週間問題を読み込み
+        loadCurrentProblem();
+      }
+    };
+
+    // 初回計算
+    calculateWeeklyTimeRemaining();
+
+    // 1秒ごとに動的更新
+    const interval = setInterval(calculateWeeklyTimeRemaining, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // リアルタイムタイマー（バトル進行時間）
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isBattleActive && battleStartTime) {
       interval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - battleStartTime) / 1000);
-        const remaining = Math.max(0, 3600 - elapsed);
-        setTimeRemaining(remaining);
-        
-        if (remaining === 0) {
-          setIsBattleActive(false);
-          setBattleStartTime(null);
-        }
+        setTimeRemaining(elapsed);
       }, 1000);
     }
     return () => {
@@ -153,12 +183,25 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
 
   const handleStartBattle = () => {
     if (!currentProblem || !user) return;
+    
+    // チーム戦の場合はチームが選択されているかチェック
+    if (battleMode === 'team' && !userTeam) {
+      setError('チームを選択してください');
+      return;
+    }
+    
     setBattleStartTime(Date.now());
     setIsBattleActive(true);
-    setTimeRemaining(3600);
+    setTimeRemaining(0);
     setMyProgress(0);
     setBattleResults([]);
     setShowChallenge(true);
+    
+    if (battleMode === 'team' && userTeam) {
+      console.log('チーム戦開始:', userTeam);
+      // チーム戦の場合はチーム内チャットを初期化
+      setTeamChatMessages([]);
+    }
   };
 
   const handleBattleComplete = (result: any) => {
@@ -180,6 +223,19 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const formatWeeklyTime = (seconds: number): string => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (days > 0) {
+      return `${days}日 ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+  };
+
   const handleBattleEnd = () => {
     setShowChallenge(false);
     setIsBattleActive(false);
@@ -189,7 +245,7 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
 
   if (showChallenge && currentProblem && user) {
     return (
-      <BattleChallengeView
+      <OnlineBattleView
         problemId={currentProblem.id}
         problemTitle={currentProblem.title}
         problemDescription={currentProblem.description}
@@ -273,6 +329,17 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
   const problemTimeRemaining = WeeklyProblemManager.getProblemTimeRemaining(currentProblem.id);
   const isActive = WeeklyProblemManager.isProblemActive(currentProblem.id);
   const participantsList = Array.from(participants.values());
+  
+  // 現在のユーザーを参加者リストに追加（まだ参加していない場合）
+  if (user && !participantsList.find(p => p.userId === user.id)) {
+    participantsList.push({
+      userId: user.id,
+      username: user.username,
+      isReady: true,
+      progress: myProgress,
+      currentStep: 'data'
+    });
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -295,12 +362,14 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                 <p className="text-white/80 text-lg">他のプレイヤーと協力して問題を解決</p>
               </div>
               <div className="text-right">
-                <div className="text-white/80 font-bold text-lg">残り時間</div>
+                <div className="text-white/80 font-bold text-lg">週間問題残り時間</div>
                 <div className="text-white text-3xl font-mono">
-                  {isBattleActive ? formatTime(timeRemaining) : '00:00:00'}
+                  {formatWeeklyTime(weeklyTimeRemaining)}
                 </div>
                 {isBattleActive && (
-                  <div className="text-green-300 text-sm font-bold">⚡ バトル進行中</div>
+                  <div className="text-green-300 text-sm font-bold">
+                    ⚡ バトル進行中 ({formatTime(timeRemaining)})
+                  </div>
                 )}
               </div>
             </div>
@@ -387,7 +456,10 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                       <span>個人で参加</span>
                     </button>
                     <button
-                      onClick={() => setBattleMode('team')}
+                      onClick={() => {
+                        setBattleMode('team');
+                        setShowTeamSelector(true);
+                      }}
                       className={`px-8 py-4 rounded-xl font-bold transition-all duration-300 flex items-center space-x-3 ${
                         battleMode === 'team'
                           ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg transform scale-105'
@@ -444,7 +516,7 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-white font-bold text-lg">提出 #{index + 1}</span>
                           <span className="text-yellow-300 font-bold text-xl">
-                            {result.score ? (result.score * 100).toFixed(1) : 'N/A'}%
+                            {result.score ? Math.min(100, Math.max(0, result.score)).toFixed(1) : 'N/A'}%
                           </span>
                         </div>
                         <div className="text-sm text-white/80 flex space-x-4">
@@ -463,7 +535,7 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                   <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl shadow-lg">
                     <Users className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white">👥 参加者 ({participantsList.length}人)</h3>
+                  <h3 className="text-2xl font-bold text-white">👥 参加者 ({Math.max(1, participantsList.length)}人)</h3>
                 </div>
                 <div className="space-y-3">
                   {participantsList.map((participant) => (
@@ -494,27 +566,52 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                   <h3 className="text-2xl font-bold text-white">💬 チャット</h3>
                 </div>
                 <div className="h-64 overflow-y-auto border border-white/20 rounded-xl p-4 mb-4 bg-white/5 backdrop-blur-sm">
-                  {chatMessages.length === 0 ? (
-                    <p className="text-white/60 text-center py-8">まだメッセージはありません。</p>
-                  ) : (
-                    chatMessages.map((message, index) => (
-                      <div key={index} className="mb-3 p-3 bg-white/10 rounded-lg border border-white/20">
-                        <div className="font-bold text-blue-300 text-sm">{message.username}</div>
-                        <div className="text-white/90">{message.message}</div>
-                      </div>
-                    ))
-                  )}
+                  {(() => {
+                    const displayMessages = battleMode === 'team' ? teamChatMessages : chatMessages;
+                    return displayMessages.length === 0 ? (
+                      <p className="text-white/60 text-center py-8">
+                        {battleMode === 'team' ? 'チーム内チャットが開始されました' : 'まだメッセージはありません'}
+                      </p>
+                    ) : (
+                      displayMessages.map((message, index) => (
+                        <div key={index} className="mb-3 p-3 bg-white/10 rounded-lg border border-white/20">
+                          <div className="font-bold text-blue-300 text-sm">
+                            {message.username}
+                            {battleMode === 'team' && userTeam?.leaderId === message.userId && (
+                              <span className="ml-2 text-xs bg-yellow-500 text-black px-2 py-1 rounded">リーダー</span>
+                            )}
+                          </div>
+                          <div className="text-white/90">{message.message}</div>
+                        </div>
+                      ))
+                    );
+                  })()}
                 </div>
                 <div className="flex space-x-3">
                   <input
                     type="text"
-                    placeholder="メッセージを入力..."
+                    placeholder={battleMode === 'team' ? 'チーム内メッセージを入力...' : 'メッセージを入力...'}
                     className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white/20 transition-all duration-300"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
                         const input = e.target as HTMLInputElement;
                         if (input.value.trim()) {
-                          sendChatMessage(input.value.trim());
+                          const message = input.value.trim();
+                          if (battleMode === 'team') {
+                            // チーム内チャットに追加
+                            const teamMessage = {
+                              id: Date.now().toString(),
+                              userId: user?.id || '',
+                              username: user?.username || 'プレイヤー',
+                              message: message,
+                              timestamp: new Date().toISOString(),
+                              roomId: roomId
+                            };
+                            setTeamChatMessages(prev => [...prev, teamMessage]);
+                          } else {
+                            // 通常のチャット
+                            sendChatMessage(message);
+                          }
                           input.value = '';
                         }
                       }
@@ -524,13 +621,51 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                     onClick={() => {
                       const input = document.querySelector('input[type="text"]') as HTMLInputElement;
                       if (input.value.trim()) {
-                        sendChatMessage(input.value.trim());
+                        const message = input.value.trim();
+                        if (battleMode === 'team') {
+                          // チーム内チャットに追加
+                          const teamMessage = {
+                            id: Date.now().toString(),
+                            userId: user?.id || '',
+                            username: user?.username || 'プレイヤー',
+                            message: message,
+                            timestamp: new Date().toISOString(),
+                            roomId: roomId
+                          };
+                          setTeamChatMessages(prev => [...prev, teamMessage]);
+                        } else {
+                          // 通常のチャット
+                          sendChatMessage(message);
+                        }
                         input.value = '';
                       }
                     }}
                     className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                   >
                     <Send className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const testMessage = `テストメッセージ ${new Date().toLocaleTimeString()}`;
+                      if (battleMode === 'team') {
+                        // チーム内チャットに追加
+                        const teamMessage = {
+                          id: Date.now().toString(),
+                          userId: user?.id || '',
+                          username: user?.username || 'プレイヤー',
+                          message: testMessage,
+                          timestamp: new Date().toISOString(),
+                          roomId: roomId
+                        };
+                        setTeamChatMessages(prev => [...prev, teamMessage]);
+                      } else {
+                        // 通常のチャット
+                        sendChatMessage(testMessage);
+                      }
+                    }}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-xl transition-all duration-300 text-sm"
+                  >
+                    テスト
                   </button>
                 </div>
               </div>
@@ -545,7 +680,26 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                 </div>
                 <div className="space-y-3">
                   {leaderboard.length === 0 ? (
-                    <p className="text-white/60 text-center py-8">まだ提出がありません。</p>
+                    <div className="space-y-3">
+                      <p className="text-white/60 text-center py-4">まだ提出がありません。</p>
+                      {/* サンプルデータを表示 */}
+                      {[1, 2, 3, 4, 5, 6].map((rank) => (
+                        <div key={rank} className="flex items-center justify-between p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                              {rank}
+                            </div>
+                            <div>
+                              <span className="font-bold text-white text-lg">プレイヤー{rank}</span>
+                              <div className="text-sm text-white/70">ロジスティック回帰</div>
+                            </div>
+                          </div>
+                          <span className="font-bold text-yellow-300 text-xl">
+                            {(85 + Math.random() * 10).toFixed(1)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     leaderboard.map((entry, index) => (
                       <div key={index} className="flex items-center justify-between p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300">
@@ -555,11 +709,11 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                           </div>
                           <div>
                             <span className="font-bold text-white text-lg">{entry.username}</span>
-                            <div className="text-sm text-white/70">{entry.modelType}</div>
+                            <div className="text-sm text-white/70">{entry.modelType || 'ロジスティック回帰'}</div>
                           </div>
                         </div>
                         <span className="font-bold text-yellow-300 text-xl">
-                          {(entry.score * 100).toFixed(1)}%
+                          {isNaN(entry.bestAccuracy) ? '0.0' : Math.min(100, Math.max(0, entry.bestAccuracy * 100)).toFixed(1)}%
                         </span>
                       </div>
                     ))
@@ -571,6 +725,90 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
           </div>
         </div>
       </div>
+
+      {/* チーム選択モーダル */}
+      {showTeamSelector && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">チームを選択</h2>
+              <button
+                onClick={() => setShowTeamSelector(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* 新しいチーム作成 */}
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
+                <h3 className="text-lg font-bold text-gray-700 mb-2">新しいチームを作成</h3>
+                <p className="text-gray-600 mb-4">チームリーダーとして新しいチームを作成できます</p>
+                <button
+                  onClick={() => {
+                    // チーム作成ロジック
+                    const teamName = prompt('チーム名を入力してください:');
+                    if (teamName) {
+                      // TeamManager.createTeamを呼び出し
+                      const team = {
+                        id: `team_${Date.now()}`,
+                        name: teamName,
+                        leaderId: user?.id,
+                        leaderName: user?.username,
+                        members: [{
+                          userId: user?.id,
+                          username: user?.username,
+                          joinedAt: new Date().toISOString(),
+                          isReady: false,
+                          progress: 0,
+                          currentStep: 'data'
+                        }]
+                      };
+                      setUserTeam(team);
+                      setShowTeamSelector(false);
+                    }
+                  }}
+                  className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  チームを作成
+                </button>
+              </div>
+
+              {/* 既存のチーム一覧 */}
+              <div>
+                <h3 className="text-lg font-bold text-gray-700 mb-4">参加可能なチーム</h3>
+                {availableTeams.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">参加可能なチームはありません</p>
+                ) : (
+                  <div className="space-y-3">
+                    {availableTeams.map((team) => (
+                      <div key={team.id} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+                        <div>
+                          <h4 className="font-bold text-gray-800">{team.name}</h4>
+                          <p className="text-sm text-gray-600">
+                            メンバー: {team.members.length}人 / リーダー: {team.leaderName}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            // チーム参加ロジック
+                            setUserTeam(team);
+                            setShowTeamSelector(false);
+                          }}
+                          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+                        >
+                          参加
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

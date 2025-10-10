@@ -85,3 +85,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE battle_events;
 ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE battle_results;
 
+

@@ -1,5 +1,12 @@
 // バトル結果のデータベース管理
-import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// 直接APIキーを設定（デバッグ用）
+const supabaseUrl = 'https://ovghanpxibparkuyxxdh.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2hhbnB4aWJwYXJrdXl4eGRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ3MjksImV4cCI6MjA3NTQ4MDcyOX0.56Caf4btExzGvizmzJwZZA8KZIh81axQVcds8eXlq_Y';
+
+console.log('BattleDatabase: Creating Supabase client with direct keys');
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface BattleSubmission {
   id: string;
@@ -223,7 +230,18 @@ export class BattleDatabase {
     isPrivate: boolean = false,
     battleType?: 'individual' | 'team'
   ): Promise<BattleLeaderboardEntry[]> {
-    // Supabaseから取得を試行
+    // まずローカルストレージから取得（Supabase認証問題のため）
+    try {
+      const localData = this.getLeaderboardFromLocal(limit, isPrivate, battleType);
+      if (localData && localData.length > 0) {
+        console.log('ローカルストレージからリーダーボード取得:', localData);
+        return localData;
+      }
+    } catch (error) {
+      console.warn('ローカルストレージ取得エラー:', error);
+    }
+
+    // ローカルデータがない場合のみSupabaseから取得を試行
     try {
       let query = supabase
         .from('leaderboard_view')
@@ -231,17 +249,11 @@ export class BattleDatabase {
         .order('score', { ascending: false })
         .limit(limit);
 
-      // battle_typeカラムが存在しないため、フィルタリングをスキップ
-      // if (battleType) {
-      //   query = query.eq('battle_type', battleType);
-      // }
-
       const { data, error } = await query;
 
       if (error) {
-        console.error('Supabase取得エラー:', error);
-        // エラーの場合はローカルストレージから取得
-        return this.getLeaderboardFromLocal(limit, isPrivate, battleType);
+        console.warn('Supabase取得エラー（ローカルデータを使用）:', error);
+        return [];
       }
 
       if (data && data.length > 0) {
@@ -267,11 +279,10 @@ export class BattleDatabase {
         }));
       }
     } catch (error) {
-      console.error('Supabase接続エラー:', error);
+      console.warn('Supabase接続エラー（ローカルデータを使用）:', error);
     }
 
-    // フォールバック: ローカルストレージから取得
-    return this.getLeaderboardFromLocal(limit, isPrivate, battleType);
+    return [];
   }
 
   // ローカルストレージからリーダーボードを取得

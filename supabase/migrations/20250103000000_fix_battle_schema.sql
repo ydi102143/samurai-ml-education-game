@@ -51,3 +51,5 @@ CREATE POLICY "Allow authenticated update" ON battle_results
 CREATE POLICY "Allow authenticated delete" ON battle_results
   FOR DELETE USING (true);
 
+
+

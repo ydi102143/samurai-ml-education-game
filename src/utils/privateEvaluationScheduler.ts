@@ -103,3 +103,5 @@ export class PrivateEvaluationScheduler {
     console.log('全てのPrivate評価スケジュールをクリアしました');
   }
 }
+
+

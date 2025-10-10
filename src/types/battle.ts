@@ -292,3 +292,5 @@ export interface BattleReport {
   resolution?: string;
 }
 
+
+
