@@ -149,7 +149,10 @@ export class CompetitionEvaluator {
       
       // 評価を実行
       console.log('モデル評価を開始しています...');
+      console.log('テストデータ数:', playerDataset.test.length);
+      console.log('テストデータサンプル:', playerDataset.test.slice(0, 2));
       const result = model.evaluate(playerDataset.test);
+      console.log('評価結果:', result);
       console.log('評価が完了しました');
       
       // 選択された評価指標でスコアを計算
@@ -436,9 +439,12 @@ export class CompetitionEvaluator {
    * スコア計算（適切な指標を選択）
    */
   private static calculateScore(result: any, metric: string): number {
+    console.log('calculateScore called:', { result, metric });
     switch (metric) {
       case 'accuracy':
-        return result.accuracy || 0;
+        const accuracy = result.accuracy || 0;
+        console.log('Accuracy score:', accuracy);
+        return accuracy;
       case 'f1_score':
         return result.f1_score || 0;
       case 'precision':

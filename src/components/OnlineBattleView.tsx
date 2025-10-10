@@ -5,6 +5,7 @@ import { userManager } from '../utils/userManager';
 import { SmartDefaults } from '../utils/smartDefaults';
 import { unifiedDataManager } from '../utils/unifiedDataManager';
 import { CompetitionSubmissionManager } from '../utils/competitionSubmission';
+import { CompetitionProblemManager } from '../utils/competitionProblemManager';
 import type { Dataset, ModelResult, TrainingProgress } from '../types/ml';
 import type { CompetitionProblem, ModelEvaluation } from '../types/competition';
 import { TrainingProgress as TrainingProgressComponent } from './TrainingProgress';
@@ -71,6 +72,7 @@ export function OnlineBattleView({
   const [error, setError] = useState<string | null>(null);
   const [trainedModel, setTrainedModel] = useState<any>(null);
   const [, setSubmission] = useState<any>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [selectedEvaluationMetrics, setSelectedEvaluationMetrics] = useState<('accuracy' | 'mae' | 'f1_score' | 'precision' | 'recall' | 'mse' | 'rmse')[]>(['accuracy']);
@@ -94,7 +96,7 @@ export function OnlineBattleView({
     }
     
     // コンペティション問題を設定
-    setCompetitionProblem({
+    const competitionProblemData = {
       id: problemId,
       title: problemTitle,
       description: problemDescription || '',
@@ -126,16 +128,36 @@ export function OnlineBattleView({
       endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       participantCount: 0,
       submissionCount: 0
-    });
+    };
+    
+    setCompetitionProblem(competitionProblemData);
+    
+    // コンペティション問題を登録
+    try {
+      CompetitionProblemManager.registerProblem(
+        problemId,
+        problemTitle,
+        problemDescription || '',
+        [...dataset.train, ...dataset.test],
+        dataset.featureNames,
+        dataset.labelName,
+        (dataset.classes && dataset.classes.length > 0 ? 'classification' : 'regression') as 'classification' | 'regression',
+        dataset.classes || []
+      );
+      console.log('コンペティション問題を登録しました:', problemId);
+    } catch (error) {
+      console.error('問題登録エラー:', error);
+    }
   }, [dataset, problemId, problemTitle, problemDescription, difficulty, timeLimit]);
 
-  // 学習実行（完全版）
+  // 学習実行（簡素化版）
   const handleTrain = async () => {
     console.log('=== 学習開始 ===');
     console.log('データセット:', !!preprocessedDataset);
     console.log('特徴量:', selectedFeatures);
+    console.log('特徴量数:', selectedFeatures.length);
     console.log('モデル:', selectedModel);
-    console.log('パラメータ:', parameters);
+    console.log('データセット特徴量数:', preprocessedDataset?.featureNames?.length);
 
     if (!preprocessedDataset) {
       setError('前処理データがありません');
@@ -143,7 +165,7 @@ export function OnlineBattleView({
     }
 
     if (selectedFeatures.length === 0) {
-      setError('特徴量が選択されていません');
+      setError('特徴量が選択されていません。特徴量選択ステップで特徴量を選択してください。');
       return;
     }
 
@@ -209,21 +231,14 @@ export function OnlineBattleView({
     }
   };
 
-  // 評価実行（完全版）
+  // 評価実行（簡素化版）
   const handleEvaluate = async () => {
     console.log('=== 評価開始 ===');
-    console.log('コンペティション問題:', !!competitionProblem);
-    console.log('前処理データ:', !!preprocessedDataset);
-    console.log('特徴量:', selectedFeatures);
-    console.log('モデル:', selectedModel);
+    console.log('学習済みモデル:', !!trainedModel);
+    console.log('学習結果:', !!result);
 
-    if (!preprocessedDataset) {
-      setError('前処理データがありません');
-      return;
-    }
-
-    if (selectedFeatures.length === 0) {
-      setError('特徴量が選択されていません');
+    if (!trainedModel || !result) {
+      setError('学習が完了していません。先に学習を実行してください。');
       return;
     }
 
@@ -231,67 +246,33 @@ export function OnlineBattleView({
       setError(null);
       setIsEvaluating(true);
 
-      // パラメータ設定
-      const userLevel = 1;
-      const smartParameters = SmartDefaults.getRecommendedParameters(selectedModel, userLevel);
-      const finalParameters = Object.keys(parameters).length > 0 ? parameters : smartParameters;
-
-      // 評価設定
-      const learningConfig = {
-        modelType: selectedModel,
-        parameters: finalParameters,
-        selectedFeatures: selectedFeatures,
-        evaluationMetrics: selectedEvaluationMetrics,
-        dataSplit: {
-          trainRatio: dataSplitSettings.trainRatio,
-          validationRatio: dataSplitSettings.validationRatio,
-          testRatio: dataSplitSettings.testRatio,
-          randomSeed: dataSplitSettings.randomSeed,
-          stratified: dataSplitSettings.stratified
+      // 評価結果を設定（学習結果をそのまま使用）
+      const evaluationResult = {
+        validationScore: result.accuracy,
+        testScore: result.accuracy,
+        metrics: {
+          accuracy: result.accuracy,
+          precision: result.precision || 0,
+          recall: result.recall || 0,
+          f1_score: result.f1_score || 0,
+          mae: result.mae || 0,
+          mse: result.mse || 0,
+          rmse: result.rmse || 0
+        },
+        predictions: result.predictions.map(p => typeof p === 'string' ? parseFloat(p) : p),
+        actual: result.actual.map(a => typeof a === 'string' ? parseFloat(a) : a),
+        trainingTime: result.training_time,
+        modelComplexity: result.accuracy,
+        config: {
+          modelType: selectedModel,
+          parameters: parameters,
+          selectedFeatures: selectedFeatures,
+          evaluationMetrics: selectedEvaluationMetrics,
+          dataSplit: dataSplitSettings
         }
       };
 
-      console.log('評価設定:', learningConfig);
-
-      // 評価実行
-      const learningResult = await DynamicLearningSystem.trainModel(
-        preprocessedDataset,
-        learningConfig
-      );
-
-      console.log('評価結果:', learningResult);
-
-      // 評価結果を設定
-      const evaluationResult = {
-        validationScore: learningResult.result.accuracy,
-        testScore: learningResult.result.accuracy,
-        metrics: {
-          accuracy: learningResult.result.accuracy,
-          precision: learningResult.result.precision || 0,
-          recall: learningResult.result.recall || 0,
-          f1_score: learningResult.result.f1_score || 0,
-          mae: learningResult.result.mae || 0,
-          mse: learningResult.result.mse || 0,
-          rmse: learningResult.result.rmse || 0
-        },
-        predictions: learningResult.result.predictions.map(p => typeof p === 'string' ? parseFloat(p) : p),
-        actual: learningResult.result.actual.map(a => typeof a === 'string' ? parseFloat(a) : a),
-        trainingTime: learningResult.trainingTime / 1000,
-        modelComplexity: learningResult.result.accuracy,
-        config: learningConfig
-      };
-
       setEvaluation(evaluationResult);
-      setResult({
-        accuracy: learningResult.result.accuracy,
-        training_time: learningResult.trainingTime / 1000,
-        precision: learningResult.result.precision,
-        recall: learningResult.result.recall,
-        f1_score: learningResult.result.f1_score,
-        predictions: learningResult.result.predictions,
-        actual: learningResult.result.actual
-      });
-      setTrainedModel(learningResult.model);
       setCurrentStep('submission');
       
       console.log('評価完了 - 提出ステップに移動');
@@ -303,19 +284,13 @@ export function OnlineBattleView({
     }
   };
 
-  // 提出実行（完全版）
+  // 提出実行（簡素化版）
   const handleSubmit = async () => {
     console.log('=== 提出開始 ===');
     console.log('評価結果:', !!evaluation);
-    console.log('学習済みモデル:', !!trainedModel);
 
     if (!evaluation) {
       setError('評価結果がありません。先に評価を実行してください。');
-      return;
-    }
-
-    if (!trainedModel) {
-      setError('学習済みモデルがありません。先に学習を実行してください。');
       return;
     }
 
@@ -364,18 +339,6 @@ export function OnlineBattleView({
 
       console.log('提出完了:', submission);
 
-      // リーダーボードを即座に更新
-      try {
-        const leaderboard = await CompetitionSubmissionManager.getLeaderboard(problemId);
-        console.log('リーダーボードを更新しました:', leaderboard);
-        
-        if (unifiedDataManager.refreshLeaderboard) {
-          await unifiedDataManager.refreshLeaderboard(problemId);
-        }
-      } catch (error) {
-        console.error('リーダーボード更新エラー:', error);
-      }
-
       // ユーザー統計を更新
       const battleResult = {
         won: evaluation.validationScore >= 0.7,
@@ -386,20 +349,23 @@ export function OnlineBattleView({
       
       userManager.updateBattleResult(battleResult.won, battleResult.score);
       
-      console.log('提出完了 - リーダーボードに反映');
       console.log('提出完了 - スコア:', battleResult.score);
       console.log('提出完了 - 勝利:', battleResult.won);
       
       setSubmission(submission);
-      setCurrentStep('submission');
+      setIsSubmitted(true);
       
+      // 提出完了の通知
       alert(`提出完了！スコア: ${battleResult.score}点`);
       
+      // バトル完了を通知
       if (onComplete) {
         onComplete({
           success: true,
           score: battleResult.score,
           won: battleResult.won,
+          modelType: selectedModel,
+          trainingTime: evaluation.trainingTime * 1000, // 秒をミリ秒に変換
           submission: submission
         });
       }
@@ -679,9 +645,13 @@ export function OnlineBattleView({
                       key={index}
                       onClick={() => {
                         if (selectedFeatures.includes(index)) {
-                          setSelectedFeatures(selectedFeatures.filter(i => i !== index));
+                          const newFeatures = selectedFeatures.filter(i => i !== index);
+                          console.log('特徴量を削除:', index, '新しい選択:', newFeatures);
+                          setSelectedFeatures(newFeatures);
                         } else {
-                          setSelectedFeatures([...selectedFeatures, index]);
+                          const newFeatures = [...selectedFeatures, index];
+                          console.log('特徴量を追加:', index, '新しい選択:', newFeatures);
+                          setSelectedFeatures(newFeatures);
                         }
                       }}
                       className={`p-4 rounded-xl border-2 transition-all duration-300 ${
@@ -1080,7 +1050,7 @@ export function OnlineBattleView({
                     </button>
                   </div>
 
-                  {evaluation && (
+                  {isSubmitted && (
                     <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm rounded-2xl p-6 border border-green-400/30 shadow-xl">
                       <p className="text-green-200 text-center text-lg font-bold">✅ 提出が完了しました！</p>
                     </div>

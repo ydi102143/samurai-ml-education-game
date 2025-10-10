@@ -45,6 +45,8 @@ export class CompetitionSubmissionManager {
     );
 
     // 提出を作成
+    const score = Math.round(evaluation.validationScore * 100); // 0-100のスコアに変換
+    
     const submission: CompetitionSubmission = {
       id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       userId,
@@ -57,6 +59,7 @@ export class CompetitionSubmissionManager {
       parameters,
       preprocessing,
       submittedAt: new Date(),
+      score: score, // スコアを設定
       teamId,
       teamMembers
     };
@@ -69,7 +72,6 @@ export class CompetitionSubmissionManager {
 
     // BattleDatabaseに保存
     try {
-      const score = Math.round(evaluation.validationScore * 100); // 0-100のスコアに変換
       console.log('保存するスコア:', score, 'validationScore:', evaluation.validationScore);
       
       await BattleDatabase.saveBattleResult({
@@ -93,11 +95,13 @@ export class CompetitionSubmissionManager {
       console.error('BattleDatabaseへの保存に失敗:', error);
     }
 
-    // リーダーボードを更新
+    // リーダーボードを即座に更新
     await this.updateLeaderboard(problemId);
     
     // リアルタイム更新をブロードキャスト
     this.broadcastLeaderboardUpdate(problemId);
+    
+    console.log('リーダーボード更新完了:', problemId);
 
     return submission;
   }
@@ -136,7 +140,19 @@ export class CompetitionSubmissionManager {
    * リーダーボードを取得
    */
   static getLeaderboard(problemId: string, limit: number = 20): CompetitionLeaderboard | null {
-    return this.leaderboards.get(problemId) || null;
+    const leaderboard = this.leaderboards.get(problemId);
+    if (leaderboard) {
+      return leaderboard;
+    }
+    
+    // リーダーボードが存在しない場合は空のリーダーボードを返す
+    return {
+      problemId,
+      submissions: [],
+      lastUpdated: new Date(),
+      totalSubmissions: 0,
+      participantCount: 0
+    };
   }
 
   /**
@@ -148,28 +164,11 @@ export class CompetitionSubmissionManager {
 
     const submissions = this.getSubmissions(problemId);
     
-    // 各提出を最終評価
-    const evaluatedSubmissions = await Promise.all(
-      submissions.map(async (submission) => {
-        try {
-          const evaluation = await CompetitionEvaluator.evaluateOfficialModel(
-            problem.dataset,
-            submission
-          );
-          
-          return {
-            ...submission,
-            score: evaluation.testScore
-          };
-        } catch (error) {
-          console.error('提出の評価に失敗:', error);
-          return {
-            ...submission,
-            score: 0
-          };
-        }
-      })
-    );
+    // 提出データをそのまま使用（スコアは既に保存済み）
+    const evaluatedSubmissions = submissions.map(submission => ({
+      ...submission,
+      score: submission.score || 0 // 既存のスコアを使用
+    }));
 
     // スコア順でソート
     evaluatedSubmissions.sort((a, b) => (b.score || 0) - (a.score || 0));

@@ -1,6 +1,6 @@
 import { ArrowLeft, Lock, CheckCircle, MapPin, Award, Info } from 'lucide-react';
 import { useGameState } from '../hooks/useGameState';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // 各地域の座標（画像に基づいて調整）
 const regionPositions = {
@@ -51,11 +51,16 @@ const pinOffsets: Record<string, { dx: number; dy: number }> = {
 };
 
 export function JapanMap() {
-  const { user, regions, progress, setCurrentView, setSelectedRegion, loading } = useGameState();
+  const { user, regions, progress, setCurrentView, setSelectedRegion, loading, currentView } = useGameState();
   const [selectedRegion, setSelectedRegionState] = useState<string | null>(null);
 
   // デバッグログ
-  console.log('JapanMap render:', { user: !!user, regions: regions.length, progress: Object.keys(progress).length, loading });
+  console.log('JapanMap render:', { user: !!user, regions: regions.length, progress: Object.keys(progress).length, loading, currentView });
+
+  // currentViewの変更を監視
+  useEffect(() => {
+    console.log('JapanMap useEffect - currentView changed:', currentView);
+  }, [currentView]);
 
   // ローディング中の表示
   if (loading) {

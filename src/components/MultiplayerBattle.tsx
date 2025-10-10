@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Users, MessageCircle, Send, Clock, Trophy, Target, Sword } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, MessageCircle, Send, Trophy, Target, Sword } from 'lucide-react';
 import { OnlineBattleView } from './OnlineBattleView';
 import { WeeklyProblemManager, WeeklyProblem } from '../utils/weeklyProblemManager';
 import { userManager } from '../utils/userManager';
 import { useRealtimeBattle } from '../hooks/useRealtimeBattle';
-import { getWeeklyProblem, generateRealtimeProblem } from '../data/onlineDatasets';
+import { getWeeklyProblem } from '../data/onlineDatasets';
 import type { OnlineDataset } from '../data/onlineDatasets';
 import { CompetitionProblemManager } from '../utils/competitionProblemManager';
+import { CompetitionSubmissionManager } from '../utils/competitionSubmission';
+import { TeamManager } from '../utils/teamManager';
+import { TeamChatManager } from '../utils/teamChatManager';
+import type { Team, TeamChatMessage, LeaderboardEntry } from '../types/onlineBattle';
 
 interface MultiplayerBattleProps {
   onBack: () => void;
@@ -62,7 +66,20 @@ const registerCompetitionProblem = async (problem: WeeklyProblem & { dataset: On
 };
 
 export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
-  const [currentProblem, setCurrentProblem] = useState<WeeklyProblem & { dataset: OnlineDataset } | null>(null);
+  const [currentProblem, setCurrentProblem] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    dataset: OnlineDataset;
+    difficulty: 'easy' | 'medium' | 'hard';
+    category: string;
+    startDate: string;
+    endDate: string;
+    isActive: boolean;
+    publicLeaderboard: any[];
+    privateLeaderboard: any[];
+    timeLimit: number;
+  } | null>(null);
   const [showChallenge, setShowChallenge] = useState(false);
   const [roomId, setRoomId] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -75,24 +92,19 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
   const [battleResults, setBattleResults] = useState<any[]>([]);
   const [myProgress, setMyProgress] = useState<number>(0);
   const [showTeamSelector, setShowTeamSelector] = useState(false);
-  const [userTeam, setUserTeam] = useState<any>(null);
-  const [availableTeams, setAvailableTeams] = useState<any[]>([]);
-  const [teamChatMessages, setTeamChatMessages] = useState<any[]>([]);
+  const [userTeam, setUserTeam] = useState<Team | null>(null);
+  const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
+  const [teamChatMessages, setTeamChatMessages] = useState<TeamChatMessage[]>([]);
+  const [localLeaderboard, setLocalLeaderboard] = useState<LeaderboardEntry[]>([]);
 
   const user = userManager.getCurrentUser();
   
   const {
-    isConnected,
     participants,
     chatMessages,
-    battleStatus,
-    leaderboard,
     sendChatMessage,
     joinRoom,
-    leaveRoom,
-    startBattle,
-    endBattle,
-    updateLeaderboard
+    isConnected
   } = useRealtimeBattle({
     roomId: roomId || 'default',
     userId: user?.id || '',
@@ -102,7 +114,41 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
 
   useEffect(() => {
     loadCurrentProblem();
+    loadAvailableTeams();
   }, []);
+
+  // チーム内チャットの購読
+  useEffect(() => {
+    if (userTeam) {
+      const unsubscribe = TeamChatManager.subscribeToTeamMessages(userTeam.id, (message) => {
+        setTeamChatMessages(prev => [...prev, message]);
+      });
+      
+      // 既存のメッセージを読み込み
+      const messages = TeamChatManager.getTeamMessages(userTeam.id);
+      setTeamChatMessages(messages);
+
+      return unsubscribe;
+    }
+  }, [userTeam]);
+
+  // リーダーボード読み込み
+  useEffect(() => {
+    if (currentProblem) {
+      loadLeaderboard(currentProblem.id);
+    }
+  }, [currentProblem]);
+
+  // リーダーボードの定期的な更新
+  useEffect(() => {
+    if (!currentProblem) return;
+    
+    const interval = setInterval(() => {
+      loadLeaderboard(currentProblem.id);
+    }, 10000); // 10秒ごとに更新
+    
+    return () => clearInterval(interval);
+  }, [currentProblem]);
 
   // 週間問題の残り時間計算（動的更新）
   useEffect(() => {
@@ -165,7 +211,7 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
         setCurrentProblem(problemWithDataset);
 
         // コンペティション問題として登録
-        await registerCompetitionProblem(problemWithDataset);
+        await registerCompetitionProblem(problemWithDataset as any);
 
         const newRoomId = `weekly_${problem.id}_multiplayer`;
         setRoomId(newRoomId);
@@ -178,6 +224,67 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
       setError(`問題の読み込みに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // チーム一覧を読み込み
+  const loadAvailableTeams = async () => {
+    try {
+      const teams = TeamManager.getAvailableTeams();
+      setAvailableTeams(teams);
+      
+      // ユーザーの現在のチームを取得
+      if (user) {
+        const currentTeam = TeamManager.getUserTeam(user.id);
+        setUserTeam(currentTeam);
+      }
+    } catch (error) {
+      console.error('チーム一覧読み込みエラー:', error);
+    }
+  };
+
+  const loadLeaderboard = async (problemId: string) => {
+    try {
+      console.log('リーダーボード読み込み開始:', problemId);
+      const leaderboardData = await CompetitionSubmissionManager.getLeaderboard(problemId);
+      console.log('リーダーボードデータ:', leaderboardData);
+      
+      if (leaderboardData && leaderboardData.submissions) {
+        // CompetitionSubmissionをLeaderboardEntryに変換
+        const leaderboardEntries: LeaderboardEntry[] = leaderboardData.submissions.map((sub, index) => ({
+          rank: index + 1,
+          userId: sub.userId,
+          username: sub.username,
+          teamId: undefined,
+          teamName: undefined,
+          score: sub.score || 0,
+          modelType: sub.modelType || 'Unknown',
+          submissionCount: 1,
+          bestScore: sub.score || 0,
+          averageScore: sub.score || 0,
+          lastSubmission: sub.submittedAt.toISOString(),
+          battleStats: {
+            totalBattles: 0,
+            wins: 0,
+            losses: 0,
+            winRate: 0,
+            averageScore: 0,
+            bestScore: 0,
+            currentStreak: 0,
+            rank: 0,
+            level: 1,
+            experience: 0
+          },
+          isOnline: true,
+          isCurrentUser: sub.userId === user?.id
+        }));
+        setLocalLeaderboard(leaderboardEntries);
+      } else {
+        console.log('リーダーボードデータが空です');
+        setLocalLeaderboard([]);
+      }
+    } catch (error) {
+      console.error('リーダーボード読み込みエラー:', error);
     }
   };
 
@@ -204,17 +311,29 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
     }
   };
 
-  const handleBattleComplete = (result: any) => {
+  const handleBattleComplete = async (result: any) => {
     console.log('バトル完了:', result);
-    setBattleResults(prev => [...prev, result]);
+    
+    // 結果を正しい形式に変換
+    const battleResult = {
+      score: result.score || 0,
+      modelType: result.modelType || 'Unknown',
+      trainingTime: result.trainingTime || 0,
+      won: result.won || false,
+      submission: result.submission
+    };
+    
+    setBattleResults(prev => [...prev, battleResult]);
     setMyProgress(100);
     setIsBattleActive(false);
     setShowChallenge(false);
+    
+    // リーダーボードを再読み込み
+    if (currentProblem) {
+      await loadLeaderboard(currentProblem.id);
+    }
   };
 
-  const updateProgress = (progress: number) => {
-    setMyProgress(Math.min(100, Math.max(0, progress)));
-  };
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -326,7 +445,6 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
     );
   }
 
-  const problemTimeRemaining = WeeklyProblemManager.getProblemTimeRemaining(currentProblem.id);
   const isActive = WeeklyProblemManager.isProblemActive(currentProblem.id);
   const participantsList = Array.from(participants.values());
   
@@ -337,7 +455,8 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
       username: user.username,
       isReady: true,
       progress: myProgress,
-      currentStep: 'data'
+      currentStep: 'data',
+      lastActivity: new Date().toISOString()
     });
   }
 
@@ -371,6 +490,9 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                     ⚡ バトル進行中 ({formatTime(timeRemaining)})
                   </div>
                 )}
+                <div className="text-xs text-white/60 mt-2">
+                  接続状態: {isConnected ? '🟢 接続中' : '🔴 切断中'}
+                </div>
               </div>
             </div>
           </div>
@@ -521,7 +643,7 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                         </div>
                         <div className="text-sm text-white/80 flex space-x-4">
                           <span>🤖 モデル: {result.modelType || 'Unknown'}</span>
-                          <span>⏱️ 時間: {result.trainingTime ? `${result.trainingTime}ms` : 'N/A'}</span>
+                          <span>⏱️ 時間: {result.trainingTime ? `${(result.trainingTime / 1000).toFixed(2)}s` : 'N/A'}</span>
                         </div>
                       </div>
                     ))}
@@ -597,22 +719,19 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                         const input = e.target as HTMLInputElement;
                         if (input.value.trim()) {
                           const message = input.value.trim();
-                          if (battleMode === 'team') {
-                            // チーム内チャットに追加
-                            const teamMessage = {
-                              id: Date.now().toString(),
-                              userId: user?.id || '',
-                              username: user?.username || 'プレイヤー',
-                              message: message,
-                              timestamp: new Date().toISOString(),
-                              roomId: roomId
-                            };
-                            setTeamChatMessages(prev => [...prev, teamMessage]);
+                          if (battleMode === 'team' && userTeam) {
+                            // チーム内チャットに送信
+                            try {
+                              TeamChatManager.sendTeamMessage(userTeam.id, message);
+                              input.value = '';
+                            } catch (error) {
+                              console.error('チームメッセージ送信エラー:', error);
+                            }
                           } else {
                             // 通常のチャット
                             sendChatMessage(message);
+                            input.value = '';
                           }
-                          input.value = '';
                         }
                       }
                     }}
@@ -622,22 +741,19 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                       const input = document.querySelector('input[type="text"]') as HTMLInputElement;
                       if (input.value.trim()) {
                         const message = input.value.trim();
-                        if (battleMode === 'team') {
-                          // チーム内チャットに追加
-                          const teamMessage = {
-                            id: Date.now().toString(),
-                            userId: user?.id || '',
-                            username: user?.username || 'プレイヤー',
-                            message: message,
-                            timestamp: new Date().toISOString(),
-                            roomId: roomId
-                          };
-                          setTeamChatMessages(prev => [...prev, teamMessage]);
+                        if (battleMode === 'team' && userTeam) {
+                          // チーム内チャットに送信
+                          try {
+                            TeamChatManager.sendTeamMessage(userTeam.id, message);
+                            input.value = '';
+                          } catch (error) {
+                            console.error('チームメッセージ送信エラー:', error);
+                          }
                         } else {
                           // 通常のチャット
                           sendChatMessage(message);
+                          input.value = '';
                         }
-                        input.value = '';
                       }
                     }}
                     className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -646,26 +762,26 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                   </button>
                   <button
                     onClick={() => {
-                      const testMessage = `テストメッセージ ${new Date().toLocaleTimeString()}`;
-                      if (battleMode === 'team') {
-                        // チーム内チャットに追加
-                        const teamMessage = {
-                          id: Date.now().toString(),
-                          userId: user?.id || '',
-                          username: user?.username || 'プレイヤー',
-                          message: testMessage,
-                          timestamp: new Date().toISOString(),
-                          roomId: roomId
-                        };
-                        setTeamChatMessages(prev => [...prev, teamMessage]);
+                      const testMessage = `🧪 テストメッセージ ${new Date().toLocaleTimeString()}`;
+                      console.log('テストメッセージ送信:', testMessage);
+                      if (battleMode === 'team' && userTeam) {
+                        // チーム内チャットに送信
+                        try {
+                          TeamChatManager.sendTeamMessage(userTeam.id, testMessage);
+                          console.log('チームチャットに送信:', testMessage);
+                        } catch (error) {
+                          console.error('チームメッセージ送信エラー:', error);
+                        }
                       } else {
                         // 通常のチャット
                         sendChatMessage(testMessage);
+                        console.log('通常チャットに送信:', testMessage);
                       }
                     }}
                     className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-xl transition-all duration-300 text-sm"
+                    title="チャット機能のテスト"
                   >
-                    テスト
+                    🧪 テスト
                   </button>
                 </div>
               </div>
@@ -679,29 +795,13 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                   <h3 className="text-2xl font-bold text-white">🏆 リーダーボード</h3>
                 </div>
                 <div className="space-y-3">
-                  {leaderboard.length === 0 ? (
-                    <div className="space-y-3">
-                      <p className="text-white/60 text-center py-4">まだ提出がありません。</p>
-                      {/* サンプルデータを表示 */}
-                      {[1, 2, 3, 4, 5, 6].map((rank) => (
-                        <div key={rank} className="flex items-center justify-between p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                              {rank}
-                            </div>
-                            <div>
-                              <span className="font-bold text-white text-lg">プレイヤー{rank}</span>
-                              <div className="text-sm text-white/70">ロジスティック回帰</div>
-                            </div>
-                          </div>
-                          <span className="font-bold text-yellow-300 text-xl">
-                            {(85 + Math.random() * 10).toFixed(1)}%
-                          </span>
-                        </div>
-                      ))}
+                  {localLeaderboard.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-white/60 text-lg">まだ提出がありません。</p>
+                      <p className="text-white/40 text-sm mt-2">最初の提出をしてリーダーボードに参加しましょう！</p>
                     </div>
                   ) : (
-                    leaderboard.map((entry, index) => (
+                    localLeaderboard.map((entry, index) => (
                       <div key={index} className="flex items-center justify-between p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300">
                         <div className="flex items-center space-x-4">
                           <div className="w-10 h-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
@@ -713,7 +813,7 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                           </div>
                         </div>
                         <span className="font-bold text-yellow-300 text-xl">
-                          {isNaN(entry.bestAccuracy) ? '0.0' : Math.min(100, Math.max(0, entry.bestAccuracy * 100)).toFixed(1)}%
+                          {isNaN(entry.score || 0) ? '0.0' : Math.min(100, Math.max(0, entry.score || 0)).toFixed(1)}%
                         </span>
                       </div>
                     ))
@@ -747,26 +847,18 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                 <p className="text-gray-600 mb-4">チームリーダーとして新しいチームを作成できます</p>
                 <button
                   onClick={() => {
-                    // チーム作成ロジック
                     const teamName = prompt('チーム名を入力してください:');
                     if (teamName) {
-                      // TeamManager.createTeamを呼び出し
-                      const team = {
-                        id: `team_${Date.now()}`,
-                        name: teamName,
-                        leaderId: user?.id,
-                        leaderName: user?.username,
-                        members: [{
-                          userId: user?.id,
-                          username: user?.username,
-                          joinedAt: new Date().toISOString(),
-                          isReady: false,
-                          progress: 0,
-                          currentStep: 'data'
-                        }]
-                      };
-                      setUserTeam(team);
-                      setShowTeamSelector(false);
+                      try {
+                        const team = TeamManager.createTeam(teamName, '新しく作成されたチーム', 5, false);
+                        setUserTeam(team);
+                        setShowTeamSelector(false);
+                        loadAvailableTeams(); // チーム一覧を再読み込み
+                        console.log('チームを作成しました:', team);
+                      } catch (error) {
+                        console.error('チーム作成エラー:', error);
+                        alert('チームの作成に失敗しました: ' + (error as Error).message);
+                      }
                     }
                   }}
                   className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
@@ -789,12 +881,20 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
                           <p className="text-sm text-gray-600">
                             メンバー: {team.members.length}人 / リーダー: {team.leaderName}
                           </p>
+                          <p className="text-xs text-gray-500">{team.description}</p>
                         </div>
                         <button
                           onClick={() => {
-                            // チーム参加ロジック
-                            setUserTeam(team);
-                            setShowTeamSelector(false);
+                            try {
+                              const joinedTeam = TeamManager.joinTeam(team.id);
+                              setUserTeam(joinedTeam);
+                              setShowTeamSelector(false);
+                              loadAvailableTeams(); // チーム一覧を再読み込み
+                              console.log('チームに参加しました:', joinedTeam);
+                            } catch (error) {
+                              console.error('チーム参加エラー:', error);
+                              alert('チームへの参加に失敗しました: ' + (error as Error).message);
+                            }
                           }}
                           className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
                         >

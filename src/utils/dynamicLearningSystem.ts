@@ -89,7 +89,9 @@ export class DynamicLearningSystem {
       console.log('特徴量選択完了:', {
         filteredTrainSize: filteredTrain.length,
         filteredTestSize: filteredTest.length,
-        selectedFeatures: config.selectedFeatures
+        selectedFeatures: config.selectedFeatures,
+        originalFeatureCount: train[0]?.features?.length || 0,
+        filteredFeatureCount: filteredTrain[0]?.features?.length || 0
       });
       
       // モデルを作成

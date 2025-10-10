@@ -43,6 +43,8 @@ export interface BattleLeaderboardEntry {
   battleType: 'individual' | 'team';
   isPrivate?: boolean;
   teamId?: string;
+  modelType?: string;
+  score?: number;
 }
 
 export interface ProblemLeaderboardEntry {

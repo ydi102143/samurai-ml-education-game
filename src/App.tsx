@@ -3,6 +3,7 @@ import { QuoteIntro } from './components/QuoteIntro';
 import { ShogunRoom } from './components/ShogunRoom';
 import { JapanMap } from './components/JapanMap';
 import { ChallengeView } from './components/ChallengeView';
+import { SimpleOnlineBattleNew } from './components/SimpleOnlineBattleNew';
 import { UserAuth } from './components/UserAuth';
 import { userManager } from './utils/userManager';
 
@@ -10,7 +11,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 function GameContent() {
-  const { user, currentView, loading, error } = useGameState();
+  const { user, currentView, loading, error, setCurrentView: handleSetCurrentView } = useGameState();
   const [showUserAuth, setShowUserAuth] = useState(false);
   const [showQuoteIntro, setShowQuoteIntro] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -101,17 +102,22 @@ function GameContent() {
   // 認証されたユーザーがいる場合はメイン画面を表示
   if (currentUser || user) {
     console.log('App.tsx currentView:', currentView);
-    // currentViewに基づいて適切なコンポーネントを表示
-    if (currentView === 'map') {
-      console.log('日本地図を表示します');
-      return <JapanMap />;
-    } else if (currentView === 'challenge') {
-      console.log('チャレンジ画面を表示します');
-      return <ChallengeView />;
-    } else {
-      console.log('ホーム画面を表示します');
-      return <ShogunRoom />;
-    }
+    console.log('App.tsx user:', user);
+    console.log('App.tsx currentUser:', currentUser);
+        // currentViewに基づいて適切なコンポーネントを表示
+        if (currentView === 'map') {
+          console.log('日本地図を表示します');
+          return <JapanMap />;
+        } else if (currentView === 'challenge') {
+          console.log('チャレンジ画面を表示します');
+          return <ChallengeView />;
+        } else if ((currentView as string) === 'online') {
+          console.log('オンライン対戦画面を表示します');
+          return <SimpleOnlineBattleNew onBack={() => handleSetCurrentView('home')} />;
+        } else {
+          console.log('ホーム画面を表示します');
+          return <ShogunRoom />;
+        }
   }
 
   // ユーザーがいない場合は認証画面を表示

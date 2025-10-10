@@ -5,6 +5,57 @@ export class CompetitionProblemManager {
   private static problems: Map<string, CompetitionProblem> = new Map();
 
   /**
+   * コンペティション問題を登録（シンプル版）
+   */
+  static registerProblem(
+    id: string,
+    title: string,
+    description: string,
+    rawData: any[],
+    featureNames: string[],
+    labelName: string,
+    problemType: 'classification' | 'regression',
+    classes?: string[]
+  ): void {
+    // 生データをDataPoint形式に変換
+    const dataPoints = rawData.map((item, index) => ({
+      id: `point_${index}`,
+      features: item.features || item.slice(0, -1),
+      label: item.label || item[item.length - 1]
+    }));
+
+    // コンペティション用データセットを作成
+    const dataset = CompetitionDatasetManager.createCompetitionDataset(
+      dataPoints,
+      featureNames,
+      labelName,
+      problemType,
+      classes
+    );
+
+    const problem: CompetitionProblem = {
+      id,
+      title,
+      description,
+      dataset,
+      metric: problemType === 'classification' ? 'accuracy' : 'mae',
+      constraints: {
+        maxFeatures: Math.min(featureNames.length, 20),
+        maxTrainingTime: 300, // 5分
+        maxSubmissions: 10,
+        allowedModels: ['logistic_regression', 'linear_regression', 'neural_network', 'knn']
+      },
+      startTime: new Date(),
+      endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7日後
+      participantCount: 0,
+      submissionCount: 0
+    };
+
+    this.problems.set(id, problem);
+    console.log(`問題を登録しました: ${id} - ${title}`);
+  }
+
+  /**
    * コンペティション問題を作成
    */
   static async createProblem(

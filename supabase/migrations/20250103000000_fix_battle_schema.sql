@@ -53,3 +53,4 @@ CREATE POLICY "Allow authenticated delete" ON battle_results
 
 
 
+

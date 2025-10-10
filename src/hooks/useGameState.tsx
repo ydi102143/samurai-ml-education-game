@@ -26,7 +26,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [models, setModels] = useState<MLModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'map' | 'challenge'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'map' | 'challenge' | 'online'>('home');
+  
+  // setCurrentViewのラッパー関数
+  const handleSetCurrentView = (view: 'home' | 'map' | 'challenge' | 'online') => {
+    console.log('setCurrentView called:', view);
+    setCurrentView(view);
+  };
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 
   const initializeUser = async (name: string) => {
@@ -260,7 +266,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         error,
         currentView,
         selectedRegion,
-        setCurrentView,
+        setCurrentView: handleSetCurrentView,
         setSelectedRegion,
         initializeUser,
         refreshProgress,

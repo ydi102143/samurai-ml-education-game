@@ -180,14 +180,22 @@ export class RealtimeManager extends EventEmitter {
 
     // オフラインモードでもメッセージをローカルに保存
     this.emit('chat_message', chatMessage);
+    console.log('Chat message emitted locally');
 
     // Supabaseチャンネルがある場合は送信
     if (this.supabaseChannel) {
-      this.supabaseChannel.send({
-        type: 'broadcast',
-        event: 'chat_message',
-        payload: chatMessage
-      });
+      try {
+        this.supabaseChannel.send({
+          type: 'broadcast',
+          event: 'chat_message',
+          payload: chatMessage
+        });
+        console.log('Chat message sent to Supabase channel');
+      } catch (error) {
+        console.error('Error sending to Supabase channel:', error);
+      }
+    } else {
+      console.log('No Supabase channel available, using local mode only');
     }
   }
 

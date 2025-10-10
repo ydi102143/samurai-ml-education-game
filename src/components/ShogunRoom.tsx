@@ -1,7 +1,7 @@
 import { Map, Sword } from 'lucide-react';
 import { useState } from 'react';
 import { useGameState } from '../hooks/useGameState';
-import { OnlineBattle } from './OnlineBattle';
+import { SimpleOnlineBattleNew } from './SimpleOnlineBattleNew';
 import { userManager } from '../utils/userManager';
 
 export function ShogunRoom() {
@@ -19,7 +19,7 @@ export function ShogunRoom() {
 
 
   if (showOnlineBattle) {
-    return <OnlineBattle onBack={() => setShowOnlineBattle(false)} />;
+    return <SimpleOnlineBattleNew onBack={() => setShowOnlineBattle(false)} />;
   }
 
 
@@ -93,7 +93,9 @@ export function ShogunRoom() {
                 <button
                   onClick={() => {
                     console.log('日本地図ボタンがクリックされました');
+                    console.log('setCurrentViewを呼び出します: map');
                     setCurrentView('map');
+                    console.log('setCurrentView呼び出し完了');
                   }}
                   className="w-full text-white p-8 rounded-2xl shadow-2xl border-4 transition-all transform hover:scale-105 group relative overflow-hidden"
                   style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-strong), var(--gold-light))', borderColor: 'var(--gold)' }}

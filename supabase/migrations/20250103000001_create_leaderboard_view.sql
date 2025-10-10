@@ -38,3 +38,4 @@ CREATE INDEX IF NOT EXISTS idx_battle_results_submitted_at ON battle_results(sub
 CREATE INDEX IF NOT EXISTS idx_battle_results_problem_private_type ON battle_results(problem_id, is_private, battle_type);
 
 
+

@@ -490,8 +490,8 @@ export async function updateRegionProgress(
   } else {
     progress.push({
       id: `progress_${regionId}`,
-      user_id: userId,
-      region_id: regionId,
+        user_id: userId,
+        region_id: regionId,
       is_unlocked: false,
       is_completed: false,
       best_accuracy: 0,
@@ -585,7 +585,7 @@ export async function getAttempts(userId: string, regionId: string): Promise<Cha
 
 export async function initializeUserProgress(userId: string): Promise<void> {
   const regions = await getRegions();
-  
+
   // すべての課題を解放する
   for (const region of regions) {
     await updateRegionProgress(userId, region.id, {
