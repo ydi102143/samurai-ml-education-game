@@ -1603,8 +1603,8 @@ export function DynamicEnhancedOnlineBattle({ onBack }: DynamicEnhancedOnlineBat
                         const comment = 'Dynamic ML System submission';
                         
                         // モデルを提出
-                        realMLSystem.submitModel(submissionName, comment);
-                        console.log('Model submitted:', submission);
+                        const submissionResult = realMLSystem.submitModel(submissionName, comment);
+                        console.log('Model submitted:', submissionResult);
                         
                         // Public/Privateデータを生成
                         const publicPrivateResult = await dataProcessingSystem.generatePublicPrivateData(0.7);

@@ -253,15 +253,19 @@ export class RealMLSystem {
           confusionMatrix.reduce((sum, row) => sum + (i !== confusionMatrix.indexOf(row) ? row[i] : 0), 0)
         );
 
-        precision = truePositives.reduce((sum, tp, i) => 
-          sum + (tp + falsePositives[i] > 0 ? tp / (tp + falsePositives[i]) : 0), 0
-        ) / uniqueLabels.length;
+        // 各クラスの適合率と再現率を計算
+        const precisions = truePositives.map((tp, i) => 
+          (tp + falsePositives[i] > 0) ? tp / (tp + falsePositives[i]) : 0
+        );
+        const recalls = truePositives.map((tp, i) => 
+          (tp + falseNegatives[i] > 0) ? tp / (tp + falseNegatives[i]) : 0
+        );
 
-        recall = truePositives.reduce((sum, tp, i) => 
-          sum + (tp + falseNegatives[i] > 0 ? tp / (tp + falseNegatives[i]) : 0), 0
-        ) / uniqueLabels.length;
+        // 平均を計算
+        precision = precisions.reduce((sum, p) => sum + p, 0) / uniqueLabels.length;
+        recall = recalls.reduce((sum, r) => sum + r, 0) / uniqueLabels.length;
 
-        f1Score = 2 * (precision * recall) / (precision + recall);
+        f1Score = (precision + recall > 0) ? 2 * (precision * recall) / (precision + recall) : 0;
       }
 
       this.validationResult = {
