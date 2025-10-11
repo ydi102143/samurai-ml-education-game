@@ -1,34 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+// リアルタイム管理システム（日本標準時）
 
-// ブラウザ用のシンプルなEventEmitter実装
-class EventEmitter {
-  private events: { [key: string]: Function[] } = {};
-
-  on(event: string, callback: Function) {
-    if (!this.events[event]) {
-      this.events[event] = [];
-    }
-    this.events[event].push(callback);
-  }
-
-  off(event: string, callback: Function) {
-    if (!this.events[event]) return;
-    this.events[event] = this.events[event].filter(cb => cb !== callback);
-  }
-
-  emit(event: string, ...args: any[]) {
-    if (!this.events[event]) return;
-    this.events[event].forEach(callback => callback(...args));
-  }
-}
-
-export interface RealtimeUpdate {
-  type: 'progress' | 'message' | 'participant_join' | 'participant_leave' | 'battle_start' | 'battle_end' | 'weekly_problem_change' | 'participant_count_update' | 'submission_count_update' | 'leaderboard_update';
+export interface RealtimeData {
+  timestamp: string; // ISO形式の日本時間
   data: any;
-  timestamp: string;
-  userId: string;
-  username: string;
-  roomId: string;
+  type: 'problem' | 'leaderboard' | 'submission' | 'user' | 'participant_update' | 'chat_message' | 'battle_start' | 'battle_end';
 }
 
 export interface ParticipantUpdate {
@@ -36,8 +11,7 @@ export interface ParticipantUpdate {
   username: string;
   progress: number;
   currentStep: string;
-  isReady: boolean;
-  lastActivity: string;
+  lastUpdate: string;
 }
 
 export interface ChatMessage {
@@ -49,257 +23,243 @@ export interface ChatMessage {
   roomId: string;
 }
 
-export class RealtimeManager extends EventEmitter {
-  private roomId: string | null = null;
-  private userId: string | null = null;
-  private supabase: any = null;
-  private supabaseChannel: any = null;
+export interface ProblemStatus {
+  id: string;
+  isActive: boolean;
+  startTime: string;
+  endTime: string;
+  timeRemaining: number; // 秒
+  participants: number;
+  submissions: number;
+}
 
-  constructor() {
-    super();
-    this.setupSupabaseRealtime();
+export class RealtimeManager {
+  private static instance: RealtimeManager;
+  private callbacks: Map<string, ((data: RealtimeData) => void)[]> = new Map();
+  private intervalId: NodeJS.Timeout | null = null;
+  private currentProblem: ProblemStatus | null = null;
+
+  private constructor() {
+    this.startRealtimeUpdates();
   }
 
-  private setupSupabaseRealtime() {
-    try {
-      // 直接APIキーを設定（デバッグ用）
-      const supabaseUrl = 'https://ovghanpxibparkuyxxdh.supabase.co';
-      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2hhbnB4aWJwYXJrdXl4eGRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ3MjksImV4cCI6MjA3NTQ4MDcyOX0.56Caf4btExzGvizmzJwZZA8KZIh81axQVcds8eXlq_Y';
-
-      console.log('RealtimeManager: Creating Supabase client with direct keys');
-      console.log('URL:', supabaseUrl);
-      console.log('Key:', supabaseKey.substring(0, 20) + '...');
-
-      this.supabase = createClient(supabaseUrl, supabaseKey, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false
-        }
-      });
-      console.log('Supabase Realtime接続を開始');
-
-      // 即座に接続成功として扱う（オフラインモード）
-      console.log('Supabase Realtime接続完了（オフラインモード）');
-      this.emit('connected');
-    } catch (error: any) {
-      console.error('Supabase初期化エラー:', error);
-      // エラーでも接続成功として扱う（オフラインモード）
-      console.log('Supabase Realtime接続完了（オフラインモード）');
-      this.emit('connected');
+  static getInstance(): RealtimeManager {
+    if (!RealtimeManager.instance) {
+      RealtimeManager.instance = new RealtimeManager();
     }
+    return RealtimeManager.instance;
   }
 
-  connect(userId: string, roomId: string) {
-    this.userId = userId;
-    this.roomId = roomId;
-    
-    if (this.supabase) {
-      this.setupSupabaseChannel();
-    }
+  // 日本標準時を取得
+  private getJSTTime(): Date {
+    const now = new Date();
+    const jstOffset = 9 * 60; // UTC+9
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utc + (jstOffset * 60000));
   }
 
-  joinRoom(roomId: string, userId: string, username: string) {
-    console.log(`Joining room: ${roomId} as user: ${userId} (${username})`);
-    this.userId = userId;
-    this.roomId = roomId;
-    
-    if (this.supabase) {
-      this.setupSupabaseChannel();
-    }
+  // 日本時間をISO形式で取得
+  private getJSTISOString(): string {
+    return this.getJSTTime().toISOString();
   }
 
-  leaveRoom() {
-    console.log('Leaving room');
-    this.disconnect();
+  // リアルタイム更新を開始
+  private startRealtimeUpdates(): void {
+    this.intervalId = setInterval(() => {
+      this.updateProblemStatus();
+      this.broadcastUpdate('problem', this.currentProblem);
+    }, 1000); // 1秒ごとに更新
   }
 
-  private setupSupabaseChannel() {
-    if (!this.roomId || !this.userId) return;
+  // 問題の状態を更新
+  private updateProblemStatus(): void {
+    if (!this.currentProblem) {
+      // デフォルトの問題を作成（1週間の期間）
+      const now = this.getJSTTime();
+      const startTime = new Date(now);
+      const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7日後
 
-    const channelName = `room_${this.roomId}`;
-    console.log(`Supabase channel setup: ${channelName}`);
-
-    this.supabaseChannel = this.supabase
-      .channel(channelName)
-      .on('broadcast', { event: 'realtime_update' }, (payload: any) => {
-        console.log('Received realtime update:', payload);
-        this.emit('realtime_update', payload);
-      })
-      .on('broadcast', { event: 'chat_message' }, (payload: any) => {
-        console.log('Received chat message:', payload);
-        this.emit('chat_message', payload);
-      })
-      .on('broadcast', { event: 'battle_start' }, (payload: any) => {
-        console.log('Received battle start:', payload);
-        this.emit('battle_start', payload);
-      })
-      .on('broadcast', { event: 'battle_end' }, (payload: any) => {
-        console.log('Received battle end:', payload);
-        this.emit('battle_end', payload);
-      })
-      .on('broadcast', { event: 'leaderboard_update' }, (payload: any) => {
-        console.log('Received leaderboard update:', payload);
-        this.emit('leaderboard_update', payload);
-      })
-      .subscribe((status: string) => {
-        console.log(`Supabase channel status: ${status}`);
-        if (status === 'SUBSCRIBED') {
-          this.emit('connected');
-        }
-      });
-  }
-
-  disconnect() {
-    if (this.supabaseChannel) {
-      this.supabaseChannel.unsubscribe();
-      this.supabaseChannel = null;
-    }
-    // Supabaseクライアントにはdisconnectメソッドがないため、チャンネルのみ切断
-    this.emit('disconnected');
-  }
-
-  sendMessage(message: string) {
-    console.log('sendMessage called:', { message, userId: this.userId, roomId: this.roomId });
-    
-    if (!this.userId || !this.roomId) {
-      console.warn('sendMessage: userId or roomId not set');
-      return;
-    }
-
-    const chatMessage: ChatMessage = {
-      id: Date.now().toString(),
-      userId: this.userId,
-      username: `user_${this.userId}`,
-      message,
-      timestamp: new Date().toISOString(),
-      roomId: this.roomId
-    };
-
-    console.log('Sending chat message:', chatMessage);
-
-    // オフラインモードでもメッセージをローカルに保存
-    this.emit('chat_message', chatMessage);
-    console.log('Chat message emitted locally');
-
-    // Supabaseチャンネルがある場合は送信
-    if (this.supabaseChannel) {
-      try {
-        this.supabaseChannel.send({
-          type: 'broadcast',
-          event: 'chat_message',
-          payload: chatMessage
-        });
-        console.log('Chat message sent to Supabase channel');
-      } catch (error) {
-        console.error('Error sending to Supabase channel:', error);
-      }
+      this.currentProblem = {
+        id: 'weekly_problem_' + now.getFullYear() + '_' + (now.getMonth() + 1) + '_' + now.getDate(),
+        isActive: true,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        timeRemaining: Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / 1000)),
+        participants: 0,
+        submissions: 0
+      };
     } else {
-      console.log('No Supabase channel available, using local mode only');
+      // 時間を更新
+      const now = this.getJSTTime();
+      const endTime = new Date(this.currentProblem.endTime);
+      this.currentProblem.timeRemaining = Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / 1000));
+      this.currentProblem.isActive = this.currentProblem.timeRemaining > 0;
     }
   }
 
-  sendProgress(progress: number, currentStep: string) {
-    if (!this.supabaseChannel || !this.userId || !this.roomId) return;
+  // 時間の残りをフォーマット
+  formatTimeRemaining(seconds: number): string {
+    const days = Math.floor(seconds / (24 * 60 * 60));
+    const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((seconds % (60 * 60)) / 60);
+    const secs = seconds % 60;
 
-    const update: RealtimeUpdate = {
-      type: 'progress',
-      data: { progress, currentStep },
-      timestamp: new Date().toISOString(),
-      userId: this.userId,
-      username: `user_${this.userId}`,
-      roomId: this.roomId
+    if (days > 0) {
+      return `${days}日 ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+  }
+
+  // 現在の問題状態を取得
+  getCurrentProblem(): ProblemStatus | null {
+    return this.currentProblem;
+  }
+
+  // 参加者数を更新
+  updateParticipants(count: number): void {
+    if (this.currentProblem) {
+      this.currentProblem.participants = count;
+      this.broadcastUpdate('problem', this.currentProblem);
+    }
+  }
+
+  // 提出数を更新
+  updateSubmissions(count: number): void {
+    if (this.currentProblem) {
+      this.currentProblem.submissions = count;
+      this.broadcastUpdate('problem', this.currentProblem);
+    }
+  }
+
+  // コールバックを登録
+  subscribe(type: string, callback: (data: RealtimeData) => void): () => void {
+    if (!this.callbacks.has(type)) {
+      this.callbacks.set(type, []);
+    }
+    this.callbacks.get(type)!.push(callback);
+
+    // アンサブスクライブ関数を返す
+    return () => {
+      const callbacks = this.callbacks.get(type);
+      if (callbacks) {
+        const index = callbacks.indexOf(callback);
+        if (index > -1) {
+          callbacks.splice(index, 1);
+        }
+      }
     };
-
-    this.supabaseChannel.send({
-      type: 'broadcast',
-      event: 'realtime_update',
-      payload: update
-    });
   }
 
-  sendBattleStart() {
-    if (!this.supabaseChannel || !this.userId || !this.roomId) return;
+  // 更新をブロードキャスト
+  private broadcastUpdate(type: string, data: any): void {
+    const callbacks = this.callbacks.get(type);
+    if (callbacks) {
+      const realtimeData: RealtimeData = {
+        timestamp: this.getJSTISOString(),
+        data,
+        type: type as any
+      };
+      callbacks.forEach(callback => callback(realtimeData));
+    }
+  }
 
-    this.supabaseChannel.send({
-      type: 'broadcast',
-      event: 'battle_start',
-      payload: {
-        userId: this.userId,
-        roomId: this.roomId,
-        timestamp: new Date().toISOString()
+  // 手動で更新をブロードキャスト
+  broadcast(type: string, data: any): void {
+    this.broadcastUpdate(type, data);
+  }
+
+  // イベントリスナー管理
+  on(event: string, callback: (data: any) => void): void {
+    if (!this.callbacks.has(event)) {
+      this.callbacks.set(event, []);
+    }
+    this.callbacks.get(event)!.push(callback);
+  }
+
+  off(event: string, callback: (data: any) => void): void {
+    const callbacks = this.callbacks.get(event);
+    if (callbacks) {
+      const index = callbacks.indexOf(callback);
+      if (index > -1) {
+        callbacks.splice(index, 1);
       }
+    }
+  }
+
+  // 接続管理
+  connect(userId: string, roomId: string): void {
+    console.log('リアルタイム接続開始:', { userId, roomId });
+    // シミュレートされた接続
+    setTimeout(() => {
+      this.broadcastUpdate('connected', { userId, roomId });
+    }, 100);
+  }
+
+  disconnect(): void {
+    console.log('リアルタイム接続切断');
+    this.broadcastUpdate('disconnected', {});
+  }
+
+  // ルーム管理
+  joinRoom(roomId: string, userId: string, username: string): void {
+    console.log('ルーム参加:', { roomId, userId, username });
+    this.broadcastUpdate('participant_update', {
+      userId,
+      username,
+      progress: 0,
+      currentStep: 'data',
+      lastUpdate: this.getJSTISOString()
     });
   }
 
-  sendBattleEnd() {
-    if (!this.supabaseChannel || !this.userId || !this.roomId) return;
+  leaveRoom(): void {
+    console.log('ルーム退出');
+  }
 
-    this.supabaseChannel.send({
-      type: 'broadcast',
-      event: 'battle_end',
-      payload: {
-        userId: this.userId,
-        roomId: this.roomId,
-        timestamp: new Date().toISOString()
-      }
+  // 進捗送信
+  sendProgress(progress: number, currentStep: string): void {
+    this.broadcastUpdate('participant_update', {
+      userId: 'current_user',
+      username: 'Current User',
+      progress,
+      currentStep,
+      lastUpdate: this.getJSTISOString()
     });
   }
 
-  broadcastLeaderboardUpdate(leaderboardData: any) {
-    if (!this.supabaseChannel || !this.roomId) return;
-
-    this.supabaseChannel.send({
-      type: 'broadcast',
-      event: 'leaderboard_update',
-      payload: {
-        roomId: this.roomId,
-        leaderboard: leaderboardData,
-        timestamp: new Date().toISOString()
-      }
+  // チャットメッセージ送信
+  sendMessage(message: string): void {
+    this.broadcastUpdate('chat_message', {
+      id: `msg_${Date.now()}`,
+      userId: 'current_user',
+      username: 'Current User',
+      message,
+      timestamp: this.getJSTISOString(),
+      roomId: 'current_room'
     });
   }
 
-  broadcastUpdate(update: RealtimeUpdate) {
-    if (!this.supabaseChannel || !this.roomId) return;
-
-    console.log('Broadcasting update:', update);
-    this.supabaseChannel.send({
-      type: 'broadcast',
-      event: 'realtime_update',
-      payload: update
-    });
+  // バトル管理
+  startBattle(roomId: string): void {
+    console.log('バトル開始:', roomId);
+    this.broadcastUpdate('battle_start', { roomId });
   }
 
-  startBattle(roomId: string) {
-    if (!this.supabaseChannel) return;
-
-    console.log('Starting battle for room:', roomId);
-    this.supabaseChannel.send({
-      type: 'broadcast',
-      event: 'battle_start',
-      payload: {
-        roomId,
-        timestamp: new Date().toISOString()
-      }
-    });
+  endBattle(roomId: string, result: any): void {
+    console.log('バトル終了:', { roomId, result });
+    this.broadcastUpdate('battle_end', { roomId, result });
   }
 
-  endBattle(roomId: string, result: any) {
-    if (!this.supabaseChannel) return;
-
-    console.log('Ending battle for room:', roomId);
-    this.supabaseChannel.send({
-      type: 'broadcast',
-      event: 'battle_end',
-      payload: {
-        roomId,
-        result,
-        timestamp: new Date().toISOString()
-      }
-    });
+  // リソースをクリーンアップ
+  destroy(): void {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.callbacks.clear();
   }
 }
 
-// シングルトンインスタンス
-export const realtimeManager = new RealtimeManager();
+// シングルトンインスタンスをエクスポート
+export const realtimeManager = RealtimeManager.getInstance();

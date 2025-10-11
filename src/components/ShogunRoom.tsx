@@ -1,12 +1,9 @@
 import { Map, Sword } from 'lucide-react';
-import { useState } from 'react';
 import { useGameState } from '../hooks/useGameState';
-import { SimpleOnlineBattleNew } from './SimpleOnlineBattleNew';
 import { userManager } from '../utils/userManager';
 
 export function ShogunRoom() {
   const { user, regions, progress, setCurrentView } = useGameState();
-  const [showOnlineBattle, setShowOnlineBattle] = useState(false);
 
   if (!user) return null;
 
@@ -16,11 +13,6 @@ export function ShogunRoom() {
 
   const completedRegions = Object.values(progress).filter(p => p.is_completed).length;
   const totalStars = Object.values(progress).reduce((sum, p) => sum + p.stars, 0);
-
-
-  if (showOnlineBattle) {
-    return <SimpleOnlineBattleNew onBack={() => setShowOnlineBattle(false)} />;
-  }
 
 
   return (
@@ -132,7 +124,12 @@ export function ShogunRoom() {
                       週次問題で他のプレイヤーと競い合おう！
                     </p>
                     <button
-                      onClick={() => setShowOnlineBattle(true)}
+                      onClick={() => {
+                        console.log('オンライン対戦ボタンがクリックされました');
+                        console.log('setCurrentViewを呼び出します: online');
+                        setCurrentView('online');
+                        console.log('setCurrentView呼び出し完了');
+                      }}
                       className="w-full text-white py-4 px-4 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg text-base group relative overflow-hidden"
                       style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-strong))' }}
                     >

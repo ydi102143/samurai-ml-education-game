@@ -1,241 +1,223 @@
-import { BattleDatabase } from './battleDatabase';
+import { getRandomAdvancedProblemDataset, type AdvancedProblemDataset } from '../data/advancedProblemDatasets';
 
 export interface WeeklyProblem {
   id: string;
   title: string;
   description: string;
-  dataset: string;
+  dataset: string; // データセット名
   difficulty: 'easy' | 'medium' | 'hard';
   category: string;
-  startDate: string;
-  endDate: string;
+  startDate: string; // ISO string
+  endDate: string; // ISO string
   isActive: boolean;
   publicLeaderboard: any[];
   privateLeaderboard: any[];
-  timeLimit: number; // 1週間の制限時間（秒）
+  timeLimit: number; // 秒
 }
 
-export class WeeklyProblemManager {
-  private static readonly WEEKLY_PROBLEMS_KEY = 'weekly_problems';
-  private static readonly CURRENT_WEEK_KEY = 'current_week_problem';
+class WeeklyProblemManager {
+  private static instance: WeeklyProblemManager;
+  private currentProblem: WeeklyProblem | null = null;
+  private problems: WeeklyProblem[] = [];
+  private privateResults: {[problemId: string]: any[]} = {};
 
-  // 週次問題を生成
-  static generateWeeklyProblems(): WeeklyProblem[] {
-    console.log('週次問題を生成中...');
-    const problems: WeeklyProblem[] = [];
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - (startDate.getDay() || 7) + 1); // 月曜日開始
+  private constructor() {
+    this.initializeProblems();
+    this.updateCurrentProblem();
+  }
 
-    const problemTemplates = [
-      {
-        title: '現代株価予測チャレンジ',
-        description: '過去の株価データから将来の株価を予測し、投資戦略を提案する',
-        dataset: 'modern_stock_prediction',
-        difficulty: 'easy' as const,
-        category: '金融分析'
-      },
-      {
-        title: '感情分析マスター',
-        description: 'テキストデータから感情を分析し、ユーザーの満足度を予測する',
-        dataset: 'modern_sentiment_analysis',
-        difficulty: 'easy' as const,
-        category: '自然言語処理'
-      },
-      {
-        title: '画像分類エキスパート',
-        description: '画像データを分類し、物体認識の精度を競う',
-        dataset: 'modern_image_classification',
-        difficulty: 'medium' as const,
-        category: 'コンピュータビジョン'
-      },
-      {
-        title: '推薦システム最適化',
-        description: 'ユーザーの行動データから最適な推薦を提案する',
-        dataset: 'modern_recommendation',
-        difficulty: 'medium' as const,
-        category: '推薦システム'
-      },
-      {
-        title: '不正検出システム',
-        description: '取引データから不正なパターンを検出し、セキュリティを向上させる',
-        dataset: 'modern_fraud_detection',
-        difficulty: 'hard' as const,
-        category: 'セキュリティ'
-      }
-    ];
+  public static getInstance(): WeeklyProblemManager {
+    if (!WeeklyProblemManager.instance) {
+      WeeklyProblemManager.instance = new WeeklyProblemManager();
+    }
+    return WeeklyProblemManager.instance;
+  }
 
-    // 過去12週分の問題を生成
-    for (let week = 0; week < 12; week++) {
-      const weekStart = new Date(startDate);
-      weekStart.setDate(weekStart.getDate() + (week * 7));
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6); // 1週間の制限時間
+  private initializeProblems() {
+    // 過去の問題を生成（実際の実装ではデータベースから読み込み）
+    const categories = ['金融', '医療', 'EC', '製造業', '教育'];
+    const difficulties: ('easy' | 'medium' | 'hard')[] = ['easy', 'medium', 'hard'];
+    
+    for (let i = 0; i < 10; i++) {
+      const dataset = getRandomAdvancedProblemDataset();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (i * 7)); // 過去の週
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 7);
 
-      const template = problemTemplates[week % problemTemplates.length];
-      const problem: WeeklyProblem = {
-        id: `weekly_${week + 1}`,
-        title: `${template.title} (第${week + 1}週)`,
-        description: template.description,
-        dataset: template.dataset,
-        difficulty: template.difficulty,
-        category: template.category,
-        startDate: weekStart.toISOString(),
-        endDate: weekEnd.toISOString(),
-        isActive: week === 0, // 最新週のみアクティブ
+      this.problems.push({
+        id: `weekly_${i + 1}`,
+        title: dataset.name,
+        description: dataset.description,
+        dataset: dataset.id,
+        difficulty: difficulties[i % 3],
+        category: categories[i % categories.length],
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        isActive: false,
         publicLeaderboard: [],
         privateLeaderboard: [],
-        timeLimit: 7 * 24 * 60 * 60 // 1週間の制限時間（秒）
-      };
-
-      console.log(`週次問題 ${week + 1} を生成:`, problem);
-      problems.push(problem);
+        timeLimit: 7 * 24 * 60 * 60 // 7日間
+      });
     }
-
-    return problems;
   }
 
-  // 現在の週次問題を取得
-  static getCurrentWeeklyProblem(): WeeklyProblem | null {
-    const problems = this.getWeeklyProblems();
-    const currentProblem = problems.find(p => p.isActive);
-    return currentProblem || null;
-  }
-
-  // 週次問題リストを取得
-  static getWeeklyProblems(): WeeklyProblem[] {
-    const stored = localStorage.getItem(this.WEEKLY_PROBLEMS_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-
-    // 初回生成
-    const problems = this.generateWeeklyProblems();
-    localStorage.setItem(this.WEEKLY_PROBLEMS_KEY, JSON.stringify(problems));
-    return problems;
-  }
-
-  // 週次問題を更新
-  static updateWeeklyProblems(): void {
-    const problems = this.getWeeklyProblems();
+  private updateCurrentProblem() {
     const now = new Date();
+    
+    // 日本標準時での現在時刻
+    const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    
+    // 現在の週の問題を探す
+    const currentWeekStart = this.getWeekStart(now);
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
 
-    // 各問題のアクティブ状態を更新
-    problems.forEach(problem => {
-      const startDate = new Date(problem.startDate);
-      const endDate = new Date(problem.endDate);
-      problem.isActive = now >= startDate && now <= endDate;
+    let currentProblem = this.problems.find(p => {
+      const start = new Date(p.startDate);
+      const end = new Date(p.endDate);
+      return start <= now && now < end;
     });
 
-    localStorage.setItem(this.WEEKLY_PROBLEMS_KEY, JSON.stringify(problems));
+    // 現在の問題がない場合は新しい問題を作成
+    if (!currentProblem) {
+      const dataset = getRandomAdvancedProblemDataset();
+      currentProblem = {
+        id: `weekly_${Date.now()}`,
+        title: dataset.name,
+        description: dataset.description,
+        dataset: dataset.id,
+        difficulty: 'medium',
+        category: '金融',
+        startDate: currentWeekStart.toISOString(),
+        endDate: currentWeekEnd.toISOString(),
+        isActive: true,
+        publicLeaderboard: [],
+        privateLeaderboard: [],
+        timeLimit: 7 * 24 * 60 * 60
+      };
+      this.problems.unshift(currentProblem);
+    }
+
+    this.currentProblem = currentProblem;
   }
 
-  // 問題のリーダーボードを更新
-  static async updateProblemLeaderboard(problemId: string): Promise<void> {
-    const problems = this.getWeeklyProblems();
-    const problem = problems.find(p => p.id === problemId);
-    if (!problem) return;
-
-    try {
-      // Publicリーダーボード（日頃の評価）
-      const publicLeaderboard = await BattleDatabase.getProblemLeaderboard(problemId, 10, false);
-      problem.publicLeaderboard = publicLeaderboard;
-
-      // Privateリーダーボード（最終評価）
-      const privateLeaderboard = await BattleDatabase.getProblemLeaderboard(problemId, 10, true);
-      problem.privateLeaderboard = privateLeaderboard;
-
-      localStorage.setItem(this.WEEKLY_PROBLEMS_KEY, JSON.stringify(problems));
-    } catch (error) {
-      console.error('リーダーボード更新エラー:', error);
-    }
+  private getWeekStart(date: Date): Date {
+    // 日本標準時（JST）に変換
+    const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+    const weekStart = new Date(jstDate);
+    const day = weekStart.getDay();
+    const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1); // 月曜日を週の開始とする
+    weekStart.setDate(diff);
+    weekStart.setHours(0, 0, 0, 0);
+    // UTCに戻す
+    return new Date(weekStart.getTime() - (9 * 60 * 60 * 1000));
   }
 
-  // 現在の週次問題を強制的に更新（第1週から開始）
-  static forceUpdateCurrentProblem(): WeeklyProblem | null {
-    // 既存の週次問題をクリア
-    localStorage.removeItem(this.WEEKLY_PROBLEMS_KEY);
-    localStorage.removeItem(this.CURRENT_WEEK_KEY);
-    
-    // 新しい週次問題を生成
-    const problems = this.generateWeeklyProblems();
-    localStorage.setItem(this.WEEKLY_PROBLEMS_KEY, JSON.stringify(problems));
-    
-    // 第1週の問題をアクティブにする
-    if (problems.length > 0) {
-      problems[0].isActive = true;
-      localStorage.setItem(this.WEEKLY_PROBLEMS_KEY, JSON.stringify(problems));
-      console.log('週次問題をリセット:', problems[0]);
-      return problems[0];
-    }
-    
-    return null;
+  public getCurrentWeeklyProblem(): WeeklyProblem | null {
+    this.updateCurrentProblem();
+    return this.currentProblem;
   }
 
-  // リアルタイムで週次問題を更新（実際の時間軸で自動更新）
-  static updateWeeklyProblemsRealtime(): WeeklyProblem | null {
-    const problems = this.getWeeklyProblems();
-    const now = new Date();
-    
-    // 問題がない場合は生成
-    if (problems.length === 0) {
-      this.generateWeeklyProblems();
-      return this.getCurrentWeeklyProblem();
-    }
-    
-    // 実際の時間軸で現在の週を計算
-    const startDate = new Date('2024-01-01T00:00:00Z'); // UTC基準
-    const currentWeek = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-    const problemIndex = currentWeek % problems.length;
-    
-    // 全ての問題を非アクティブにする
-    problems.forEach(p => p.isActive = false);
-    
-    // 現在の週の問題をアクティブにする
-    if (problems[problemIndex]) {
-      problems[problemIndex].isActive = true;
-      // 実際の時間に基づいて開始日と終了日を更新
-      const weekStart = new Date(startDate.getTime() + currentWeek * 7 * 24 * 60 * 60 * 1000);
-      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-      
-      problems[problemIndex].startDate = weekStart.toISOString();
-      problems[problemIndex].endDate = weekEnd.toISOString();
-      
-      localStorage.setItem(this.WEEKLY_PROBLEMS_KEY, JSON.stringify(problems));
-      console.log(`週次問題を自動更新: 週${currentWeek + 1}`, problems[problemIndex]);
-      return problems[problemIndex];
-    }
-    
-    return null;
-  }
-
-  // 問題の期間をチェック
-  static isProblemActive(problemId: string): boolean {
-    const problem = this.getWeeklyProblems().find(p => p.id === problemId);
+  public isProblemActive(problemId: string): boolean {
+    const problem = this.problems.find(p => p.id === problemId);
     if (!problem) return false;
 
     const now = new Date();
-    const startDate = new Date(problem.startDate);
-    const endDate = new Date(problem.endDate);
-    return now >= startDate && now <= endDate;
+    const start = new Date(problem.startDate);
+    const end = new Date(problem.endDate);
+    
+    return start <= now && now < end;
   }
 
-  // 問題の残り時間を取得
-  static getProblemTimeRemaining(problemId: string): string {
-    const problem = this.getWeeklyProblems().find(p => p.id === problemId);
-    if (!problem) return '終了';
+  public getTimeRemaining(problemId: string): number {
+    const problem = this.problems.find(p => p.id === problemId);
+    if (!problem) return 0;
 
     const now = new Date();
-    const endDate = new Date(problem.endDate);
-    const diff = endDate.getTime() - now.getTime();
+    const end = new Date(problem.endDate);
+    
+    // 日本標準時での残り時間を計算
+    const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const jstEnd = new Date(end.getTime() + (9 * 60 * 60 * 1000));
+    
+    return Math.max(0, Math.floor((jstEnd.getTime() - jstNow.getTime()) / 1000));
+  }
 
-    if (diff <= 0) return '終了';
+  public updateWeeklyProblems() {
+    this.updateCurrentProblem();
+  }
 
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  public getProblemHistory(): WeeklyProblem[] {
+    return this.problems.slice(0, 5); // 過去5週間の問題
+  }
 
-    if (days > 0) return `${days}日${hours}時間`;
-    if (hours > 0) return `${hours}時間${minutes}分`;
-    return `${minutes}分`;
+  public addPublicSubmission(problemId: string, submission: any) {
+    const problem = this.problems.find(p => p.id === problemId);
+    if (problem) {
+      problem.publicLeaderboard.push(submission);
+      problem.publicLeaderboard.sort((a, b) => (b.score || 0) - (a.score || 0));
+    }
+  }
+
+  public getPublicLeaderboard(problemId: string): any[] {
+    const problem = this.problems.find(p => p.id === problemId);
+    return problem ? problem.publicLeaderboard : [];
+  }
+
+  public setPrivateResults(problemId: string, results: any[]) {
+    this.privateResults[problemId] = results;
+  }
+
+  public getPrivateResults(problemId: string): any[] {
+    return this.privateResults[problemId] || [];
+  }
+
+  public getPrivateLeaderboard(problemId: string): any[] {
+    const results = this.getPrivateResults(problemId);
+    return results.sort((a, b) => (b.score || 0) - (a.score || 0));
+  }
+
+  // 週間問題の自動更新（毎日実行）
+  public checkAndUpdateProblems() {
+    const now = new Date();
+    const currentProblem = this.getCurrentWeeklyProblem();
+    
+    if (currentProblem) {
+      const endDate = new Date(currentProblem.endDate);
+      
+      // 問題が終了した場合、Private結果を生成
+      if (now >= endDate && !this.privateResults[currentProblem.id]) {
+        this.generatePrivateResults(currentProblem.id);
+      }
+    }
+  }
+
+  private generatePrivateResults(problemId: string) {
+    // Private結果のシミュレーション
+    const publicResults = this.getPublicLeaderboard(problemId);
+    const privateResults = publicResults.map((result, index) => ({
+      ...result,
+      privateScore: result.score * (0.8 + Math.random() * 0.4), // 80-120%の範囲で変動
+      rank: index + 1
+    }));
+
+    this.setPrivateResults(problemId, privateResults);
+  }
+
+  public getNextProblemStartTime(): Date {
+    const now = new Date();
+    const nextMonday = this.getWeekStart(now);
+    if (nextMonday <= now) {
+      nextMonday.setDate(nextMonday.getDate() + 7);
+    }
+    return nextMonday;
   }
 }
+
+export const weeklyProblemManager = WeeklyProblemManager.getInstance();
+
+// 毎日問題をチェックする（実際の実装ではcronジョブなどで実行）
+setInterval(() => {
+  weeklyProblemManager.checkAndUpdateProblems();
+}, 24 * 60 * 60 * 1000); // 24時間ごと
