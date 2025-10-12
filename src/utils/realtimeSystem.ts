@@ -42,9 +42,44 @@ export class RealtimeSystem {
   private participants: Participant[] = [];
   private currentProblem: WeeklyProblem | null = null;
   private updateCallbacks: Set<() => void> = new Set();
+  private userId: string = '';
+  private playerName: string = '';
 
   constructor() {
+    this.initializeUser();
     this.initializeSystem();
+  }
+
+  // ユーザー初期化
+  private initializeUser() {
+    this.userId = this.getOrCreateUserId();
+    this.playerName = this.generatePlayerName();
+    console.log('RealtimeSystem initialized - User:', this.playerName, 'ID:', this.userId);
+  }
+
+  // ユーザーIDを取得または生成
+  private getOrCreateUserId(): string {
+    const storageKey = 'ml_battle_user_id';
+    let userId = localStorage.getItem(storageKey);
+    
+    if (!userId) {
+      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem(storageKey, userId);
+    }
+    
+    return userId;
+  }
+
+  // プレイヤー名を生成
+  private generatePlayerName(): string {
+    const adjectives = ['Swift', 'Bright', 'Sharp', 'Bold', 'Quick', 'Smart', 'Wise', 'Strong', 'Fast', 'Cool'];
+    const nouns = ['Warrior', 'Ninja', 'Master', 'Expert', 'Wizard', 'Hero', 'Champion', 'Legend', 'Pro', 'Ace'];
+    
+    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    const number = Math.floor(Math.random() * 999) + 1;
+    
+    return `${adjective}${noun}${number}`;
   }
 
   // システム初期化
@@ -60,43 +95,13 @@ export class RealtimeSystem {
 
   // サンプルデータ生成
   private generateSampleData() {
-    // リーダーボードデータ
-    this.leaderboard = [
-      { id: '1', username: 'MLMaster', score: 95.2, accuracy: 0.952, modelName: 'Random Forest', timestamp: Date.now() - 300000, rank: 1 },
-      { id: '2', username: 'DataNinja', score: 93.8, accuracy: 0.938, modelName: 'XGBoost', timestamp: Date.now() - 600000, rank: 2 },
-      { id: '3', username: 'AIWarrior', score: 92.1, accuracy: 0.921, modelName: 'Neural Network', timestamp: Date.now() - 900000, rank: 3 },
-      { id: '4', username: 'CodeSamurai', score: 90.5, accuracy: 0.905, modelName: 'SVM', timestamp: Date.now() - 1200000, rank: 4 },
-      { id: '5', username: 'MLNinja', score: 89.3, accuracy: 0.893, modelName: 'Logistic Regression', timestamp: Date.now() - 1500000, rank: 5 }
-    ];
-
-    // チャットメッセージ
-    this.chatMessages = [
-      { id: '1', username: 'System', message: '新しい週次問題が開始されました！', timestamp: Date.now() - 1800000, type: 'system' },
-      { id: '2', username: 'MLMaster', message: 'この問題、なかなか難しいですね', timestamp: Date.now() - 1200000, type: 'user' },
-      { id: '3', username: 'DataNinja', message: '特徴量エンジニアリングが鍵になりそうです', timestamp: Date.now() - 900000, type: 'user' },
-      { id: '4', username: 'AIWarrior', message: 'みんな頑張って！', timestamp: Date.now() - 600000, type: 'user' }
-    ];
-
-    // 参加者データ
-    this.participants = [
-      { id: '1', username: 'MLMaster', status: 'online', currentStep: 'validation', lastActivity: Date.now() - 30000 },
-      { id: '2', username: 'DataNinja', status: 'training', currentStep: 'training', lastActivity: Date.now() - 10000 },
-      { id: '3', username: 'AIWarrior', status: 'online', currentStep: 'model_selection', lastActivity: Date.now() - 60000 },
-      { id: '4', username: 'CodeSamurai', status: 'offline', currentStep: 'data', lastActivity: Date.now() - 300000 },
-      { id: '5', username: 'MLNinja', status: 'validating', currentStep: 'validation', lastActivity: Date.now() - 20000 }
-    ];
-
-    // 週次問題
-    this.currentProblem = {
-      id: 'weekly_1',
-      title: '医療診断データセット',
-      description: '患者の症状から病気を予測する分類問題です。',
-      type: 'classification',
-      startTime: Date.now() - 3600000, // 1時間前
-      endTime: Date.now() + 6 * 24 * 3600000, // 6日後
-      maxSubmissions: 10,
-      isActive: true
-    };
+    // 空の状態で開始
+    this.leaderboard = [];
+    this.chatMessages = [];
+    this.participants = [];
+    
+    // 週次問題は動的に生成
+    this.currentProblem = null;
   }
 
   // システム更新

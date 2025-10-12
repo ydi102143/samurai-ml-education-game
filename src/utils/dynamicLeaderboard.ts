@@ -21,42 +21,59 @@ export interface LeaderboardStats {
 
 export class DynamicLeaderboard {
   private submissions: LeaderboardEntry[] = [];
-  private currentUser: string = 'あなた';
+  private currentUser: string = '';
   private startTime: Date = new Date();
   private problemDuration: number = 7 * 24 * 60 * 60 * 1000; // 7日間
   private leaderboardId: string = '';
+  private userId: string = '';
 
   constructor() {
+    // ユーザーIDを生成または取得
+    this.userId = this.getOrCreateUserId();
+    this.currentUser = this.generatePlayerName();
+    
     // 動的なリーダーボードIDを生成
     this.leaderboardId = `leaderboard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     console.log('Dynamic leaderboard initialized with ID:', this.leaderboardId);
+    console.log('Current user:', this.currentUser, 'User ID:', this.userId);
     
     // 初期データを生成
     this.generateInitialData();
   }
 
+  // ユーザーIDを取得または生成
+  private getOrCreateUserId(): string {
+    const storageKey = 'ml_battle_user_id';
+    let userId = localStorage.getItem(storageKey);
+    
+    if (!userId) {
+      // 新しいユーザーIDを生成
+      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem(storageKey, userId);
+      console.log('新しいユーザーIDを生成:', userId);
+    } else {
+      console.log('既存のユーザーIDを使用:', userId);
+    }
+    
+    return userId;
+  }
+
+  // プレイヤー名を生成
+  private generatePlayerName(): string {
+    const adjectives = ['Swift', 'Bright', 'Sharp', 'Bold', 'Quick', 'Smart', 'Wise', 'Strong', 'Fast', 'Cool'];
+    const nouns = ['Warrior', 'Ninja', 'Master', 'Expert', 'Wizard', 'Hero', 'Champion', 'Legend', 'Pro', 'Ace'];
+    
+    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    const number = Math.floor(Math.random() * 999) + 1;
+    
+    return `${adjective}${noun}${number}`;
+  }
+
   // 初期データを生成
   private generateInitialData(): void {
-    const sampleNames = [
-      'AI_Master', 'DataWizard', 'ML_Expert', 'CodeNinja', 'AlgorithmKing',
-      'NeuralNet', 'DeepLearner', 'ModelBuilder', 'FeatureEngineer', 'DataScientist'
-    ];
-
-    for (let i = 0; i < 10; i++) {
-      this.submissions.push({
-        rank: i + 1,
-        playerName: sampleNames[i],
-        modelName: `Model_v${Math.floor(Math.random() * 5) + 1}.${Math.floor(Math.random() * 10)}`,
-        accuracy: 0.75 + Math.random() * 0.2, // 75-95%
-        submissionTime: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
-        hyperparameters: {
-          epochs: Math.floor(Math.random() * 50) + 20,
-          learning_rate: (Math.random() * 0.01 + 0.001).toFixed(4),
-          batch_size: [16, 32, 64][Math.floor(Math.random() * 3)]
-        },
-        isCurrentUser: false
-      });
-    }
+    // 空の状態で開始
+    this.submissions = [];
   }
 
   // 提出を追加

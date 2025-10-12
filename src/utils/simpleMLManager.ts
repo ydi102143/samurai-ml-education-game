@@ -383,9 +383,9 @@ export class SimpleMLManager {
 
   // 線形回帰
   private async trainLinearRegression(X: number[][], y: number[], params: any) {
-    const learningRate = params.learningRate || 0.001;
+    const learningRate = params.learningRate || 0.0001;
     const maxIterations = params.maxIterations || 1000;
-    const regularization = params.regularization || 0.01;
+    const regularization = params.regularization || 0.001;
 
     // データの前処理とバリデーション
     if (!this.validateTrainingData(X, y)) {
@@ -432,7 +432,7 @@ export class SimpleMLManager {
 
       // 重みの更新（L2正則化）
       for (let j = 0; j < nFeatures; j++) {
-        weights[j] -= learningRate * (gradWeights[j] / normalizedX.length + regularization * weights[j]);
+        weights[j] -= learningRate * (gradWeights[j] / normalizedX.length) - learningRate * regularization * weights[j];
       }
       bias -= learningRate * (gradBias / normalizedX.length);
 
@@ -471,6 +471,138 @@ export class SimpleMLManager {
     this.trainedWeights = { weights, bias };
 
     console.log(`Linear Regression - Final R²: ${(rSquared * 100).toFixed(2)}%`);
+    console.log(`Final MSE: ${loss.toFixed(6)}`);
+
+    return { accuracy: rSquared, loss, predictions };
+  }
+
+  // リッジ回帰
+  private async trainRidgeRegression(X: number[][], y: number[], params: any) {
+    const alpha = params.alpha || 1.0;
+    const maxIterations = params.maxIterations || 1000;
+
+    // データの前処理とバリデーション
+    if (!this.validateTrainingData(X, y)) {
+      throw new Error('Invalid training data');
+    }
+
+    // データの正規化
+    const { normalizedX, normalizedY, xMeans, xStds, yMean, yStd } = this.normalizeData(X, y);
+
+    const nFeatures = normalizedX[0].length;
+    let weights = new Array(nFeatures).fill(0).map(() => (Math.random() - 0.5) * 0.1);
+    let bias = (Math.random() - 0.5) * 0.1;
+
+    console.log('Training Ridge Regression with:', { alpha, maxIterations, nFeatures, samples: normalizedX.length });
+
+    // 勾配降下法（L2正則化）
+    for (let iter = 0; iter < maxIterations; iter++) {
+      let totalLoss = 0;
+      const gradWeights = new Array(nFeatures).fill(0);
+      let gradBias = 0;
+
+      for (let i = 0; i < normalizedX.length; i++) {
+        const prediction = this.dotProduct(normalizedX[i], weights) + bias;
+        const error = prediction - normalizedY[i];
+        totalLoss += error * error;
+
+        for (let j = 0; j < nFeatures; j++) {
+          gradWeights[j] += error * normalizedX[i][j];
+        }
+        gradBias += error;
+      }
+
+      const avgLoss = totalLoss / normalizedX.length;
+
+      // 重みの更新（L2正則化）
+      for (let j = 0; j < nFeatures; j++) {
+        weights[j] -= 0.0001 * (gradWeights[j] / normalizedX.length) - 0.0001 * alpha * weights[j];
+      }
+      bias -= 0.0001 * (gradBias / normalizedX.length);
+
+      if (iter % 200 === 0) {
+        console.log(`Ridge Regression - Iteration ${iter}: Loss = ${avgLoss.toFixed(6)}`);
+      }
+    }
+
+    // 予測（正規化されたデータで学習したので、元のスケールに戻す）
+    const predictions = X.map(x => {
+      const normalizedX = x.map((val, i) => (val - xMeans[i]) / (xStds[i] + 1e-8));
+      const normalizedPred = this.dotProduct(normalizedX, weights) + bias;
+      return normalizedPred * yStd + yMean;
+    });
+    
+    const rSquared = this.calculateRSquared(predictions, y);
+    const loss = this.calculateMSE(predictions, y);
+
+    console.log(`Ridge Regression - Final R²: ${(rSquared * 100).toFixed(2)}%`);
+    console.log(`Final MSE: ${loss.toFixed(6)}`);
+
+    return { accuracy: rSquared, loss, predictions };
+  }
+
+  // ラッソ回帰
+  private async trainLassoRegression(X: number[][], y: number[], params: any) {
+    const alpha = params.alpha || 0.1;
+    const maxIterations = params.maxIterations || 1000;
+
+    // データの前処理とバリデーション
+    if (!this.validateTrainingData(X, y)) {
+      throw new Error('Invalid training data');
+    }
+
+    // データの正規化
+    const { normalizedX, normalizedY, xMeans, xStds, yMean, yStd } = this.normalizeData(X, y);
+
+    const nFeatures = normalizedX[0].length;
+    let weights = new Array(nFeatures).fill(0).map(() => (Math.random() - 0.5) * 0.1);
+    let bias = (Math.random() - 0.5) * 0.1;
+
+    console.log('Training Lasso Regression with:', { alpha, maxIterations, nFeatures, samples: normalizedX.length });
+
+    // 座標降下法（L1正則化）
+    for (let iter = 0; iter < maxIterations; iter++) {
+      let totalLoss = 0;
+
+      // バイアスの更新
+      let biasGrad = 0;
+      for (let i = 0; i < normalizedX.length; i++) {
+        const prediction = this.dotProduct(normalizedX[i], weights) + bias;
+        const error = prediction - normalizedY[i];
+        biasGrad += error;
+        totalLoss += error * error;
+      }
+      bias -= 0.0001 * (biasGrad / normalizedX.length);
+
+      // 各特徴量の重みを更新（L1正則化）
+      for (let j = 0; j < nFeatures; j++) {
+        let grad = 0;
+        for (let i = 0; i < normalizedX.length; i++) {
+          const prediction = this.dotProduct(normalizedX[i], weights) + bias;
+          const error = prediction - normalizedY[i];
+          grad += error * normalizedX[i][j];
+        }
+        
+        const newWeight = (grad / normalizedX.length) - alpha;
+        weights[j] = Math.sign(newWeight) * Math.max(0, Math.abs(newWeight) - alpha);
+      }
+
+      if (iter % 200 === 0) {
+        console.log(`Lasso Regression - Iteration ${iter}: Loss = ${(totalLoss / normalizedX.length).toFixed(6)}`);
+      }
+    }
+
+    // 予測（正規化されたデータで学習したので、元のスケールに戻す）
+    const predictions = X.map(x => {
+      const normalizedX = x.map((val, i) => (val - xMeans[i]) / (xStds[i] + 1e-8));
+      const normalizedPred = this.dotProduct(normalizedX, weights) + bias;
+      return normalizedPred * yStd + yMean;
+    });
+    
+    const rSquared = this.calculateRSquared(predictions, y);
+    const loss = this.calculateMSE(predictions, y);
+
+    console.log(`Lasso Regression - Final R²: ${(rSquared * 100).toFixed(2)}%`);
     console.log(`Final MSE: ${loss.toFixed(6)}`);
 
     return { accuracy: rSquared, loss, predictions };

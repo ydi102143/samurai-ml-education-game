@@ -11,6 +11,7 @@ interface EDAPanelProps {
   showProcessedData?: boolean;
   processedDataset?: any;
   currentDataset?: any;
+  dataManager?: any;
 }
 
 // ヒストグラムデータ生成関数
@@ -53,7 +54,7 @@ const generateBoxPlotData = (data: any[], featureIndex: number) => {
   ];
 };
 
-export function EDAPanel({ data, problemType, featureNames: propFeatureNames, displayFeatureTypes: propFeatureTypes, showProcessedData = false, processedDataset, currentDataset }: EDAPanelProps) {
+export function EDAPanel({ data, problemType, featureNames: propFeatureNames, displayFeatureTypes: propFeatureTypes, showProcessedData = false, processedDataset, currentDataset, dataManager }: EDAPanelProps) {
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
   
   // 処理済みデータを取得（定期的に更新）
@@ -80,30 +81,57 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
   let displayFeatureNames: string[] = [];
   let displayFeatureTypes: ('numerical' | 'categorical')[] = [];
 
+  console.log('EDAPanel data selection:', {
+    showProcessedData,
+    hasProcessedDataset: !!processedDataset,
+    hasProcessedData: !!processedData,
+    dataLength: data?.length,
+    currentDatasetFeatureNames: currentDataset?.featureNames?.length
+  });
+
   if (showProcessedData && processedDataset) {
     // 加工済みデータを表示（全てのカラムを含む）
     displayData = processedDataset.data.map((row: any[], i: number) => ({
       features: row,
-      target: currentDataset?.targetValues[i] || 0
+      target: processedDataset.targetValues[i] || 0
     }));
     displayFeatureNames = processedDataset.featureNames;
     displayFeatureTypes = processedDataset.featureTypes;
+    console.log('Using processedDataset:', {
+      dataLength: displayData.length,
+      featureNamesLength: displayFeatureNames.length,
+      featureNames: displayFeatureNames,
+      targetValues: processedDataset.targetValues.slice(0, 5)
+    });
   } else if (showProcessedData && processedData) {
     // realDataProcessorからの処理済みデータ
-    displayData = processedData.data;
+    displayData = processedData.data.map((row: any[], i: number) => ({
+      features: row,
+      target: processedData.targetValues[i] || 0
+    }));
     displayFeatureNames = processedData.featureNames;
     displayFeatureTypes = processedData.featureTypes;
+    console.log('Using processedData:', {
+      dataLength: displayData.length,
+      featureNamesLength: displayFeatureNames.length,
+      featureNames: displayFeatureNames
+    });
   } else {
     // 生データを表示（リアルタイムで更新されたデータ）
     displayData = data || [];
     displayFeatureNames = propFeatureNames || (data && data.length > 0 && data[0] && data[0].features ? 
       Array.from({ length: data[0].features.length }, (_, i) => `特徴量${i + 1}`) : []);
     displayFeatureTypes = propFeatureTypes || displayFeatureNames.map(() => 'numerical' as 'numerical' | 'categorical');
+    console.log('Using raw data:', {
+      dataLength: displayData.length,
+      featureNamesLength: displayFeatureNames.length,
+      featureNames: displayFeatureNames,
+      firstRowFeatures: displayData[0]?.features?.length,
+      firstRowTarget: displayData[0]?.target
+    });
   }
 
   const [activeTab, setActiveTab] = useState<'overview' | 'data' | 'visualization'>('overview');
-  const [rawDataPage, setRawDataPage] = useState(0);
-  const [rawDataPageSize] = useState(20);
   const [visualizationType, setVisualizationType] = useState<'scatter' | 'histogram' | 'boxplot'>('scatter');
   const [selectedXFeature, setSelectedXFeature] = useState<number>(0);
   const [selectedYFeature, setSelectedYFeature] = useState<number>(1);
@@ -422,7 +450,7 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
                       <ScatterChart data={displayData.map((item) => {
                         const xValue = item.features[selectedXFeature];
                         const yValue = item.features[selectedYFeature];
-                        const targetValue = item.label;
+                        const targetValue = item.target || item.label;
                         
                         return {
                           x: (typeof xValue === 'number' && !isNaN(xValue)) ? xValue : 0,
@@ -530,24 +558,8 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
                 <h3 className="text-lg font-bold text-white">データ表示</h3>
                 <div className="flex items-center space-x-4">
                   <span className="text-white/70 text-sm">
-                    ページ {rawDataPage + 1} / {Math.ceil(displayData.length / rawDataPageSize)}
+                    全 {displayData.length} 行
                   </span>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => setRawDataPage(Math.max(0, rawDataPage - 1))}
-                      disabled={rawDataPage === 0}
-                      className="px-3 py-1 bg-white/10 border border-white/20 rounded text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20"
-                    >
-                      前へ
-                    </button>
-                    <button
-                      onClick={() => setRawDataPage(Math.min(Math.ceil(displayData.length / rawDataPageSize) - 1, rawDataPage + 1))}
-                      disabled={rawDataPage >= Math.ceil(displayData.length / rawDataPageSize) - 1}
-                      className="px-3 py-1 bg-white/10 border border-white/20 rounded text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20"
-                    >
-                      次へ
-                    </button>
-                  </div>
                 </div>
               </div>
               
@@ -570,10 +582,10 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
                     </tr>
                   </thead>
                   <tbody>
-                    {displayData.slice(rawDataPage * rawDataPageSize, (rawDataPage + 1) * rawDataPageSize).map((row, rowIndex) => (
+                    {displayData.map((row, rowIndex) => (
                       <tr key={rowIndex} className="border-b border-white/10 hover:bg-white/5">
                         <td className="p-2 text-white/60">
-                          {rawDataPage * rawDataPageSize + rowIndex + 1}
+                          {rowIndex + 1}
                         </td>
                         {row.features.map((value: any, colIndex: number) => (
                           <td key={colIndex} className="p-2 text-white">
@@ -585,12 +597,7 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
                               
                               // カテゴリカル変数の場合
                               if (displayFeatureTypes?.[colIndex] === 'categorical') {
-                                // 数値の場合は元の文字列に戻す（ハッシュ値から推測）
-                                if (typeof value === 'number') {
-                                  return <span className="text-blue-300">カテゴリ{value}</span>;
-                                } else {
-                                  return <span className="text-blue-300">{String(value)}</span>;
-                                }
+                                return <span className="text-blue-300">{String(value)}</span>;
                               } else {
                                 // 数値変数の場合
                                 return <span className="text-green-300">{typeof value === 'number' ? value.toFixed(2) : String(value)}</span>;
@@ -600,7 +607,7 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
                         ))}
                         <td className="p-2 text-yellow-300 font-bold">
                           {(() => {
-                            const targetValue = row.label;
+                            const targetValue = row.target || row.label;
                             if (targetValue === null || targetValue === undefined || (typeof targetValue === 'number' && isNaN(targetValue))) {
                               return <span className="text-red-400 font-bold">NaN</span>;
                             }
@@ -618,7 +625,7 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
               </div>
               
               <div className="mt-4 text-white/60 text-xs">
-                表示中: {rawDataPage * rawDataPageSize + 1} - {Math.min((rawDataPage + 1) * rawDataPageSize, displayData.length)} / {displayData.length} 行
+                全 {displayData.length} 行を表示中
               </div>
             </div>
           </div>

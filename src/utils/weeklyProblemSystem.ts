@@ -58,21 +58,101 @@ export class WeeklyProblemSystem {
   private listeners: ((problem: WeeklyProblem) => void)[] = [];
   private submissions: Map<string, FinalSubmission[]> = new Map();
   private evaluationTimer: NodeJS.Timeout | null = null;
+  private lastProblemChange: number = 0;
+  private readonly PROBLEM_DURATION = 7 * 24 * 60 * 60 * 1000; // 1週間（ミリ秒）
 
   constructor() {
     this.initializeWeeklyProblem();
     this.startWeeklyTimer();
     this.startEvaluationTimer();
+    this.startProblemRotationTimer();
   }
 
   // 週次問題を初期化
   private initializeWeeklyProblem() {
+    // ローカルストレージから現在の問題を取得
+    const storedProblem = this.getStoredProblem();
     const now = new Date();
-    const weekStart = this.getWeekStart(now);
-    const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    if (storedProblem && this.isProblemStillValid(storedProblem, now)) {
+      // 既存の問題が有効な場合はそれを使用
+      this.currentProblem = storedProblem;
+      console.log('既存の週次問題を使用:', storedProblem.title);
+    } else {
+      // 新しい問題を生成
+      const weekStart = this.getWeekStart(now);
+      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+      
+      this.currentProblem = this.generateWeeklyProblem(weekStart, weekEnd);
+      this.problemHistory.push(this.currentProblem);
+      
+      // ローカルストレージに保存
+      this.storeProblem(this.currentProblem);
+      console.log('新しい週次問題を生成:', this.currentProblem.title);
+    }
+  }
 
-    this.currentProblem = this.generateWeeklyProblem(weekStart, weekEnd);
-    this.problemHistory.push(this.currentProblem);
+  // 問題をローカルストレージに保存
+  private storeProblem(problem: WeeklyProblem) {
+    // 大きなデータを除外して、必要な情報のみを保存
+    const problemData = {
+      id: problem.id,
+      title: problem.title,
+      description: problem.description,
+      type: problem.type,
+      difficulty: problem.difficulty,
+      startDate: problem.startDate.toISOString(),
+      endDate: problem.endDate.toISOString(),
+      dataset: {
+        name: problem.dataset.name,
+        description: problem.dataset.description,
+        features: problem.dataset.features,
+        samples: problem.dataset.samples,
+        targetName: problem.dataset.targetName
+      },
+      evaluation: problem.evaluation,
+      leaderboard: problem.leaderboard,
+      status: problem.status
+      // privateTestDataは除外（必要時に再生成）
+    };
+    
+    try {
+      localStorage.setItem('ml_battle_current_problem', JSON.stringify(problemData));
+    } catch (error) {
+      console.warn('ローカルストレージに保存できませんでした:', error);
+      // フォールバック: セッションストレージを使用
+      try {
+        sessionStorage.setItem('ml_battle_current_problem', JSON.stringify(problemData));
+      } catch (sessionError) {
+        console.warn('セッションストレージにも保存できませんでした:', sessionError);
+      }
+    }
+  }
+
+  // ローカルストレージから問題を取得
+  private getStoredProblem(): WeeklyProblem | null {
+    try {
+      const stored = localStorage.getItem('ml_battle_current_problem') || 
+                     sessionStorage.getItem('ml_battle_current_problem');
+      if (!stored) return null;
+      
+      const problemData = JSON.parse(stored);
+      return {
+        ...problemData,
+        startDate: new Date(problemData.startDate),
+        endDate: new Date(problemData.endDate),
+        // privateTestDataは必要時に再生成
+        privateTestData: undefined
+      };
+    } catch (error) {
+      console.error('問題の読み込みに失敗:', error);
+      return null;
+    }
+  }
+
+  // 問題がまだ有効かチェック
+  private isProblemStillValid(problem: WeeklyProblem, now: Date): boolean {
+    return now >= problem.startDate && now <= problem.endDate;
   }
 
   // 週の開始日を取得
@@ -321,7 +401,7 @@ export class WeeklyProblemSystem {
     this.evaluationTimer = setInterval(() => {
       if (this.currentProblem && this.currentProblem.status === 'active') {
         const now = new Date();
-        if (now >= this.currentProblem.finalResults!.evaluationDate) {
+        if (this.currentProblem.finalResults && now >= this.currentProblem.finalResults.evaluationDate) {
           this.completeProblemEvaluation();
         }
       }
@@ -416,6 +496,29 @@ export class WeeklyProblemSystem {
   // リスナーを追加
   onProblemUpdate(callback: (problem: WeeklyProblem) => void) {
     this.listeners.push(callback);
+  }
+
+  // 問題ローテーションタイマーを開始
+  private startProblemRotationTimer() {
+    setInterval(() => {
+      this.checkAndRotateProblem();
+    }, 60 * 1000); // 1分ごとにチェック
+  }
+
+  // 問題のローテーションをチェック
+  private checkAndRotateProblem() {
+    const now = Date.now();
+    if (now - this.lastProblemChange >= this.PROBLEM_DURATION) {
+      this.rotateToNextProblem();
+    }
+  }
+
+  // 次の問題にローテーション
+  private rotateToNextProblem() {
+    console.log('週次問題をローテーション中...');
+    this.lastProblemChange = Date.now();
+    this.initializeWeeklyProblem();
+    this.notifyListeners();
   }
 
   // リスナーに通知

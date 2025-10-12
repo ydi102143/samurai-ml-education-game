@@ -4,14 +4,15 @@ export interface SimpleDataset {
   name: string;
   type: 'classification' | 'regression';
   description: string;
-  data: number[][];
+  data: (number | string)[][];
   featureNames: string[];
   targetName: string;
   targetValues: number[];
+  featureTypes?: ('numerical' | 'categorical')[];
 }
 
 export interface ProcessedDataset {
-  data: number[][];
+  data: (number | string)[][];
   featureNames: string[];
   targetValues: number[];
   processingSteps: string[];
@@ -48,7 +49,11 @@ export class SimpleDataManager {
       }
     };
 
-    this.currentDataset = datasets[type][selectedType];
+    const selectedDataset = datasets[type][selectedType as keyof typeof datasets[typeof type]];
+    if (!selectedDataset) {
+      throw new Error(`Dataset type ${selectedType} not found`);
+    }
+    this.currentDataset = selectedDataset;
     return this.currentDataset;
   }
 
@@ -57,7 +62,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['age', 'income', 'education', 'gender', 'city_size', 'credit_score', 'marital_status', 'occupation'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'categorical', 'categorical', 'categorical', 'numerical', 'categorical', 'categorical'];
 
     for (let i = 0; i < 1500; i++) {
       const age = Math.floor(Math.random() * 50) + 20;
@@ -97,7 +101,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['age', 'blood_pressure', 'cholesterol', 'bmi', 'smoking', 'exercise', 'diet', 'family_history'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'numerical', 'numerical', 'categorical', 'categorical', 'categorical', 'categorical'];
 
     for (let i = 0; i < 1200; i++) {
       const age = Math.floor(Math.random() * 60) + 30;
@@ -137,7 +140,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['account_balance', 'credit_score', 'loan_amount', 'employment_years', 'debt_ratio', 'income_stability', 'loan_purpose', 'collateral'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'numerical', 'numerical', 'numerical', 'categorical', 'categorical', 'categorical'];
 
     for (let i = 0; i < 2000; i++) {
       const accountBalance = Math.random() * 100000;
@@ -177,7 +179,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['age', 'income', 'education', 'gender', 'city_size', 'credit_score', 'marital_status', 'occupation'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'categorical', 'categorical', 'categorical', 'numerical', 'categorical', 'categorical'];
 
     for (let i = 0; i < 1800; i++) {
       const age = Math.floor(Math.random() * 50) + 20;
@@ -217,7 +218,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['age', 'income', 'education', 'gender', 'city_size', 'credit_score', 'marital_status', 'occupation'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'categorical', 'categorical', 'categorical', 'numerical', 'categorical', 'categorical'];
 
     for (let i = 0; i < 1600; i++) {
       const age = Math.floor(Math.random() * 50) + 20;
@@ -257,7 +257,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['house_size', 'bedrooms', 'bathrooms', 'location', 'age', 'condition', 'garage', 'pool', 'garden_size'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'numerical', 'categorical', 'numerical', 'categorical', 'categorical', 'categorical', 'numerical'];
 
     for (let i = 0; i < 2000; i++) {
       const houseSize = Math.random() * 300 + 50;
@@ -308,7 +307,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['product_category', 'price', 'discount', 'season', 'advertising_budget', 'competitor_price', 'store_size', 'location_type'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['categorical', 'numerical', 'numerical', 'categorical', 'numerical', 'numerical', 'categorical', 'categorical'];
 
     for (let i = 0; i < 1800; i++) {
       const productCategory = ['electronics', 'clothing', 'food', 'books', 'sports'][Math.floor(Math.random() * 5)];
@@ -612,12 +610,15 @@ export class SimpleDataManager {
     
     // 生データを更新するかどうか
     updateRawData?: boolean;
+    
+    // 正規化
+    normalize?: boolean;
   }): ProcessedDataset {
     if (!this.currentDataset) {
       throw new Error('No dataset loaded');
     }
 
-    let processedData = [...this.currentDataset.data];
+    let processedData: (number | string)[][] = [...this.currentDataset.data];
     let processedFeatureNames = [...this.currentDataset.featureNames];
     let featureTypes: ('numerical' | 'categorical')[] = this.detectFeatureTypes(processedData);
     const processingSteps: string[] = [];
@@ -641,7 +642,7 @@ export class SimpleDataManager {
 
     // 欠損値処理
     const missingStrategy = options.missingValueStrategy || 'remove';
-    if (missingStrategy !== 'none') {
+    if (missingStrategy && missingStrategy !== 'remove') {
       processedData = this.handleMissingValues(processedData, featureTypes, missingStrategy);
       processingSteps.push(`欠損値処理: ${missingStrategy}手法を適用`);
     }
@@ -655,12 +656,12 @@ export class SimpleDataManager {
     }
 
     // カテゴリカル変数のエンコーディング
-    if (options.categoricalEncoding && options.categoricalEncoding !== 'none') {
+    if (options.categoricalEncoding && options.categoricalEncoding !== 'label') {
       const result = this.encodeCategoricalFeatures(
         processedData, 
         processedFeatureNames, 
         featureTypes, 
-        options.categoricalEncoding,
+        options.categoricalEncoding as 'label' | 'onehot' | 'target',
         options.selectedFeatures // 選択したカラムのみに適用
       );
       processedData = result.data;
@@ -691,18 +692,24 @@ export class SimpleDataManager {
       processingSteps.push(`特徴量選択: ${options.selectedFeatures.length}個の特徴量を選択`);
     }
 
-    // 正規化
+    // 正規化（オプションが存在する場合のみ）
     if (options.normalize) {
       const numericalIndices = featureTypes.map((type, i) => type === 'numerical' ? i : -1).filter(i => i !== -1);
       
       if (numericalIndices.length > 0) {
         const means = numericalIndices.map(i => {
-          const values = processedData.map(row => row[i] as number);
+          const values = processedData.map(row => {
+            const val = row[i];
+            return typeof val === 'number' ? val : 0;
+          });
           return values.reduce((a, b) => a + b, 0) / values.length;
         });
         
         const stds = numericalIndices.map((i, idx) => {
-          const values = processedData.map(row => row[i] as number);
+          const values = processedData.map(row => {
+            const val = row[i];
+            return typeof val === 'number' ? val : 0;
+          });
           const mean = means[idx];
           const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
           return Math.sqrt(variance);
@@ -711,7 +718,10 @@ export class SimpleDataManager {
         processedData = processedData.map(row => {
           const newRow = [...row];
           numericalIndices.forEach((i, idx) => {
-            newRow[i] = ((row[i] as number) - means[idx]) / stds[idx];
+            const val = row[i];
+            if (typeof val === 'number') {
+              newRow[i] = (val - means[idx]) / stds[idx];
+            }
           });
           return newRow;
         });
@@ -765,18 +775,18 @@ export class SimpleDataManager {
     method: 'label' | 'onehot' | 'target',
     selectedFeatures?: number[]
   ): {
-    data: number[][];
+    data: (number | string)[][];
     featureNames: string[];
     featureTypes: ('numerical' | 'categorical')[];
     encodingInfo: Record<string, any>;
   } {
-    const result: number[][] = [];
+    const result: (number | string)[][] = [];
     const newFeatureNames: string[] = [];
     const newFeatureTypes: ('numerical' | 'categorical')[] = [];
     const encodingInfo: Record<string, any> = {};
 
     for (let i = 0; i < data.length; i++) {
-      const newRow: number[] = [];
+      const newRow: (number | string)[] = [];
       
       for (let j = 0; j < featureNames.length; j++) {
         if (featureTypes[j] === 'numerical') {
@@ -824,9 +834,8 @@ export class SimpleDataManager {
             });
           } else {
             // エンコーディングしない場合は文字列のまま保持
-            // 数値として表示するためにハッシュ値を計算
-            const hashValue = this.stringToNumber(value);
-            newRow.push(hashValue);
+            // 数値配列に文字列を直接格納（表示用）
+            newRow.push(value as any);
             if (i === 0) {
               newFeatureNames.push(featureName);
               newFeatureTypes.push('categorical');
@@ -846,29 +855,19 @@ export class SimpleDataManager {
     };
   }
 
-  // 文字列を数値に変換（ハッシュ値）
-  private stringToNumber(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 32bit整数に変換
-    }
-    return Math.abs(hash) % 1000; // 0-999の範囲に正規化
-  }
 
   // 特徴量エンジニアリング
   private performFeatureEngineering(
-    data: number[][],
+    data: (number | string)[][],
     featureNames: string[],
     featureTypes: ('numerical' | 'categorical')[]
   ): {
-    data: number[][];
+    data: (number | string)[][];
     featureNames: string[];
     featureTypes: ('numerical' | 'categorical')[];
     newFeatures: string[];
   } {
-    const newData: number[][] = [];
+    const newData: (number | string)[][] = [];
     const newFeatureNames = [...featureNames];
     const newFeatureTypes = [...featureTypes];
     const newFeatures: string[] = [];
@@ -881,7 +880,10 @@ export class SimpleDataManager {
       
       if (numericalIndices.length >= 2) {
         // 積
-        const product = numericalIndices.reduce((acc, idx) => acc * data[i][idx], 1);
+        const product = numericalIndices.reduce((acc, idx) => {
+          const val = data[i][idx];
+          return acc * (typeof val === 'number' ? val : 0);
+        }, 1);
         newRow.push(product);
         if (i === 0) {
           newFeatureNames.push('feature_product');
@@ -890,7 +892,10 @@ export class SimpleDataManager {
         }
         
         // 平均
-        const mean = numericalIndices.reduce((acc, idx) => acc + data[i][idx], 0) / numericalIndices.length;
+        const mean = numericalIndices.reduce((acc, idx) => {
+          const val = data[i][idx];
+          return acc + (typeof val === 'number' ? val : 0);
+        }, 0) / numericalIndices.length;
         newRow.push(mean);
         if (i === 0) {
           newFeatureNames.push('feature_mean');
@@ -899,7 +904,10 @@ export class SimpleDataManager {
         }
         
         // 最大値
-        const max = Math.max(...numericalIndices.map(idx => data[i][idx]));
+        const max = Math.max(...numericalIndices.map(idx => {
+          const val = data[i][idx];
+          return typeof val === 'number' ? val : 0;
+        }));
         newRow.push(max);
         if (i === 0) {
           newFeatureNames.push('feature_max');
@@ -1012,7 +1020,7 @@ export class SimpleDataManager {
 
     // 変換を適用
     if (options.transformations.polynomial) {
-      const { data: polyData, names: polyNames } = this.createPolynomialFeatures(selectedData, selectedFeatureNames);
+      const { data: polyData, names: polyNames } = this.createPolynomialFeatures(selectedData as number[][], selectedFeatureNames);
       data = polyData;
       featureNames = polyNames;
       featureTypes = new Array(featureNames.length).fill('numerical');
@@ -1021,7 +1029,7 @@ export class SimpleDataManager {
     }
 
     if (options.transformations.interaction) {
-      const { data: intData, names: intNames } = this.createInteractionFeatures(data, featureNames);
+      const { data: intData, names: intNames } = this.createInteractionFeatures(data as number[][], featureNames);
       data = intData;
       featureNames = intNames;
       featureTypes = new Array(featureNames.length).fill('numerical');
@@ -1030,7 +1038,7 @@ export class SimpleDataManager {
     }
 
     if (options.transformations.log) {
-      const { data: logData, names: logNames } = this.createLogFeatures(data, featureNames);
+      const { data: logData, names: logNames } = this.createLogFeatures(data as number[][], featureNames);
       data = logData;
       featureNames = logNames;
       featureTypes = new Array(featureNames.length).fill('numerical');
@@ -1039,7 +1047,7 @@ export class SimpleDataManager {
     }
 
     if (options.transformations.sqrt) {
-      const { data: sqrtData, names: sqrtNames } = this.createSqrtFeatures(data, featureNames);
+      const { data: sqrtData, names: sqrtNames } = this.createSqrtFeatures(data as number[][], featureNames);
       data = sqrtData;
       featureNames = sqrtNames;
       featureTypes = new Array(featureNames.length).fill('numerical');
@@ -1048,7 +1056,7 @@ export class SimpleDataManager {
     }
 
     if (options.transformations.square) {
-      const { data: squareData, names: squareNames } = this.createSquareFeatures(data, featureNames);
+      const { data: squareData, names: squareNames } = this.createSquareFeatures(data as number[][], featureNames);
       data = squareData;
       featureNames = squareNames;
       featureTypes = new Array(featureNames.length).fill('numerical');
@@ -1058,7 +1066,7 @@ export class SimpleDataManager {
 
     // 集約特徴量の作成
     if (options.aggregations.mean) {
-      const { data: meanData, names: meanNames } = this.createAggregationFeatures(data, featureNames, 'mean');
+      const { data: meanData, names: meanNames } = this.createAggregationFeatures(data as number[][], featureNames, 'mean');
       data = meanData;
       featureNames = meanNames;
       featureTypes = new Array(featureNames.length).fill('numerical');
@@ -1068,11 +1076,14 @@ export class SimpleDataManager {
 
     // 次元削減
     if (options.dimensionalityReduction.method !== 'none') {
-      const { data: reducedData, names: reducedNames } = this.applyDimensionalityReduction(
+      const result = this.applyDimensionalityReduction(
         data, 
+        featureTypes,
         options.dimensionalityReduction.method, 
         options.dimensionalityReduction.components
       );
+      const reducedData = result.data;
+      const reducedNames = result.featureNames;
       data = reducedData;
       featureNames = reducedNames;
       featureTypes = new Array(featureNames.length).fill('numerical');
@@ -1231,19 +1242,6 @@ export class SimpleDataManager {
     return { data: newData, names: newNames };
   }
 
-  // 次元削減の適用
-  private applyDimensionalityReduction(data: number[][], method: string, components: number): { data: number[][], names: string[] } {
-    // 簡易的なPCA実装
-    if (method === 'pca') {
-      return this.simplePCA(data, components);
-    }
-    
-    // その他の方法は簡易実装
-    return {
-      data: data.map(row => row.slice(0, components)),
-      names: Array.from({ length: components }, (_, i) => `${method}_component_${i + 1}`)
-    };
-  }
 
   // 簡易PCA実装
   private simplePCA(data: number[][], components: number): { data: number[][], names: string[] } {
@@ -1325,7 +1323,8 @@ export class SimpleDataManager {
         featureNames: selectedFeatureNames,
         featureTypes: selectedFeatureTypes,
         targetValues: sourceDataset.targetValues,
-        processingSteps: [`特徴量選択: ${options.method} (${selectedIndices.length}個選択)`]
+        processingSteps: [`特徴量選択: ${options.method} (${selectedIndices.length}個選択)`],
+        encodingInfo: {}
       };
     } else {
       this.processedDataset = {
@@ -1351,7 +1350,7 @@ export class SimpleDataManager {
 
     for (let i = 0; i < data[0].length; i++) {
       const featureValues = data.map(row => typeof row[i] === 'number' ? row[i] : parseFloat(row[i] as string) || 0);
-      const correlation = this.calculateCorrelation(featureValues, targets);
+      const correlation = this.calculateCorrelation(featureValues as number[], targets);
       correlations.push({ index: i, correlation: Math.abs(correlation) });
     }
 
@@ -1370,8 +1369,8 @@ export class SimpleDataManager {
     // 簡易的な重要度計算（分散ベース）
     for (let i = 0; i < data[0].length; i++) {
       const featureValues = data.map(row => typeof row[i] === 'number' ? row[i] : parseFloat(row[i] as string) || 0);
-      const variance = this.calculateVariance(featureValues);
-      const correlation = Math.abs(this.calculateCorrelation(featureValues, targets));
+      const variance = this.calculateVariance(featureValues as number[]);
+      const correlation = Math.abs(this.calculateCorrelation(featureValues as number[], targets));
       const importance = variance * correlation;
       importances.push({ index: i, importance });
     }
@@ -1389,7 +1388,7 @@ export class SimpleDataManager {
 
     for (let i = 0; i < data[0].length; i++) {
       const featureValues = data.map(row => typeof row[i] === 'number' ? row[i] : parseFloat(row[i] as string) || 0);
-      const variance = this.calculateVariance(featureValues);
+      const variance = this.calculateVariance(featureValues as number[]);
       if (variance >= threshold) {
         selectedIndices.push(i);
       }
@@ -1406,7 +1405,7 @@ export class SimpleDataManager {
 
     for (let i = 0; i < data[0].length; i++) {
       const featureValues = data.map(row => typeof row[i] === 'number' ? row[i] : parseFloat(row[i] as string) || 0);
-      const mutualInfo = this.calculateMutualInfo(featureValues, targets);
+      const mutualInfo = this.calculateMutualInfo(featureValues as number[], targets);
       mutualInfos.push({ index: i, mutualInfo });
     }
 
@@ -1451,7 +1450,7 @@ export class SimpleDataManager {
 
   // データを分割
   splitData(trainRatio: number, validationRatio: number, testRatio: number) {
-    let data: number[][];
+    let data: (number | string)[][];
     let targets: number[];
 
     if (this.processedDataset) {
@@ -1476,18 +1475,30 @@ export class SimpleDataManager {
       
       // 平均を計算
       for (let i = 0; i < nFeatures; i++) {
-        means[i] = data.reduce((sum, row) => sum + row[i], 0) / data.length;
+        means[i] = data.reduce((sum, row) => {
+          const val = row[i];
+          return sum + (typeof val === 'number' ? val : 0);
+        }, 0) / data.length;
       }
       
       // 標準偏差を計算
       for (let i = 0; i < nFeatures; i++) {
-        const variance = data.reduce((sum, row) => sum + Math.pow(row[i] - means[i], 2), 0) / data.length;
+        const variance = data.reduce((sum, row) => {
+          const val = row[i];
+          const numVal = typeof val === 'number' ? val : 0;
+          return sum + Math.pow(numVal - means[i], 2);
+        }, 0) / data.length;
         stds[i] = Math.sqrt(variance);
       }
       
       // 正規化を適用
       data = data.map(row => 
-        row.map((val, i) => (val - means[i]) / (stds[i] + 1e-8))
+        row.map((val, i) => {
+          if (typeof val === 'number') {
+            return (val - means[i]) / (stds[i] + 1e-8);
+          }
+          return val;
+        })
       );
     } else {
       throw new Error('No dataset available for splitting');
@@ -1529,13 +1540,44 @@ export class SimpleDataManager {
     return this.currentDataset;
   }
 
+  // 表示用のデータセットを取得（加工済みデータがあればそれを使用、なければ生データ）
+  getDisplayDataset(): {
+    data: (number | string)[][];
+    featureNames: string[];
+    featureTypes: ('numerical' | 'categorical')[];
+    targetValues: number[];
+    type: 'classification' | 'regression';
+  } | null {
+    if (!this.currentDataset) return null;
+
+    // 加工済みデータがある場合はそれを使用
+    if (this.processedDataset) {
+      return {
+        data: this.processedDataset.data,
+        featureNames: this.processedDataset.featureNames,
+        featureTypes: this.processedDataset.featureTypes,
+        targetValues: this.processedDataset.targetValues,
+        type: this.currentDataset.type
+      };
+    }
+
+    // 加工済みデータがない場合は生データを使用
+    return {
+      data: this.currentDataset.data,
+      featureNames: this.currentDataset.featureNames,
+      featureTypes: this.detectFeatureTypes(this.currentDataset.data),
+      targetValues: this.currentDataset.targetValues,
+      type: this.currentDataset.type
+    };
+  }
+
   // 処理済みデータセットを取得
   getProcessedDataset(): ProcessedDataset | null {
     return this.processedDataset;
   }
 
   // 欠損値処理
-  private handleMissingValues(data: (number | string)[][], featureTypes: ('numerical' | 'categorical')[], strategy: string): (number | string)[][] {
+  private handleMissingValues(data: (number | string)[][], featureTypes: ('numerical' | 'categorical')[], strategy: 'remove' | 'mean' | 'median' | 'mode' | 'forward_fill' | 'backward_fill' | 'interpolate' | 'knn'): (number | string)[][] {
     if (strategy === 'remove') {
       return data.filter(row => row.every(val => val !== null && val !== undefined && val !== ''));
     }
@@ -1597,7 +1639,7 @@ export class SimpleDataManager {
             fillValue = 0;
         }
 
-        if (strategy !== 'forward_fill' && strategy !== 'backward_fill' && strategy !== 'interpolate' && strategy !== 'knn') {
+        if (strategy === 'mean' || strategy === 'median' || strategy === 'mode') {
           for (let i = 0; i < result.length; i++) {
             if (result[i][j] === null || result[i][j] === undefined || result[i][j] === '') {
               result[i][j] = fillValue;
@@ -1643,7 +1685,7 @@ export class SimpleDataManager {
             fillValue = 'unknown';
         }
 
-        if (strategy !== 'forward_fill' && strategy !== 'backward_fill') {
+        if (strategy === 'mode') {
           for (let i = 0; i < result.length; i++) {
             if (result[i][j] === null || result[i][j] === undefined || result[i][j] === '') {
               result[i][j] = fillValue;
@@ -1747,7 +1789,7 @@ export class SimpleDataManager {
   }
 
   // 外れ値処理
-  private handleOutliers(data: (number | string)[][], featureTypes: ('numerical' | 'categorical')[], strategy: string, threshold: number): (number | string)[][] {
+  private handleOutliers(data: (number | string)[][], featureTypes: ('numerical' | 'categorical')[], strategy: 'none' | 'iqr' | 'zscore' | 'isolation_forest' | 'local_outlier_factor', threshold: number): (number | string)[][] {
     if (strategy === 'none') return data;
 
     const result = data.map(row => [...row]);

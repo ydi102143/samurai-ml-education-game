@@ -26,9 +26,9 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   const [currentDataset, setCurrentDataset] = useState<SimpleDataset | null>(null);
   const [processedDataset, setProcessedDataset] = useState<ProcessedDataset | null>(null);
   const [dataSplit, setDataSplit] = useState<{
-    train: { data: number[][], targets: number[] };
-    validation: { data: number[][], targets: number[] };
-    test: { data: number[][], targets: number[] };
+    train: { data: (number | string)[][], targets: number[] };
+    validation: { data: (number | string)[][], targets: number[] };
+    test: { data: (number | string)[][], targets: number[] };
   } | null>(null);
   const [trainRatio, setTrainRatio] = useState(0.7);
   const [validationRatio, setValidationRatio] = useState(0.2);
@@ -86,7 +86,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     selectedOutlierColumns: [] as number[],
     scalingStrategy: 'none' as 'none' | 'minmax' | 'standard' | 'robust' | 'maxabs' | 'quantile',
     selectedScalingColumns: [] as number[],
-    categoricalEncoding: 'none' as 'none' | 'label' | 'onehot' | 'target' | 'binary' | 'hash' | 'frequency' | 'ordinal',
+    categoricalEncoding: undefined as 'label' | 'onehot' | 'target' | 'binary' | 'hash' | 'frequency' | 'ordinal' | undefined,
     selectedCategoricalColumns: [] as number[]
   });
 
@@ -99,11 +99,49 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [newMessage, setNewMessage] = useState('');
-  const [username] = useState('Player' + Math.floor(Math.random() * 1000));
+  const [username, setUsername] = useState('ユーザー');
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0 });
   
   // EDA表示制御
   const [showProcessedData, setShowProcessedData] = useState(false);
+
+  // ユーザー名を取得
+  useEffect(() => {
+    const getUserName = () => {
+      const storageKey = 'ml_battle_user_id';
+      const userId = localStorage.getItem(storageKey);
+      
+      if (userId) {
+        // 既存のユーザーIDからプレイヤー名を生成（一貫性のため）
+        const adjectives = ['Swift', 'Bright', 'Sharp', 'Bold', 'Quick', 'Smart', 'Wise', 'Strong', 'Fast', 'Cool'];
+        const nouns = ['Warrior', 'Ninja', 'Master', 'Expert', 'Wizard', 'Hero', 'Champion', 'Legend', 'Pro', 'Ace'];
+        
+        // ユーザーIDから一貫したプレイヤー名を生成
+        const hash = userId.split('_').pop() || '';
+        const adjectiveIndex = parseInt(hash.substring(0, 2), 36) % adjectives.length;
+        const nounIndex = parseInt(hash.substring(2, 4), 36) % nouns.length;
+        const number = parseInt(hash.substring(4, 7), 36) % 999 + 1;
+        
+        const playerName = `${adjectives[adjectiveIndex]}${nouns[nounIndex]}${number}`;
+        setUsername(playerName);
+      } else {
+        // 新しいユーザーIDを生成
+        const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem(storageKey, newUserId);
+        
+        const adjectives = ['Swift', 'Bright', 'Sharp', 'Bold', 'Quick', 'Smart', 'Wise', 'Strong', 'Fast', 'Cool'];
+        const nouns = ['Warrior', 'Ninja', 'Master', 'Expert', 'Wizard', 'Hero', 'Champion', 'Legend', 'Pro', 'Ace'];
+        
+        const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+        const noun = nouns[Math.floor(Math.random() * nouns.length)];
+        const number = Math.floor(Math.random() * 999) + 1;
+        
+        setUsername(`${adjective}${noun}${number}`);
+      }
+    };
+
+    getUserName();
+  }, []);
 
   // 初期化
   useEffect(() => {
@@ -119,10 +157,18 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     });
 
     // 週次問題更新を購読
-    weeklyProblemSystem.onProblemUpdate(setWeeklyProblem);
+    weeklyProblemSystem.onProblemUpdate((problem) => {
+      setWeeklyProblem(problem);
+      // 問題が変更されたらモデルも更新
+      if (problem) {
+        loadAvailableModels();
+      }
+    });
 
     // スコアリングシステム更新を購読
-    scoringSystem.onLeaderboardUpdate(setLeaderboard);
+    scoringSystem.onLeaderboardUpdate((leaderboard) => {
+      setLeaderboard(leaderboard);
+    });
 
     // タイマーを開始
     const timer = setInterval(() => {
@@ -147,18 +193,32 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   const loadWeeklyProblem = () => {
     const problem = weeklyProblemSystem.getCurrentProblem();
     setWeeklyProblem(problem);
+    
+    // 問題が変更されたらモデルも更新
+    if (problem) {
+      loadAvailableModels();
+    }
   };
 
   // 利用可能なモデルを読み込み
   const loadAvailableModels = () => {
     const allModels = simpleMLManager.getAvailableModels();
     
-    // 現在のデータセットのタイプに基づいてモデルをフィルタリング
-    if (currentDataset) {
-      const filteredModels = allModels.filter(model => model.type === currentDataset!.type);
+    // 週次問題のタイプを優先し、なければデータセットのタイプを使用
+    let problemType = null;
+    if (weeklyProblem) {
+      problemType = weeklyProblem.type;
+    } else if (currentDataset) {
+      problemType = currentDataset.type;
+    }
+    
+    if (problemType) {
+      const filteredModels = allModels.filter(model => model.type === problemType);
       setAvailableModels(filteredModels);
+      console.log(`問題タイプ "${problemType}" に基づいて ${filteredModels.length} 個のモデルを表示`);
     } else {
       setAvailableModels(allModels);
+      console.log('すべてのモデルを表示');
     }
   };
 
@@ -175,11 +235,11 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       }
       
       // データから型を推定
-      const values = dataset.data.map((row: any[]) => row[index]).filter(val => val !== null && val !== undefined && val !== '');
+      const values = dataset.data.map((row: any[]) => row[index]).filter((val: any) => val !== null && val !== undefined && val !== '');
       if (values.length === 0) return 'numerical';
       
       // 全ての値が数値かチェック
-      const allNumeric = values.every(val => typeof val === 'number' || !isNaN(Number(val)));
+      const allNumeric = values.every((val: any) => typeof val === 'number' || !isNaN(Number(val)));
       if (allNumeric) return 'numerical';
       
       // 文字列の場合はカテゴリカル
@@ -193,8 +253,20 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     setError(null);
     
     try {
-      const datasetType = Math.random() > 0.5 ? 'classification' : 'regression';
-      const dataset = simpleDataManager.generateDataset(datasetType);
+      // 週次問題のタイプに基づいてデータセットを生成
+      let datasetType = 'random';
+      if (weeklyProblem) {
+        if (weeklyProblem.type === 'classification') {
+          datasetType = 'classification';
+        } else if (weeklyProblem.type === 'regression') {
+          datasetType = 'regression';
+        }
+      } else {
+        // 週次問題がない場合はランダムに選択
+        datasetType = Math.random() > 0.5 ? 'classification' : 'regression';
+      }
+      
+      const dataset = simpleDataManager.generateDataset(datasetType as 'classification' | 'regression');
       
       if (!dataset || !dataset.data || dataset.data.length === 0) {
         throw new Error('データセットの生成に失敗しました');
@@ -207,6 +279,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       
       // データセットが読み込まれたら、適切なモデルを読み込み
       loadAvailableModels();
+      
+      console.log(`データセットタイプ "${datasetType}" でデータセットを生成:`, dataset.name);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'データセットの読み込みに失敗しました';
       setError(errorMessage);
@@ -448,11 +522,6 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         log: false,
         sqrt: false,
         square: false,
-        exponential: false,
-        reciprocal: false,
-        sin: false,
-        cos: false,
-        tan: false
       },
       aggregations: {
         mean: false,
@@ -460,11 +529,6 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         max: false,
         min: false,
         count: false,
-        median: false,
-        mode: false,
-        variance: false,
-        skewness: false,
-        kurtosis: false
       },
       timeSeriesFeatures: {
         lag: false,
@@ -490,7 +554,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         custom_combinations: false
       },
       dimensionalityReduction: {
-        method: 'none' as 'none' | 'pca' | 'lda' | 'tsne' | 'umap' | 'ica' | 'factor_analysis',
+        method: 'none' as 'none' | 'pca' | 'lda' | 'tsne',
         components: 2
       },
       featureSelection: {
@@ -677,7 +741,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
 
     setIsEvaluating(true);
     setError(null);
-    updateParticipantStatus('evaluating');
+    updateParticipantStatus('validating');
 
     try {
       // テストデータで自動評価を実行
@@ -703,7 +767,6 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
               ) : [],
             trainingTime: trainingResult?.trainingTime || 0,
             validationTime: 0,
-            testTime: 0
           }
         });
         
@@ -1030,7 +1093,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                   <EDAPanel
                     data={currentDataset.data.map((row, i) => ({
                       features: row,
-                      target: currentDataset.targetValues[i]
+                      target: currentDataset.targetValues[i] || 0
                     }))}
                     problemType={currentDataset.type}
                     featureNames={currentDataset.featureNames}
@@ -1038,6 +1101,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                     showProcessedData={showProcessedData}
                     processedDataset={processedDataset}
                     currentDataset={currentDataset}
+                    dataManager={simpleDataManager}
                   />
 
                   <div className="flex justify-between">
