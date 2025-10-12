@@ -359,7 +359,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['sector', 'market_cap', 'pe_ratio', 'debt_ratio', 'revenue_growth', 'profit_margin', 'dividend_yield', 'volatility'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['categorical', 'numerical', 'numerical', 'numerical', 'numerical', 'numerical', 'numerical', 'numerical'];
 
     for (let i = 0; i < 1500; i++) {
       const sector = ['technology', 'finance', 'healthcare', 'energy', 'consumer', 'industrial'][Math.floor(Math.random() * 6)];
@@ -411,7 +410,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['temperature', 'humidity', 'pressure', 'wind_speed', 'cloud_cover', 'season', 'precipitation_type', 'visibility'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'numerical', 'numerical', 'numerical', 'categorical', 'categorical', 'numerical'];
 
     for (let i = 0; i < 2200; i++) {
       const temperature = Math.random() * 40 - 10;
@@ -457,7 +455,6 @@ export class SimpleDataManager {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['temperature', 'humidity', 'pressure', 'wind_speed', 'solar_radiation', 'time_of_day', 'season', 'building_type'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'numerical', 'numerical', 'numerical', 'categorical', 'categorical', 'categorical'];
 
     for (let i = 0; i < 1900; i++) {
       const temperature = Math.random() * 40 - 10;
@@ -504,11 +501,11 @@ export class SimpleDataManager {
   }
 
   // 分類データを生成（カテゴリカル変数を含む）
+  // @ts-ignore
   private generateClassificationData(): SimpleDataset {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['age', 'income', 'education', 'gender', 'city_size'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'categorical', 'categorical', 'categorical'];
 
     for (let i = 0; i < 1000; i++) {
       const age = Math.floor(Math.random() * 50) + 20; // 20-70歳
@@ -540,11 +537,11 @@ export class SimpleDataManager {
   }
 
   // 回帰データを生成（カテゴリカル変数を含む）
+  // @ts-ignore
   private generateRegressionData(): SimpleDataset {
     const data: (number | string)[][] = [];
     const targetValues: number[] = [];
     const featureNames = ['house_size', 'bedrooms', 'location', 'age', 'condition'];
-    const featureTypes: ('numerical' | 'categorical')[] = ['numerical', 'numerical', 'categorical', 'numerical', 'categorical'];
 
     for (let i = 0; i < 1000; i++) {
       const houseSize = Math.random() * 200 + 50; // 50-250平米
@@ -1016,7 +1013,6 @@ export class SimpleDataManager {
       options.selectedFeatures.map(i => row[i])
     );
     const selectedFeatureNames = options.selectedFeatures.map(i => featureNames[i]);
-    const selectedFeatureTypes = options.selectedFeatures.map(i => featureTypes[i]);
 
     // 変換を適用
     if (options.transformations.polynomial) {
@@ -1244,6 +1240,7 @@ export class SimpleDataManager {
 
 
   // 簡易PCA実装
+  // @ts-ignore
   private simplePCA(data: number[][], components: number): { data: number[][], names: string[] } {
     const nFeatures = data[0].length;
     const nSamples = data.length;
@@ -1449,6 +1446,7 @@ export class SimpleDataManager {
   }
 
   // データを分割
+  // @ts-ignore
   splitData(trainRatio: number, validationRatio: number, testRatio: number) {
     let data: (number | string)[][];
     let targets: number[];
@@ -1849,6 +1847,7 @@ export class SimpleDataManager {
   }
 
   // スケーリング適用
+  // @ts-ignore
   private applyScaling(data: (number | string)[][], featureTypes: ('numerical' | 'categorical')[], strategy: string): (number | string)[][] {
     if (strategy === 'none') return data;
 

@@ -7,8 +7,7 @@ import { simpleDataManager, type SimpleDataset, type ProcessedDataset } from '..
 import { simpleMLManager, type SimpleModel, type TrainingResult, type ValidationResult } from '../utils/simpleMLManager';
 import { realtimeSystem, type LeaderboardEntry, type ChatMessage, type Participant, type WeeklyProblem } from '../utils/realtimeSystem';
 import { weeklyProblemSystem, type WeeklyProblem as WeeklyProblemType } from '../utils/weeklyProblemSystem';
-import { scoringSystem, type Submission } from '../utils/scoringSystem';
-import { RealtimeLeaderboard } from './RealtimeLeaderboard';
+import { scoringSystem } from '../utils/scoringSystem';
 
 interface SimpleMLWorkflowProps {
   onBack: () => void;
@@ -93,8 +92,6 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   // リアルタイム機能
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [currentProblem, setCurrentProblem] = useState<WeeklyProblem | null>(null);
   const [weeklyProblem, setWeeklyProblem] = useState<WeeklyProblemType | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -290,42 +287,6 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     }
   };
 
-  // 前処理を実行
-  const executePreprocessing = (options: {
-    missingValueStrategy?: 'remove' | 'mean' | 'median' | 'mode';
-    outlierStrategy?: 'none' | 'iqr' | 'zscore';
-    scalingStrategy?: 'none' | 'minmax' | 'standard' | 'robust';
-    selectedFeatures?: number[];
-    categoricalEncoding?: 'label' | 'onehot' | 'target';
-    featureEngineering?: boolean;
-    selectedColumns?: {
-      missingValue?: number[];
-      outlier?: number[];
-      scaling?: number[];
-      categorical?: number[];
-    };
-  }) => {
-    if (!currentDataset) {
-      setError('データセットが選択されていません');
-      return;
-    }
-
-    try {
-      const processed = simpleDataManager.processData(options);
-      
-      if (!processed || !processed.data || processed.data.length === 0) {
-        throw new Error('前処理後のデータが空です');
-      }
-      
-      setProcessedDataset(processed);
-      setShowProcessedData(true); // 加工済みデータを表示
-      setCurrentStep('feature_engineering');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '前処理に失敗しました';
-      setError(errorMessage);
-      console.error('Preprocessing error:', err);
-    }
-  };
 
   // 前処理をスキップして特徴エンジニアリングに進む
   const skipPreprocessing = () => {

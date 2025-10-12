@@ -57,7 +57,6 @@ export class WeeklyProblemSystem {
   private problemHistory: WeeklyProblem[] = [];
   private listeners: ((problem: WeeklyProblem) => void)[] = [];
   private submissions: Map<string, FinalSubmission[]> = new Map();
-  private evaluationTimer: NodeJS.Timeout | null = null;
   private lastProblemChange: number = 0;
   private readonly PROBLEM_DURATION = 7 * 24 * 60 * 60 * 1000; // 1週間（ミリ秒）
 
@@ -398,7 +397,7 @@ export class WeeklyProblemSystem {
   // 評価タイマーを開始
   private startEvaluationTimer() {
     // 毎分チェックして、評価時間になったら実行
-    this.evaluationTimer = setInterval(() => {
+    setInterval(() => {
       if (this.currentProblem && this.currentProblem.status === 'active') {
         const now = new Date();
         if (this.currentProblem.finalResults && now >= this.currentProblem.finalResults.evaluationDate) {

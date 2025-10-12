@@ -43,18 +43,9 @@ export class DynamicLeaderboard {
 
   // ユーザーIDを取得または生成
   private getOrCreateUserId(): string {
-    const storageKey = 'ml_battle_user_id';
-    let userId = localStorage.getItem(storageKey);
-    
-    if (!userId) {
-      // 新しいユーザーIDを生成
-      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem(storageKey, userId);
-      console.log('新しいユーザーIDを生成:', userId);
-    } else {
-      console.log('既存のユーザーIDを使用:', userId);
-    }
-    
+    // セッションごとに新しいユーザーIDを生成
+    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('新しいユーザーIDを生成:', userId);
     return userId;
   }
 

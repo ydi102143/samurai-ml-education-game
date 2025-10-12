@@ -11,7 +11,6 @@ interface EDAPanelProps {
   showProcessedData?: boolean;
   processedDataset?: any;
   currentDataset?: any;
-  dataManager?: any;
 }
 
 // ヒストグラムデータ生成関数
@@ -54,7 +53,7 @@ const generateBoxPlotData = (data: any[], featureIndex: number) => {
   ];
 };
 
-export function EDAPanel({ data, problemType, featureNames: propFeatureNames, displayFeatureTypes: propFeatureTypes, showProcessedData = false, processedDataset, currentDataset, dataManager }: EDAPanelProps) {
+export function EDAPanel({ data, problemType, featureNames: propFeatureNames, displayFeatureTypes: propFeatureTypes, showProcessedData = false, processedDataset, currentDataset }: EDAPanelProps) {
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
   
   // 処理済みデータを取得（定期的に更新）
