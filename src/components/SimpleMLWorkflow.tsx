@@ -77,6 +77,19 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     selectedFeatures: [] as number[]
   });
 
+  // 前処理関連
+  const [preprocessingOptions, setPreprocessingOptions] = useState({
+    missingValueStrategy: 'remove' as 'remove' | 'mean' | 'median' | 'mode' | 'forward_fill' | 'backward_fill' | 'interpolate' | 'knn',
+    selectedMissingColumns: [] as number[],
+    outlierStrategy: 'none' as 'none' | 'iqr' | 'zscore' | 'isolation_forest' | 'local_outlier_factor',
+    outlierThreshold: 1.5,
+    selectedOutlierColumns: [] as number[],
+    scalingStrategy: 'none' as 'none' | 'minmax' | 'standard' | 'robust' | 'maxabs' | 'quantile',
+    selectedScalingColumns: [] as number[],
+    categoricalEncoding: 'none' as 'none' | 'label' | 'onehot' | 'target' | 'binary' | 'hash' | 'frequency' | 'ordinal',
+    selectedCategoricalColumns: [] as number[]
+  });
+
   // リアルタイム機能
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -244,6 +257,140 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   const skipPreprocessing = () => {
     setProcessedDataset(null); // 前処理済みデータをクリア
     setCurrentStep('feature_engineering');
+  };
+
+  // 欠損値処理を実行
+  const executeMissingValueProcessing = () => {
+    if (!currentDataset) {
+      setError('データセットが選択されていません');
+      return;
+    }
+
+    try {
+      const options = {
+        missingValueStrategy: preprocessingOptions.missingValueStrategy,
+        selectedFeatures: preprocessingOptions.selectedMissingColumns.length > 0 
+          ? preprocessingOptions.selectedMissingColumns 
+          : undefined
+      };
+      
+      const processed = simpleDataManager.processData(options);
+      setProcessedDataset(processed);
+      setShowProcessedData(true);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '欠損値処理に失敗しました';
+      setError(errorMessage);
+      console.error('Missing value processing error:', err);
+    }
+  };
+
+  // 外れ値処理を実行
+  const executeOutlierProcessing = () => {
+    if (!currentDataset) {
+      setError('データセットが選択されていません');
+      return;
+    }
+
+    try {
+      const options = {
+        outlierStrategy: preprocessingOptions.outlierStrategy,
+        outlierThreshold: preprocessingOptions.outlierThreshold,
+        selectedFeatures: preprocessingOptions.selectedOutlierColumns.length > 0 
+          ? preprocessingOptions.selectedOutlierColumns 
+          : undefined
+      };
+      
+      const processed = simpleDataManager.processData(options);
+      setProcessedDataset(processed);
+      setShowProcessedData(true);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '外れ値処理に失敗しました';
+      setError(errorMessage);
+      console.error('Outlier processing error:', err);
+    }
+  };
+
+  // 正規化・標準化を実行
+  const executeScalingProcessing = () => {
+    if (!currentDataset) {
+      setError('データセットが選択されていません');
+      return;
+    }
+
+    try {
+      const options = {
+        scalingStrategy: preprocessingOptions.scalingStrategy,
+        selectedFeatures: preprocessingOptions.selectedScalingColumns.length > 0 
+          ? preprocessingOptions.selectedScalingColumns 
+          : undefined
+      };
+      
+      const processed = simpleDataManager.processData(options);
+      setProcessedDataset(processed);
+      setShowProcessedData(true);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '正規化・標準化に失敗しました';
+      setError(errorMessage);
+      console.error('Scaling processing error:', err);
+    }
+  };
+
+  // カテゴリカルエンコーディングを実行
+  const executeCategoricalEncoding = () => {
+    if (!currentDataset) {
+      setError('データセットが選択されていません');
+      return;
+    }
+
+    try {
+      const options = {
+        categoricalEncoding: preprocessingOptions.categoricalEncoding,
+        selectedFeatures: preprocessingOptions.selectedCategoricalColumns.length > 0 
+          ? preprocessingOptions.selectedCategoricalColumns 
+          : undefined
+      };
+      
+      const processed = simpleDataManager.processData(options);
+      setProcessedDataset(processed);
+      setShowProcessedData(true);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'カテゴリカルエンコーディングに失敗しました';
+      setError(errorMessage);
+      console.error('Categorical encoding error:', err);
+    }
+  };
+
+  // すべての前処理を実行
+  const executeAllPreprocessing = () => {
+    if (!currentDataset) {
+      setError('データセットが選択されていません');
+      return;
+    }
+
+    try {
+      const options = {
+        missingValueStrategy: preprocessingOptions.missingValueStrategy,
+        outlierStrategy: preprocessingOptions.outlierStrategy,
+        outlierThreshold: preprocessingOptions.outlierThreshold,
+        scalingStrategy: preprocessingOptions.scalingStrategy,
+        categoricalEncoding: preprocessingOptions.categoricalEncoding,
+        selectedFeatures: [
+          ...preprocessingOptions.selectedMissingColumns,
+          ...preprocessingOptions.selectedOutlierColumns,
+          ...preprocessingOptions.selectedScalingColumns,
+          ...preprocessingOptions.selectedCategoricalColumns
+        ].filter((value, index, self) => self.indexOf(value) === index) // 重複を除去
+      };
+      
+      const processed = simpleDataManager.processData(options);
+      setProcessedDataset(processed);
+      setShowProcessedData(true);
+      setCurrentStep('feature_engineering');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '前処理に失敗しました';
+      setError(errorMessage);
+      console.error('All preprocessing error:', err);
+    }
   };
 
   // ワークフローをリセット
@@ -891,7 +1038,14 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">処理方法</label>
-                        <select className="w-full px-3 py-2 bg-white/10 rounded-lg text-white">
+                        <select 
+                          value={preprocessingOptions.missingValueStrategy}
+                          onChange={(e) => setPreprocessingOptions(prev => ({
+                            ...prev,
+                            missingValueStrategy: e.target.value as any
+                          }))}
+                          className="w-full px-3 py-2 bg-white/10 rounded-lg text-white"
+                        >
                           <option value="remove">削除</option>
                           <option value="mean">平均値で埋める</option>
                           <option value="median">中央値で埋める</option>
@@ -909,7 +1063,21 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                             <label key={index} className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
-                                defaultChecked
+                                checked={preprocessingOptions.selectedMissingColumns.includes(index)}
+                                onChange={(e) => {
+                                  const newColumns = preprocessingOptions.selectedMissingColumns;
+                                  if (e.target.checked) {
+                                    setPreprocessingOptions(prev => ({
+                                      ...prev,
+                                      selectedMissingColumns: [...newColumns, index]
+                                    }));
+                                  } else {
+                                    setPreprocessingOptions(prev => ({
+                                      ...prev,
+                                      selectedMissingColumns: newColumns.filter(i => i !== index)
+                                    }));
+                                  }
+                                }}
                                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                               />
                               <span className="text-sm text-white">{name}</span>
@@ -917,6 +1085,12 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                           ))}
                         </div>
                       </div>
+                      <button
+                        onClick={executeMissingValueProcessing}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        欠損値処理を実行
+                      </button>
                     </div>
                   </div>
 
@@ -926,11 +1100,34 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">処理方法</label>
-                        <select className="w-full px-3 py-2 bg-white/10 rounded-lg text-white">
+                        <select 
+                          value={preprocessingOptions.outlierStrategy}
+                          onChange={(e) => setPreprocessingOptions(prev => ({
+                            ...prev,
+                            outlierStrategy: e.target.value as any
+                          }))}
+                          className="w-full px-3 py-2 bg-white/10 rounded-lg text-white"
+                        >
                           <option value="none">処理しない</option>
                           <option value="iqr">IQR法</option>
                           <option value="zscore">Z-score法</option>
+                          <option value="isolation_forest">Isolation Forest</option>
+                          <option value="local_outlier_factor">Local Outlier Factor</option>
                         </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">閾値</label>
+                        <input 
+                          type="number" 
+                          step="0.1" 
+                          value={preprocessingOptions.outlierThreshold}
+                          onChange={(e) => setPreprocessingOptions(prev => ({
+                            ...prev,
+                            outlierThreshold: parseFloat(e.target.value)
+                          }))}
+                          className="w-full px-3 py-2 bg-white/10 rounded-lg text-white" 
+                          placeholder="1.5" 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">適用するカラム（数値のみ）</label>
@@ -942,7 +1139,21 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                               <label key={index} className={`flex items-center space-x-2 ${!isNumerical ? 'opacity-50' : ''}`}>
                                 <input
                                   type="checkbox"
-                                  defaultChecked={isNumerical}
+                                  checked={preprocessingOptions.selectedOutlierColumns.includes(index)}
+                                  onChange={(e) => {
+                                    const newColumns = preprocessingOptions.selectedOutlierColumns;
+                                    if (e.target.checked) {
+                                      setPreprocessingOptions(prev => ({
+                                        ...prev,
+                                        selectedOutlierColumns: [...newColumns, index]
+                                      }));
+                                    } else {
+                                      setPreprocessingOptions(prev => ({
+                                        ...prev,
+                                        selectedOutlierColumns: newColumns.filter(i => i !== index)
+                                      }));
+                                    }
+                                  }}
                                   disabled={!isNumerical}
                                   className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                 />
@@ -954,20 +1165,35 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                           })}
                         </div>
                       </div>
+                      <button
+                        onClick={executeOutlierProcessing}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        外れ値処理を実行
+                      </button>
                     </div>
                   </div>
 
                   {/* スケーリング */}
                   <div className="bg-white/5 rounded-lg p-6">
-                    <h3 className="text-xl font-semibold mb-4">スケーリング</h3>
+                    <h3 className="text-xl font-semibold mb-4">正規化・標準化</h3>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">スケーリング方法</label>
-                        <select className="w-full px-3 py-2 bg-white/10 rounded-lg text-white">
+                        <select 
+                          value={preprocessingOptions.scalingStrategy}
+                          onChange={(e) => setPreprocessingOptions(prev => ({
+                            ...prev,
+                            scalingStrategy: e.target.value as any
+                          }))}
+                          className="w-full px-3 py-2 bg-white/10 rounded-lg text-white"
+                        >
                           <option value="none">スケーリングしない</option>
                           <option value="minmax">Min-Max正規化</option>
                           <option value="standard">標準化</option>
                           <option value="robust">Robust正規化</option>
+                          <option value="maxabs">MaxAbs正規化</option>
+                          <option value="quantile">分位点正規化</option>
                         </select>
                       </div>
                       <div>
@@ -980,7 +1206,21 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                               <label key={index} className={`flex items-center space-x-2 ${!isNumerical ? 'opacity-50' : ''}`}>
                                 <input
                                   type="checkbox"
-                                  defaultChecked={isNumerical}
+                                  checked={preprocessingOptions.selectedScalingColumns.includes(index)}
+                                  onChange={(e) => {
+                                    const newColumns = preprocessingOptions.selectedScalingColumns;
+                                    if (e.target.checked) {
+                                      setPreprocessingOptions(prev => ({
+                                        ...prev,
+                                        selectedScalingColumns: [...newColumns, index]
+                                      }));
+                                    } else {
+                                      setPreprocessingOptions(prev => ({
+                                        ...prev,
+                                        selectedScalingColumns: newColumns.filter(i => i !== index)
+                                      }));
+                                    }
+                                  }}
                                   disabled={!isNumerical}
                                   className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                 />
@@ -992,6 +1232,12 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                           })}
                         </div>
                       </div>
+                      <button
+                        onClick={executeScalingProcessing}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        正規化・標準化を実行
+                      </button>
                     </div>
                   </div>
 
@@ -1001,14 +1247,26 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">エンコーディング方法</label>
-                        <select className="w-full px-3 py-2 bg-white/10 rounded-lg text-white">
+                        <select 
+                          value={preprocessingOptions.categoricalEncoding}
+                          onChange={(e) => setPreprocessingOptions(prev => ({
+                            ...prev,
+                            categoricalEncoding: e.target.value as any
+                          }))}
+                          className="w-full px-3 py-2 bg-white/10 rounded-lg text-white"
+                        >
+                          <option value="none">適用しない</option>
                           <option value="label">ラベルエンコーディング</option>
                           <option value="onehot">ワンホットエンコーディング</option>
                           <option value="target">ターゲットエンコーディング</option>
+                          <option value="binary">バイナリエンコーディング</option>
+                          <option value="hash">ハッシュエンコーディング</option>
+                          <option value="frequency">頻度エンコーディング</option>
+                          <option value="ordinal">順序エンコーディング</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">適用するカラム（カテゴリカル）</label>
+                        <label className="block text-sm font-medium mb-2">適用するカラム（カテゴリカルのみ）</label>
                         <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
                           {currentDataset.featureNames.map((name, index) => {
                             const featureTypes = getFeatureTypes(currentDataset);
@@ -1017,7 +1275,21 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                               <label key={index} className={`flex items-center space-x-2 ${!isCategorical ? 'opacity-50' : ''}`}>
                                 <input
                                   type="checkbox"
-                                  defaultChecked={isCategorical}
+                                  checked={preprocessingOptions.selectedCategoricalColumns.includes(index)}
+                                  onChange={(e) => {
+                                    const newColumns = preprocessingOptions.selectedCategoricalColumns;
+                                    if (e.target.checked) {
+                                      setPreprocessingOptions(prev => ({
+                                        ...prev,
+                                        selectedCategoricalColumns: [...newColumns, index]
+                                      }));
+                                    } else {
+                                      setPreprocessingOptions(prev => ({
+                                        ...prev,
+                                        selectedCategoricalColumns: newColumns.filter(i => i !== index)
+                                      }));
+                                    }
+                                  }}
                                   disabled={!isCategorical}
                                   className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                 />
@@ -1029,6 +1301,12 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                           })}
                         </div>
                       </div>
+                      <button
+                        onClick={executeCategoricalEncoding}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        カテゴリカルエンコーディングを実行
+                      </button>
                     </div>
                   </div>
 
@@ -1077,10 +1355,10 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
 
                   <div className="flex justify-between">
                     <button
-                      onClick={() => setCurrentStep('feature_engineering')}
+                      onClick={skipPreprocessing}
                       className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
                     >
-                      スキップ
+                      前処理をスキップ
                     </button>
                     <div className="flex space-x-3">
                       {processedDataset && (
@@ -1095,16 +1373,10 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                         </button>
                       )}
                       <button
-                        onClick={() => executePreprocessing({
-                          missingValueStrategy: 'remove',
-                          scalingStrategy: 'standard',
-                          selectedFeatures: Array.from({ length: currentDataset?.featureNames.length || 0 }, (_, i) => i),
-                          categoricalEncoding: 'label',
-                          featureEngineering: false
-                        })}
+                        onClick={executeAllPreprocessing}
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
                       >
-                        前処理を実行
+                        すべての前処理を実行
                       </button>
                     </div>
                   </div>

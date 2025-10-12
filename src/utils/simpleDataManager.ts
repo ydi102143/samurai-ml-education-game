@@ -652,12 +652,13 @@ export class SimpleDataManager {
     }
 
     // カテゴリカル変数のエンコーディング
-    if (options.categoricalEncoding) {
+    if (options.categoricalEncoding && options.categoricalEncoding !== 'none') {
       const result = this.encodeCategoricalFeatures(
         processedData, 
         processedFeatureNames, 
         featureTypes, 
-        options.categoricalEncoding
+        options.categoricalEncoding,
+        options.selectedFeatures // 選択したカラムのみに適用
       );
       processedData = result.data;
       processedFeatureNames = result.featureNames;
@@ -748,7 +749,8 @@ export class SimpleDataManager {
     data: (number | string)[][],
     featureNames: string[],
     featureTypes: ('numerical' | 'categorical')[],
-    method: 'label' | 'onehot' | 'target'
+    method: 'label' | 'onehot' | 'target',
+    selectedFeatures?: number[]
   ): {
     data: number[][];
     featureNames: string[];
@@ -775,7 +777,10 @@ export class SimpleDataManager {
           const value = data[i][j] as string;
           const featureName = featureNames[j];
           
-          if (method === 'label') {
+          // 選択されたカラムのみに適用
+          const shouldEncode = !selectedFeatures || selectedFeatures.includes(j);
+          
+          if (shouldEncode && method === 'label') {
             if (!encodingInfo[featureName]) {
               const uniqueValues = [...new Set(data.map(row => row[j] as string))];
               encodingInfo[featureName] = { mapping: {} };
@@ -788,7 +793,7 @@ export class SimpleDataManager {
               newFeatureNames.push(featureName);
               newFeatureTypes.push('numerical');
             }
-          } else if (method === 'onehot') {
+          } else if (shouldEncode && method === 'onehot') {
             if (!encodingInfo[featureName]) {
               const uniqueValues = [...new Set(data.map(row => row[j] as string))];
               encodingInfo[featureName] = { values: uniqueValues };
@@ -804,6 +809,13 @@ export class SimpleDataManager {
             encodingInfo[featureName].values.forEach((val: string) => {
               newRow.push(value === val ? 1 : 0);
             });
+          } else {
+            // エンコーディングしない場合はそのまま
+            newRow.push(0); // デフォルト値
+            if (i === 0) {
+              newFeatureNames.push(featureName);
+              newFeatureTypes.push('categorical');
+            }
           }
         }
       }

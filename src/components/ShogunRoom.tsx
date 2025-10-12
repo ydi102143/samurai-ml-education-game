@@ -108,42 +108,28 @@ export function ShogunRoom() {
 
               <div className="space-y-6">
                 {/* オンライン対戦 */}
-                <div className="bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border-2 relative overflow-hidden" style={{ borderColor: 'var(--gold)' }}>
-                  <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-var(--accent)/20 to-transparent rounded-full -translate-y-12 -translate-x-12"></div>
-                  <div className="relative z-10">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="p-3 rounded-full bg-gradient-to-br from-var(--accent-strong) to-var(--accent) shadow-lg">
-                        <Sword className="w-7 h-7 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>オンライン対戦</h3>
-                        <p className="text-xs" style={{ color: 'var(--ink-light)' }}>リアルタイム競技</p>
-                      </div>
+                <button
+                  onClick={() => {
+                    console.log('オンライン対戦ボタンがクリックされました');
+                    console.log('setCurrentViewを呼び出します: online');
+                    setCurrentView('online');
+                    console.log('setCurrentView呼び出し完了');
+                  }}
+                  className="w-full text-white p-8 rounded-2xl shadow-2xl border-4 transition-all transform hover:scale-105 group relative overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899)', borderColor: 'var(--gold)' }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <div className="flex items-center justify-center space-x-6 relative z-10">
+                    <div className="p-4 rounded-full bg-white/20 group-hover:bg-white/30 transition-colors shadow-lg">
+                      <Sword className="w-16 h-16 group-hover:rotate-12 transition-transform duration-300" />
                     </div>
-                    <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--ink-light)' }}>
-                      週次問題で他のプレイヤーと競い合おう！
-                    </p>
-                    <button
-                      onClick={() => {
-                        console.log('オンライン対戦ボタンがクリックされました');
-                        console.log('setCurrentViewを呼び出します: online');
-                        setCurrentView('online');
-                        console.log('setCurrentView呼び出し完了');
-                      }}
-                      className="w-full text-white py-4 px-4 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg text-base group relative overflow-hidden"
-                      style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-strong))' }}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                      <span className="relative z-10 flex items-center justify-center space-x-2">
-                        <Sword className="w-5 h-5" />
-                        <span>オンライン対戦</span>
-                      </span>
-                    </button>
+                    <div className="text-left">
+                      <div className="text-3xl font-bold">オンライン対戦</div>
+                      <div className="text-xl mt-2 opacity-90">リアルタイム競技</div>
+                      <div className="text-sm mt-1 opacity-75">週次問題で他のプレイヤーと競い合おう！</div>
+                    </div>
                   </div>
-                </div>
-
-
-
+                </button>
               </div>
             </div>
           </div>
