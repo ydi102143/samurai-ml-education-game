@@ -152,10 +152,117 @@ export class RealMLSystem {
   }
 
   // 学習データを設定
-  setTrainingData(data: TrainingData): void {
-    this.trainingData = data;
-    console.log('Training data set:', data.features.length, 'samples,', data.features[0].length, 'features');
+  setTrainingData(data: Array<{ features: (number | string)[], label: number }>, featureNames: string[], featureTypes: ('numerical' | 'categorical')[]): void {
+    // 安全チェック
+    if (!data || data.length === 0) {
+      console.error('No data provided for training');
+      return;
+    }
+    
+    if (!featureNames || featureNames.length === 0) {
+      console.error('No feature names provided');
+      return;
+    }
+    
+    if (!featureTypes || featureTypes.length === 0) {
+      console.error('No feature types provided');
+      return;
+    }
+    
+    console.log('Setting training data:', data.length, 'samples,', featureNames.length, 'features');
+    
+    // データを前処理（欠損値処理、カテゴリカル変数のエンコーディング）
+    const processedData = this.preprocessData(data, featureNames, featureTypes);
+    
+    this.trainingData = {
+      features: processedData.features,
+      labels: processedData.labels,
+      featureNames: processedData.featureNames,
+      featureTypes: processedData.featureTypes
+    };
+    
+    console.log('Training data processed:', this.trainingData.features.length, 'samples,', this.trainingData.features[0]?.length || 0, 'features');
   }
+
+  // データの前処理
+  private preprocessData(
+    data: Array<{ features: (number | string)[], label: number }>, 
+    featureNames: string[], 
+    featureTypes: ('numerical' | 'categorical')[]
+  ): { features: number[][], labels: number[], featureNames: string[], featureTypes: ('numerical' | 'categorical')[] } {
+    console.log('Preprocessing data...');
+    
+    const processedFeatures: number[][] = [];
+    const processedLabels: number[] = [];
+    const processedFeatureNames: string[] = [];
+    const processedFeatureTypes: ('numerical' | 'categorical')[] = [];
+    
+    // 各特徴量を処理
+    for (let i = 0; i < featureNames.length; i++) {
+      const featureType = featureTypes[i];
+      const featureName = featureNames[i];
+      
+      if (featureType === 'categorical') {
+        // カテゴリカル変数の処理
+        const uniqueValues = [...new Set(data.map(row => row.features[i]).filter(v => v !== null && v !== undefined))];
+        const valueMap = new Map(uniqueValues.map((value, index) => [value, index]));
+        
+        // ラベルエンコーディング
+        const encodedValues = data.map(row => {
+          const value = row.features[i];
+          return value !== null && value !== undefined ? (valueMap.get(value) || 0) : 0;
+        });
+        
+        processedFeatures.push(encodedValues);
+        processedFeatureNames.push(featureName);
+        processedFeatureTypes.push('numerical');
+      } else {
+        // 数値変数の処理
+        const values = data.map(row => {
+          const value = row.features[i];
+          if (typeof value === 'string') {
+            const numValue = parseFloat(value);
+            return isNaN(numValue) ? 0 : numValue;
+          }
+          return typeof value === 'number' ? value : 0;
+        });
+        
+        // 欠損値処理（平均値で埋める）
+        const validValues = values.filter(v => !isNaN(v) && v !== null && v !== undefined);
+        const mean = validValues.length > 0 ? validValues.reduce((sum, v) => sum + v, 0) / validValues.length : 0;
+        
+        const filledValues = values.map(v => isNaN(v) || v === null || v === undefined ? mean : v);
+        
+        processedFeatures.push(filledValues);
+        processedFeatureNames.push(featureName);
+        processedFeatureTypes.push('numerical');
+      }
+    }
+    
+    // ラベルを処理
+    const labels = data.map(row => row.label);
+    processedLabels.push(...labels);
+    
+    // 特徴量を転置（各行が1つのサンプルになるように）
+    const transposedFeatures: number[][] = [];
+    for (let i = 0; i < data.length; i++) {
+      const sample: number[] = [];
+      for (let j = 0; j < processedFeatures.length; j++) {
+        sample.push(processedFeatures[j][i]);
+      }
+      transposedFeatures.push(sample);
+    }
+    
+    console.log('Data preprocessing completed:', transposedFeatures.length, 'samples,', transposedFeatures[0]?.length || 0, 'features');
+    
+    return {
+      features: transposedFeatures,
+      labels: processedLabels,
+      featureNames: processedFeatureNames,
+      featureTypes: processedFeatureTypes
+    };
+  }
+
 
   // 学習を開始
   async startTraining(): Promise<void> {
@@ -163,7 +270,13 @@ export class RealMLSystem {
       throw new Error('No model selected or training data not set');
     }
 
-    console.log('Starting real training...');
+    // 動的な学習IDを生成
+    const trainingId = `training_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('Starting real training with ID:', trainingId);
+    
+    // 検証結果をリセット
+    this.validationResult = null;
+    
     this.trainingProgress = {
       epoch: 0,
       totalEpochs: this.selectedModel.getConfig().hyperparameters.epochs || 100,
@@ -212,7 +325,9 @@ export class RealMLSystem {
       throw new Error('No model selected or training data not set');
     }
 
-    console.log('Executing real validation...');
+    // 動的な検証IDを生成
+    const validationId = `validation_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('Executing real validation with ID:', validationId);
     const startTime = Date.now();
 
     try {

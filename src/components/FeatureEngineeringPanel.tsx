@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Wrench, Plus, Trash2, Calculator, Target, CheckSquare, BarChart3, Layers, Filter, Zap } from 'lucide-react';
+import { integratedMLSystem } from '../utils/integratedMLSystem';
 
 interface FeatureEngineeringPanelProps {
   data: any[];
   featureNames: string[];
   featureTypes?: ('numerical' | 'categorical')[];
-  onEngineeredData: (data: any[], featureNames: string[]) => void;
+  onEngineeredData: (data: any[], featureNames: string[], featureTypes: ('numerical' | 'categorical')[]) => void;
   onFeatureSelect: (features: number[]) => void;
   selectedFeatures: number[];
 }
@@ -119,12 +120,56 @@ export function FeatureEngineeringPanel({ data, featureNames, featureTypes, onEn
         currentSelectedFeatures = result.selectedFeatures;
       }
 
-      // 特徴量エンジニアリング後のデータを保存
-      setEngineeredData(processedData);
-      setCurrentFeatureNames(currentFeatureNames);
+      // データを統合システムの形式に変換
+      const formattedData = data.map((item, index) => ({
+        features: item.features || [],
+        label: item.label || 0
+      }));
       
-      // 親コンポーネントに新しいデータを通知
-      onEngineeredData(processedData, currentFeatureNames);
+      // 統合システムで特徴量エンジニアリングを実行
+      const result = await integratedMLSystem.executeFeatureEngineeringDirect(
+        formattedData,
+        featureNames,
+        featureTypes || [],
+        {
+          selectedFeatures: featureNames.map((_, index) => index),
+          transformations: {
+            polynomial: operations.some(op => op.type === 'polynomial'),
+            interaction: operations.some(op => op.type === 'interaction'),
+            log: operations.some(op => op.type === 'log'),
+            sqrt: operations.some(op => op.type === 'sqrt'),
+            square: operations.some(op => op.type === 'square')
+          },
+          aggregations: {
+            mean: operations.some(op => op.type === 'mean'),
+            std: operations.some(op => op.type === 'std'),
+            max: false,
+            min: false,
+            count: false
+          },
+          dimensionalityReduction: {
+            method: operations.some(op => op.type === 'pca') ? 'pca' : 'none',
+            components: 10
+          }
+        }
+      );
+      
+      if (result.success) {
+        // 結果を元の形式に変換
+        const convertedData = result.data.map((item, index) => ({
+          features: item.features || [],
+          label: item.label || 0
+        }));
+        
+        // 特徴量エンジニアリング後のデータを保存
+        setEngineeredData(convertedData);
+        setCurrentFeatureNames(result.featureNames);
+        
+        // 親コンポーネントに新しいデータを通知
+        onEngineeredData(convertedData, result.featureNames, result.featureTypes);
+      } else {
+        console.error('Feature engineering failed:', result.error);
+      }
       
       console.log('特徴量エンジニアリング完了:', processedData.length, 'サンプル,', currentFeatureNames.length, '特徴量');
 

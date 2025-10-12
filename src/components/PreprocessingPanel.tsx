@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Settings, CheckCircle, Eye, EyeOff, Play } from 'lucide-react';
+import { integratedMLSystem } from '../utils/integratedMLSystem';
 
 interface PreprocessingPanelProps {
   data: any[];
   featureNames: string[];
   featureTypes?: ('numerical' | 'categorical')[];
-  onPreprocessedData: (data: any[], featureNames: string[]) => void;
+  onPreprocessedData: (data: any[], featureNames: string[], featureTypes: ('numerical' | 'categorical')[]) => void;
 }
 
 export function PreprocessingPanel({ data, featureNames, featureTypes, onPreprocessedData }: PreprocessingPanelProps) {
@@ -113,9 +114,51 @@ export function PreprocessingPanel({ data, featureNames, featureTypes, onPreproc
     addLog('前処理をリセットしました');
   };
 
-  const finalizePreprocessing = () => {
-    onPreprocessedData(currentData, featureNames);
-    addLog('前処理を確定しました');
+  const finalizePreprocessing = async () => {
+    setIsProcessing(true);
+    addLog('前処理を統合システムで実行中...');
+    
+    try {
+      // データを統合システムの形式に変換
+      const formattedData = data.map((item) => ({
+        features: item.features || [],
+        label: item.label || 0
+      }));
+      
+      const result = await integratedMLSystem.executePreprocessingDirect(
+        formattedData,
+        featureNames,
+        featureTypes || [],
+        {
+          selectedFeatures: featureNames.map((_, index) => index),
+          missingValueStrategy: preprocessingSteps.missingValueStrategy as 'mean' | 'median' | 'mode' | 'drop',
+          scalingMethod: preprocessingSteps.scalingMethod as 'standard' | 'minmax' | 'none',
+          encodingMethod: preprocessingSteps.encodingMethod as 'label' | 'onehot' | 'target',
+          outlierRemoval: preprocessingSteps.outlierMethod !== 'none',
+          outlierThreshold: 3,
+          categoricalEncoding: {
+            method: preprocessingSteps.categoricalHandling as 'label' | 'onehot' | 'target'
+          }
+        }
+      );
+      
+      if (result.success) {
+        // 結果を元の形式に変換
+        const convertedData = result.data.map((item) => ({
+          features: item.features || [],
+          label: item.label || 0
+        }));
+        
+        onPreprocessedData(convertedData, result.featureNames, result.featureTypes);
+        addLog('前処理を確定しました');
+      } else {
+        addLog(`エラー: ${result.error}`);
+      }
+    } catch (error) {
+      addLog(`エラー: ${error}`);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // 欠損値処理

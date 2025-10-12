@@ -5,7 +5,7 @@ export interface RealDataset {
   type: 'classification' | 'regression';
   description: string;
   data: Array<{
-    features: number[];
+    features: (number | string)[];
     label: number;
   }>;
   featureNames: string[];
@@ -66,8 +66,8 @@ export class RealDatasetGenerator {
       // 年齢（20-80歳）
       const age = Math.floor(this.random() * 61) + 20;
       
-      // 性別（0: 女性, 1: 男性）
-      const gender = this.random() < 0.5 ? 0 : 1;
+      // 性別（カテゴリカル変数として文字列で保存）
+      const gender = this.random() < 0.5 ? 'female' : 'male';
       
       // 血圧（正常範囲に偏りを持たせる）
       const bloodPressure = this.normalRandom(120, 15);
@@ -82,29 +82,29 @@ export class RealDatasetGenerator {
       const glucose = this.normalRandom(90 + bmi * 2, 15);
       
       // 喫煙（年齢と性別に依存）
-      const smoking = (age > 30 && this.random() < 0.3) ? 1 : 0;
+      const smoking = (age > 30 && this.random() < 0.3) ? 'yes' : 'no';
       
       // 運動（年齢に依存）
-      const exercise = (age < 50 && this.random() < 0.6) ? 1 : 0;
+      const exercise = (age < 50 && this.random() < 0.6) ? 'regular' : 'irregular';
       
       // 家族歴（ランダム）
-      const familyHistory = this.random() < 0.2 ? 1 : 0;
+      const familyHistory = this.random() < 0.2 ? 'yes' : 'no';
       
-      // ストレスレベル（0: 低, 1: 中, 2: 高）
-      const stressLevel = this.random() < 0.3 ? 0 : (this.random() < 0.7 ? 1 : 2);
+      // ストレスレベル（低, 中, 高）
+      const stressLevel = this.random() < 0.3 ? 'low' : (this.random() < 0.7 ? 'medium' : 'high');
       
       // 疾患リスクを計算（実際の医学的知識に基づく）
       let diseaseRisk = 0;
       diseaseRisk += age > 60 ? 0.3 : (age > 40 ? 0.1 : 0);
-      diseaseRisk += gender === 1 ? 0.1 : 0;
+      diseaseRisk += gender === 'male' ? 0.1 : 0;
       diseaseRisk += bloodPressure > 140 ? 0.2 : 0;
       diseaseRisk += cholesterol > 240 ? 0.2 : 0;
       diseaseRisk += bmi > 30 ? 0.15 : 0;
       diseaseRisk += glucose > 126 ? 0.2 : 0;
-      diseaseRisk += smoking === 1 ? 0.25 : 0;
-      diseaseRisk += exercise === 0 ? 0.1 : 0;
-      diseaseRisk += familyHistory === 1 ? 0.2 : 0;
-      diseaseRisk += stressLevel === 2 ? 0.1 : 0;
+      diseaseRisk += smoking === 'yes' ? 0.25 : 0;
+      diseaseRisk += exercise === 'irregular' ? 0.1 : 0;
+      diseaseRisk += familyHistory === 'yes' ? 0.2 : 0;
+      diseaseRisk += stressLevel === 'high' ? 0.1 : 0;
       
       // ノイズを追加
       diseaseRisk += this.normalRandom(0, 0.1);
@@ -113,7 +113,7 @@ export class RealDatasetGenerator {
       const label = diseaseRisk > 0.5 ? 1 : 0;
       
       // 欠損値を追加（5%の確率で）
-      const features = [age, gender, bloodPressure, cholesterol, bmi, glucose, smoking, exercise, familyHistory, stressLevel];
+      const features: (number | string)[] = [age, gender, bloodPressure, cholesterol, bmi, glucose, smoking, exercise, familyHistory, stressLevel];
       for (let j = 0; j < features.length; j++) {
         if (this.random() < 0.05) {
           features[j] = NaN;
@@ -172,20 +172,20 @@ export class RealDatasetGenerator {
       // 築年数（0-50年）
       const age = Math.floor(this.random() * 51);
       
-      // 立地（0: 郊外, 1: 住宅街, 2: 都心）
-      const location = this.random() < 0.3 ? 0 : (this.random() < 0.7 ? 1 : 2);
+      // 立地（郊外, 住宅街, 都心）
+      const location = this.random() < 0.3 ? 'suburban' : (this.random() < 0.7 ? 'residential' : 'downtown');
       
-      // 状態（0: 悪い, 1: 普通, 2: 良い）
-      const condition = this.random() < 0.2 ? 0 : (this.random() < 0.7 ? 1 : 2);
+      // 状態（悪い, 普通, 良い）
+      const condition = this.random() < 0.2 ? 'poor' : (this.random() < 0.7 ? 'average' : 'excellent');
       
-      // ガレージ（0: なし, 1: あり）
-      const garage = this.random() < 0.6 ? 1 : 0;
+      // ガレージ（なし, あり）
+      const garage = this.random() < 0.6 ? 'yes' : 'no';
       
-      // 庭（0: なし, 1: あり）
-      const garden = this.random() < 0.4 ? 1 : 0;
+      // 庭（なし, あり）
+      const garden = this.random() < 0.4 ? 'yes' : 'no';
       
-      // プール（0: なし, 1: あり）
-      const pool = this.random() < 0.1 ? 1 : 0;
+      // プール（なし, あり）
+      const pool = this.random() < 0.1 ? 'yes' : 'no';
       
       // 学校評価（1-10点）
       const schoolRating = Math.floor(this.random() * 10) + 1;
@@ -195,11 +195,18 @@ export class RealDatasetGenerator {
       price += bedrooms * 500; // 寝室1室あたり50万円
       price += bathrooms * 300; // 浴室1室あたり30万円
       price -= age * 20; // 築年数1年あたり20万円減価
-      price += location * 1000; // 立地による価格差
-      price += condition * 200; // 状態による価格差
-      price += garage * 300; // ガレージ
-      price += garden * 200; // 庭
-      price += pool * 500; // プール
+      
+      // カテゴリカル変数の価格への影響
+      if (location === 'downtown') price += 2000;
+      else if (location === 'residential') price += 1000;
+      
+      if (condition === 'excellent') price += 400;
+      else if (condition === 'average') price += 200;
+      
+      if (garage === 'yes') price += 300;
+      if (garden === 'yes') price += 200;
+      if (pool === 'yes') price += 500;
+      
       price += schoolRating * 50; // 学校評価
       
       // ノイズを追加
@@ -209,7 +216,7 @@ export class RealDatasetGenerator {
       const label = Math.max(0, Math.floor(price));
       
       // 欠損値を追加（3%の確率で）
-      const features = [size, bedrooms, bathrooms, age, location, condition, garage, garden, pool, schoolRating];
+      const features: (number | string)[] = [size, bedrooms, bathrooms, age, location, condition, garage, garden, pool, schoolRating];
       for (let j = 0; j < features.length; j++) {
         if (this.random() < 0.03) {
           features[j] = NaN;
@@ -262,17 +269,19 @@ export class RealDatasetGenerator {
       // 取引時間（0-24時間）
       const time = this.random() * 24;
       
-      // 店舗タイプ（0: 小売, 1: 飲食, 2: ガソリンスタンド, 3: オンライン）
-      const merchantType = Math.floor(this.random() * 4);
+      // 店舗タイプ（小売, 飲食, ガソリンスタンド, オンライン）
+      const merchantTypes = ['retail', 'restaurant', 'gas_station', 'online'];
+      const merchantType = merchantTypes[Math.floor(this.random() * 4)];
       
-      // カードタイプ（0: デビット, 1: クレジット, 2: プリペイド）
-      const cardType = Math.floor(this.random() * 3);
+      // カードタイプ（デビット, クレジット, プリペイド）
+      const cardTypes = ['debit', 'credit', 'prepaid'];
+      const cardType = cardTypes[Math.floor(this.random() * 3)];
       
-      // 場所（0: 国内, 1: 海外）
-      const location = this.random() < 0.1 ? 1 : 0;
+      // 場所（国内, 海外）
+      const location = this.random() < 0.1 ? 'overseas' : 'domestic';
       
-      // 過去の不正履歴（0: なし, 1: あり）
-      const previousFraud = this.random() < 0.05 ? 1 : 0;
+      // 過去の不正履歴（なし, あり）
+      const previousFraud = this.random() < 0.05 ? 'yes' : 'no';
       
       // 取引頻度（1日あたりの取引回数）
       const transactionFrequency = this.normalRandom(2, 1);
@@ -284,9 +293,9 @@ export class RealDatasetGenerator {
       let fraudProbability = 0;
       fraudProbability += amount > 500000 ? 0.3 : 0; // 高額取引
       fraudProbability += time < 6 || time > 22 ? 0.2 : 0; // 深夜・早朝
-      fraudProbability += merchantType === 3 ? 0.1 : 0; // オンライン取引
-      fraudProbability += location === 1 ? 0.2 : 0; // 海外取引
-      fraudProbability += previousFraud === 1 ? 0.4 : 0; // 過去の不正履歴
+      fraudProbability += merchantType === 'online' ? 0.1 : 0; // オンライン取引
+      fraudProbability += location === 'overseas' ? 0.2 : 0; // 海外取引
+      fraudProbability += previousFraud === 'yes' ? 0.4 : 0; // 過去の不正履歴
       fraudProbability += transactionFrequency > 5 ? 0.1 : 0; // 高頻度取引
       fraudProbability += amountVariance > 200000 ? 0.15 : 0; // 金額のばらつき
       
@@ -297,7 +306,7 @@ export class RealDatasetGenerator {
       const label = fraudProbability > 0.3 ? 1 : 0;
       
       // 欠損値を追加（2%の確率で）
-      const features = [amount, time, merchantType, cardType, location, previousFraud, transactionFrequency, amountVariance];
+      const features: (number | string)[] = [amount, time, merchantType, cardType, location, previousFraud, transactionFrequency, amountVariance];
       for (let j = 0; j < features.length; j++) {
         if (this.random() < 0.02) {
           features[j] = NaN;
@@ -421,8 +430,7 @@ export class RealDatasetGenerator {
     return [
       this.generateMedicalDiagnosisDataset(),
       this.generateHousingPriceDataset(),
-      this.generateFraudDetectionDataset(),
-      this.generateCustomerChurnDataset()
+      this.generateFraudDetectionDataset()
     ];
   }
 

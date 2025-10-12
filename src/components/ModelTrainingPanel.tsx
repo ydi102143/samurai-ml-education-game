@@ -108,11 +108,48 @@ export function ModelTrainingPanel({ data, featureNames, problemType, onTraining
 
     addLog(`データ分割完了: 訓練${trainData.length}件, 検証${validationData.length}件`);
 
-    // 学習のシミュレーション
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      setTrainingProgress(i);
-      addLog(`学習進捗: ${i}%`);
+    // 実際の学習処理（統合システムを使用）
+    try {
+      const { integratedMLSystem } = await import('../utils/integratedMLSystem');
+      
+      // データを設定
+      integratedMLSystem.setTrainingData(
+        trainData,
+        featureNames,
+        featureNames.map(() => 'numerical' as 'numerical' | 'categorical')
+      );
+
+      // モデルを選択
+      integratedMLSystem.selectModel(selectedModelConfig.name);
+
+      // ハイパーパラメータを更新
+      integratedMLSystem.updateModelHyperparameters(selectedModelConfig.name, hyperparameters);
+
+      // 学習を開始
+      await integratedMLSystem.startTraining();
+
+      // 学習進捗を監視
+      const progressInterval = setInterval(() => {
+        const progress = integratedMLSystem.getTrainingProgress();
+        if (progress) {
+          setTrainingProgress(progress.epoch / progress.totalEpochs * 100);
+          addLog(`学習進捗: Epoch ${progress.epoch}/${progress.totalEpochs} - Loss: ${progress.loss.toFixed(4)} - Accuracy: ${(progress.accuracy * 100).toFixed(2)}%`);
+          
+          if (progress.status === 'completed' || progress.status === 'failed') {
+            clearInterval(progressInterval);
+            if (progress.status === 'completed') {
+              addLog(`学習完了: ${selectedModelConfig.name}`);
+            } else {
+              addLog(`学習失敗: ${selectedModelConfig.name}`);
+            }
+          }
+        }
+      }, 100);
+
+    } catch (error) {
+      console.error('Training failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addLog(`学習エラー: ${errorMessage}`);
     }
 
     // 学習済みモデルを保存

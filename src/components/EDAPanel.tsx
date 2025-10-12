@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { BarChart3, Info, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { BarChart3, Info, Download, RefreshCw } from 'lucide-react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { realDataProcessor, ProcessedData } from '../utils/realDataProcessing';
 
 interface EDAPanelProps {
   data: any[];
   problemType: 'classification' | 'regression';
   featureNames?: string[];
-  featureTypes?: ('numerical' | 'categorical')[];
+  displayFeatureTypes?: ('numerical' | 'categorical')[];
+  showProcessedData?: boolean;
 }
 
 // ヒストグラムデータ生成関数
@@ -49,11 +51,36 @@ const generateBoxPlotData = (data: any[], featureIndex: number) => {
   ];
 };
 
-export function EDAPanel({ data, problemType, featureNames: propFeatureNames, featureTypes: propFeatureTypes }: EDAPanelProps) {
-  // 特徴量名とタイプを取得（propsから、またはデータから推測）
-  const featureNames = propFeatureNames || (data.length > 0 && data[0].features ? 
-    Array.from({ length: data[0].features.length }, (_, i) => `特徴量${i + 1}`) : []);
-  const featureTypes = propFeatureTypes || featureNames.map(() => 'numerical' as 'numerical' | 'categorical');
+export function EDAPanel({ data, problemType, featureNames: propFeatureNames, displayFeatureTypes: propFeatureTypes, showProcessedData = false }: EDAPanelProps) {
+  const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
+  
+  // 処理済みデータを取得（定期的に更新）
+  useEffect(() => {
+    const updateProcessedData = () => {
+      const currentProcessedData = realDataProcessor.getCurrentProcessedData();
+      if (currentProcessedData) {
+        setProcessedData(currentProcessedData);
+        console.log('EDAPanel: Processed data updated', currentProcessedData);
+      }
+    };
+    
+    // 初回取得
+    updateProcessedData();
+    
+    // 定期的に更新
+    const interval = setInterval(updateProcessedData, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // 表示するデータを決定（処理済みデータがある場合はそれを使用）
+  const displayData = showProcessedData && processedData ? processedData.data : (data || []);
+  const displayFeatureNames = showProcessedData && processedData ? processedData.featureNames : 
+    (propFeatureNames || (data && data.length > 0 && data[0] && data[0].features ? 
+      Array.from({ length: data[0].features.length }, (_, i) => `特徴量${i + 1}`) : []));
+  const displayFeatureTypes = showProcessedData && processedData ? processedData.featureTypes : 
+    (propFeatureTypes || displayFeatureNames.map(() => 'numerical' as 'numerical' | 'categorical'));
+
   const [activeTab, setActiveTab] = useState<'overview' | 'data' | 'visualization'>('overview');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [rawDataPage, setRawDataPage] = useState(0);
@@ -64,22 +91,28 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
 
   // データの基本統計を計算
   const calculateStats = () => {
-    if (!data || data.length === 0) return null;
+    if (!displayData || displayData.length === 0 || !displayFeatureNames || displayFeatureNames.length === 0) return null;
 
-    const stats = featureNames.map((name, index) => {
-      const values = data.map(d => d.features[index]).filter(v => !isNaN(v) && v !== null && v !== undefined);
-      const sorted = values.sort((a, b) => a - b);
+    const stats = displayFeatureNames.map((name, index) => {
+      const allValues = displayData.map(d => d.features && d.features[index] !== undefined ? d.features[index] : null);
+      const validValues = allValues.filter(v => {
+        if (v === null || v === undefined) return false;
+        if (typeof v === 'number' && isNaN(v)) return false;
+        if (typeof v === 'string' && v === 'NaN') return false;
+        return true;
+      });
+      const sorted = validValues.sort((a, b) => a - b);
       
       return {
         name,
         index,
-        count: values.length,
-        mean: values.reduce((a, b) => a + b, 0) / values.length,
-        median: sorted[Math.floor(sorted.length / 2)],
-        std: Math.sqrt(values.reduce((a, b) => a + Math.pow(b - (values.reduce((a, b) => a + b, 0) / values.length), 2), 0) / values.length),
-        min: Math.min(...values),
-        max: Math.max(...values),
-        missing: data.length - values.length
+        count: validValues.length,
+        mean: validValues.length > 0 ? validValues.reduce((a, b) => a + b, 0) / validValues.length : 0,
+        median: validValues.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0,
+        std: validValues.length > 0 ? Math.sqrt(validValues.reduce((a, b) => a + Math.pow(b - (validValues.reduce((a, b) => a + b, 0) / validValues.length), 2), 0) / validValues.length) : 0,
+        min: validValues.length > 0 ? Math.min(...validValues) : 0,
+        max: validValues.length > 0 ? Math.max(...validValues) : 0,
+        missing: allValues.length - validValues.length
       };
     });
 
@@ -89,9 +122,9 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
 
   // ターゲットの分布を計算
   const calculateTargetDistribution = () => {
-    if (!data || data.length === 0) return null;
+    if (!displayData || displayData.length === 0) return null;
 
-    const targetValues = data.map(d => d.label).filter(v => !isNaN(v) && v !== null && v !== undefined);
+    const targetValues = displayData.map(d => d.label).filter(v => !isNaN(v) && v !== null && v !== undefined);
     
         if (problemType === 'classification') {
           const uniqueValues = [...new Set(targetValues)];
@@ -126,11 +159,12 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
   const stats = calculateStats();
   const targetDist = calculateTargetDistribution();
 
-  if (!data || data.length === 0) {
+  if (!displayData || displayData.length === 0 || !displayFeatureNames || displayFeatureNames.length === 0) {
     return (
       <div className="bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
         <div className="p-8 text-center">
-          <p className="text-white/70">データがありません</p>
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-white/70">データを読み込み中...</p>
         </div>
       </div>
     );
@@ -155,12 +189,33 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
             <BarChart3 className="w-6 h-6 mr-2" />
             データ探索・分析 (EDA)
           </h2>
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all duration-300"
-          >
-            {showAdvanced ? 'シンプル表示' : '詳細表示'}
-          </button>
+          <div className="flex items-center space-x-3">
+            {processedData && (
+              <div className="flex items-center space-x-2">
+                <span className="text-white/70 text-sm">
+                  {showProcessedData ? '処理済みデータ' : '生データ'}
+                </span>
+                <button
+                        onClick={() => {
+                          const newProcessedData = realDataProcessor.getCurrentProcessedData();
+                          if (newProcessedData) {
+                            setProcessedData(newProcessedData);
+                          }
+                        }}
+                  className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all duration-300"
+                  title="データを更新"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all duration-300"
+            >
+              {showAdvanced ? 'シンプル表示' : '詳細表示'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -201,7 +256,7 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
                   <div className="text-sm text-white/80 font-medium">サンプル数</div>
                 </div>
                 <div className="text-center p-6 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-xl border border-green-500/30">
-                  <div className="text-3xl font-bold text-green-300 mb-2">{featureNames.length}</div>
+                  <div className="text-3xl font-bold text-green-300 mb-2">{displayFeatureNames.length}</div>
                   <div className="text-sm text-white/80 font-medium">特徴量数</div>
                 </div>
                 <div className="text-center p-6 bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-xl border border-purple-500/30">
@@ -230,10 +285,29 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
                   特徴量詳細
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {featureNames.map((name, index) => {
-                    const values = data.map(item => item.features[index]).filter(val => !isNaN(val) && val !== null && val !== undefined);
-                    const missingCount = data.length - values.length;
-                    const isNumerical = featureTypes?.[index] === 'numerical';
+                  {displayFeatureNames.map((name, index) => {
+                    if (!displayData || displayData.length === 0) {
+                      return (
+                        <div key={index} className="bg-white/10 rounded-xl p-5 border border-white/20">
+                          <h5 className="font-bold text-white mb-2">{name}</h5>
+                          <p className="text-white/60">データがありません</p>
+                        </div>
+                      );
+                    }
+                    
+                    const values = displayData.map(item => {
+                      if (!item || !item.features || !Array.isArray(item.features)) {
+                        return null;
+                      }
+                      return item.features[index];
+                    }).filter(val => {
+                      if (val === null || val === undefined) return false;
+                      if (typeof val === 'number' && isNaN(val)) return false;
+                      if (typeof val === 'string' && val === 'NaN') return false;
+                      return true;
+                    });
+                    const missingCount = displayData.length - values.length;
+                    const isNumerical = displayFeatureTypes?.[index] === 'numerical';
                     
                     return (
                       <div key={index} className="bg-white/10 rounded-xl p-5 border border-white/20 hover:border-white/30 transition-all duration-200">
@@ -303,8 +377,8 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
                     onChange={(e) => setSelectedXFeature(Number(e.target.value))}
                     className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white"
                   >
-                    {featureNames.map((name, index) => (
-                      <option key={index} value={index}>{name} ({featureTypes?.[index] === 'categorical' ? 'カテゴリカル' : '数値'})</option>
+                    {displayFeatureNames.map((name, index) => (
+                      <option key={index} value={index}>{name} ({displayFeatureTypes?.[index] === 'categorical' ? 'カテゴリカル' : '数値'})</option>
                     ))}
                   </select>
                 </div>
@@ -315,8 +389,8 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
                     onChange={(e) => setSelectedYFeature(Number(e.target.value))}
                     className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white"
                   >
-                    {featureNames.map((name, index) => (
-                      <option key={index} value={index}>{name} ({featureTypes?.[index] === 'categorical' ? 'カテゴリカル' : '数値'})</option>
+                    {displayFeatureNames.map((name, index) => (
+                      <option key={index} value={index}>{name} ({displayFeatureTypes?.[index] === 'categorical' ? 'カテゴリカル' : '数値'})</option>
                     ))}
                   </select>
                 </div>
@@ -326,7 +400,7 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
             <div className="bg-white/5 rounded-xl p-6 border border-white/20 min-h-[400px]">
               {visualizationType === 'scatter' && (
                 <div className="space-y-4">
-                  <h4 className="text-white font-bold">散布図: {featureNames[selectedXFeature]} vs {featureNames[selectedYFeature]}</h4>
+                  <h4 className="text-white font-bold">散布図: {displayFeatureNames[selectedXFeature]} vs {displayFeatureNames[selectedYFeature]}</h4>
                   <div className="h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <ScatterChart data={data.map((item) => {
@@ -344,13 +418,13 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
                         <XAxis 
                           type="number" 
                           dataKey="x" 
-                          name={featureNames[selectedXFeature]}
+                          name={displayFeatureNames[selectedXFeature]}
                           stroke="#9CA3AF"
                         />
                         <YAxis 
                           type="number" 
                           dataKey="y" 
-                          name={featureNames[selectedYFeature]}
+                          name={displayFeatureNames[selectedYFeature]}
                           stroke="#9CA3AF"
                         />
                         <Tooltip 
@@ -373,7 +447,7 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
               )}
               {visualizationType === 'histogram' && (
                 <div className="space-y-4">
-                  <h4 className="text-white font-bold">ヒストグラム: {featureNames[selectedXFeature]}</h4>
+                  <h4 className="text-white font-bold">ヒストグラム: {displayFeatureNames[selectedXFeature]}</h4>
                   <div className="h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={generateHistogramData(data, selectedXFeature)}>
@@ -399,7 +473,7 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
               )}
               {visualizationType === 'boxplot' && (
                 <div className="space-y-4">
-                  <h4 className="text-white font-bold">ボックスプロット: {featureNames[selectedXFeature]}</h4>
+                  <h4 className="text-white font-bold">ボックスプロット: {displayFeatureNames[selectedXFeature]}</h4>
                   <div className="h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={generateBoxPlotData(data, selectedXFeature)}>
@@ -466,12 +540,12 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
                   <thead>
                     <tr className="border-b border-white/20">
                       <th className="p-2 text-white/80 text-left">行番号</th>
-                      {featureNames.map((name, index) => (
+                      {displayFeatureNames.map((name, index) => (
                         <th key={index} className="p-2 text-white/80 text-left min-w-[100px]">
                           <div className="flex flex-col">
                             <span className="font-bold">{name}</span>
                             <span className="text-xs text-white/60">
-                              {featureTypes?.[index] === 'categorical' ? 'カテゴリ' : '数値'}
+                              {displayFeatureTypes?.[index] === 'categorical' ? 'カテゴリ' : '数値'}
                             </span>
                           </div>
                         </th>
@@ -488,9 +562,19 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, fe
                         {row.features.map((value: any, colIndex: number) => (
                           <td key={colIndex} className="p-2 text-white">
                             {(() => {
+                              // 処理済みデータの場合はNaNを表示しない
+                              if (showProcessedData && processedData) {
+                                if (displayFeatureTypes?.[colIndex] === 'categorical') {
+                                  return <span className="text-blue-300">{String(value)}</span>;
+                                } else {
+                                  return <span className="text-green-300">{typeof value === 'number' ? value.toFixed(2) : String(value)}</span>;
+                                }
+                              }
+                              
+                              // 生データの場合はNaNを表示
                               if (value === null || value === undefined || (typeof value === 'number' && isNaN(value))) {
                                 return <span className="text-red-400 font-bold">NaN</span>;
-                              } else if (featureTypes?.[colIndex] === 'categorical') {
+                              } else if (displayFeatureTypes?.[colIndex] === 'categorical') {
                                 return <span className="text-blue-300">{String(value)}</span>;
                               } else {
                                 return <span className="text-green-300">{typeof value === 'number' ? value.toFixed(2) : String(value)}</span>;

@@ -1,5 +1,14 @@
 // 実際のデータ処理システム
 
+export interface ProcessedData {
+  data: Array<{ features: (number | string)[], label: number }>;
+  featureNames: string[];
+  featureTypes: ('numerical' | 'categorical')[];
+  processingHistory: string[];
+  version: number;
+  timestamp: Date;
+}
+
 export interface RealProcessingResult {
   success: boolean;
   data?: any[];
@@ -7,6 +16,7 @@ export interface RealProcessingResult {
   featureTypes?: ('numerical' | 'categorical')[];
   error?: string;
   processingSteps: string[];
+  processedData?: ProcessedData;
 }
 
 export interface PreprocessingOptions {
@@ -16,6 +26,10 @@ export interface PreprocessingOptions {
   encodingMethod: 'label' | 'onehot' | 'target' | 'none';
   outlierRemoval: boolean;
   outlierThreshold: number;
+  categoricalEncoding: {
+    method: 'label' | 'onehot' | 'target';
+    targetColumn?: number; // ターゲットエンコーディング用
+  };
 }
 
 export interface FeatureEngineeringOptions {
@@ -42,6 +56,24 @@ export interface FeatureEngineeringOptions {
 
 export class RealDataProcessor {
   private processingSteps: string[] = [];
+  private currentProcessedData: ProcessedData | null = null;
+  private dataVersion: number = 0;
+
+  // 現在の処理済みデータを取得
+  getCurrentProcessedData(): ProcessedData | null {
+    return this.currentProcessedData;
+  }
+
+  // 処理済みデータを設定
+  setProcessedData(processedData: ProcessedData): void {
+    this.currentProcessedData = processedData;
+    this.dataVersion = processedData.version;
+  }
+
+  // データバージョンを取得
+  getDataVersion(): number {
+    return this.dataVersion;
+  }
 
   // データの前処理を実行
   async executePreprocessing(
@@ -71,17 +103,18 @@ export class RealDataProcessor {
       }
 
       // 3. カテゴリカル変数のエンコーディング
-      if (options.encodingMethod !== 'none') {
-        const encodingResult = this.encodeCategoricalVariables(
+      if (options.categoricalEncoding.method === 'label' || options.categoricalEncoding.method === 'onehot' || options.categoricalEncoding.method === 'target') {
+        const encodingResult = this.encodeCategoricalFeatures(
           processedData, 
           processedFeatureNames, 
           processedFeatureTypes, 
-          options.encodingMethod
+          options.categoricalEncoding.method,
+          options.categoricalEncoding.targetColumn
         );
         processedData = encodingResult.data;
         processedFeatureNames = encodingResult.featureNames;
         processedFeatureTypes = encodingResult.featureTypes;
-        this.processingSteps.push(`カテゴリカル変数エンコーディング: ${options.encodingMethod}`);
+        this.processingSteps.push(`カテゴリカル変数エンコーディング: ${options.categoricalEncoding.method}`);
       }
 
       // 4. 外れ値除去
@@ -97,12 +130,26 @@ export class RealDataProcessor {
       }
 
       console.log('Real preprocessing completed');
+      
+      // ProcessedDataを作成して保存
+      const processedDataObj: ProcessedData = {
+        data: processedData,
+        featureNames: processedFeatureNames,
+        featureTypes: processedFeatureTypes,
+        processingHistory: [...this.processingSteps],
+        version: this.dataVersion + 1,
+        timestamp: new Date()
+      };
+      
+      this.setProcessedData(processedDataObj);
+      
       return {
         success: true,
         data: processedData,
         featureNames: processedFeatureNames,
         featureTypes: processedFeatureTypes,
-        processingSteps: this.processingSteps
+        processingSteps: this.processingSteps,
+        processedData: processedDataObj
       };
     } catch (error) {
       console.error('Preprocessing failed:', error);
@@ -174,12 +221,26 @@ export class RealDataProcessor {
       }
 
       console.log('Real feature engineering completed');
+      
+      // ProcessedDataを作成して保存
+      const processedDataObj: ProcessedData = {
+        data: processedData,
+        featureNames: processedFeatureNames,
+        featureTypes: processedFeatureTypes,
+        processingHistory: [...this.processingSteps],
+        version: this.dataVersion + 1,
+        timestamp: new Date()
+      };
+      
+      this.setProcessedData(processedDataObj);
+      
       return {
         success: true,
         data: processedData,
         featureNames: processedFeatureNames,
         featureTypes: processedFeatureTypes,
-        processingSteps: this.processingSteps
+        processingSteps: this.processingSteps,
+        processedData: processedDataObj
       };
     } catch (error) {
       console.error('Feature engineering failed:', error);
@@ -257,55 +318,6 @@ export class RealDataProcessor {
   }
 
   // カテゴリカル変数のエンコーディング
-  private encodeCategoricalVariables(
-    data: any[], 
-    featureNames: string[], 
-    featureTypes: ('numerical' | 'categorical')[],
-    method: string
-  ): { data: any[], featureNames: string[], featureTypes: ('numerical' | 'categorical')[] } {
-    const processedData = data.map(row => ({ ...row, features: [...row.features] }));
-    let newFeatureNames = [...featureNames];
-    let newFeatureTypes = [...featureTypes];
-    
-    for (let i = 0; i < featureTypes.length; i++) {
-      if (featureTypes[i] === 'categorical') {
-        const uniqueValues = [...new Set(data.map(row => row.features[i]))];
-        
-        if (method === 'label') {
-          // ラベルエンコーディング
-          const valueMap: { [key: string]: number } = {};
-          uniqueValues.forEach((val, index) => valueMap[val] = index);
-          
-          processedData.forEach(row => {
-            row.features[i] = valueMap[row.features[i]];
-          });
-          newFeatureTypes[i] = 'numerical';
-        } else if (method === 'onehot') {
-          // ワンホットエンコーディング
-          processedData.forEach(row => {
-            const encoded = new Array(uniqueValues.length).fill(0);
-            const valueIndex = uniqueValues.indexOf(row.features[i]);
-            if (valueIndex !== -1) encoded[valueIndex] = 1;
-            row.features[i] = encoded;
-          });
-          
-          // 特徴量名を更新
-          newFeatureNames = [
-            ...newFeatureNames.slice(0, i),
-            ...uniqueValues.map(val => `${featureNames[i]}_${val}`),
-            ...newFeatureNames.slice(i + 1)
-          ];
-          newFeatureTypes = [
-            ...newFeatureTypes.slice(0, i),
-            ...new Array(uniqueValues.length).fill('numerical'),
-            ...newFeatureTypes.slice(i + 1)
-          ];
-        }
-      }
-    }
-    
-    return { data: processedData, featureNames: newFeatureNames, featureTypes: newFeatureTypes };
-  }
 
   // 外れ値除去
   private removeOutliers(data: any[], threshold: number): any[] {
@@ -528,6 +540,93 @@ export class RealDataProcessor {
     ];
     
     return { data: processedData, featureNames: newFeatureNames, featureTypes: newFeatureTypes };
+  }
+
+  // カテゴリカル変数のエンコーディング
+  private encodeCategoricalFeatures(
+    data: Array<{ features: (number | string)[], label: number }>,
+    featureNames: string[],
+    featureTypes: ('numerical' | 'categorical')[],
+    method: 'label' | 'onehot' | 'target',
+    targetColumn?: number
+  ): { data: Array<{ features: number[], label: number }>, featureNames: string[], featureTypes: ('numerical' | 'categorical')[] } {
+    const categoricalIndices = featureTypes
+      .map((type, index) => type === 'categorical' ? index : -1)
+      .filter(index => index !== -1);
+
+    if (categoricalIndices.length === 0) {
+      // カテゴリカル変数がない場合は数値に変換して返す
+      const processedData = data.map(row => ({
+        ...row,
+        features: row.features.map(f => typeof f === 'string' ? 0 : f) as number[]
+      }));
+      return { data: processedData, featureNames, featureTypes };
+    }
+
+    let processedData = data.map(row => ({ ...row, features: [...row.features] }));
+    let newFeatureNames = [...featureNames];
+    let newFeatureTypes = [...featureTypes];
+
+    for (const catIndex of categoricalIndices) {
+      const uniqueValues = [...new Set(data.map(row => row.features[catIndex]).filter(v => v !== null && v !== undefined && !isNaN(v as number)))];
+      
+      if (method === 'label') {
+        // ラベルエンコーディング
+        const valueMap = new Map(uniqueValues.map((value, index) => [value, index]));
+        processedData = processedData.map(row => {
+          const newFeatures = [...row.features];
+          newFeatures[catIndex] = valueMap.get(row.features[catIndex]) || 0;
+          return { ...row, features: newFeatures };
+        });
+        newFeatureTypes[catIndex] = 'numerical';
+      } else if (method === 'onehot') {
+        // ワンホットエンコーディング
+        processedData = processedData.map(row => {
+          const newFeatures = [...row.features];
+          const oneHotVector = new Array(uniqueValues.length).fill(0);
+          const valueIndex = uniqueValues.indexOf(row.features[catIndex]);
+          if (valueIndex !== -1) {
+            oneHotVector[valueIndex] = 1;
+          }
+          
+          // カテゴリカル変数を削除してワンホットベクトルを挿入
+          newFeatures.splice(catIndex, 1, ...oneHotVector);
+          return { ...row, features: newFeatures };
+        });
+        
+        // 特徴量名とタイプを更新
+        newFeatureNames.splice(catIndex, 1, ...uniqueValues.map(value => `${featureNames[catIndex]}_${value}`));
+        newFeatureTypes.splice(catIndex, 1, ...new Array(uniqueValues.length).fill('numerical'));
+      } else if (method === 'target' && targetColumn !== undefined) {
+        // ターゲットエンコーディング
+        const valueTargetMap = new Map<string, number[]>();
+        
+        // 各カテゴリカル値のターゲット平均を計算
+        uniqueValues.forEach(value => {
+          const targetValuesForValue = data
+            .filter(row => row.features[catIndex] === value)
+            .map(row => row.label);
+          valueTargetMap.set(value as string, targetValuesForValue);
+        });
+        
+        processedData = processedData.map(row => {
+          const newFeatures = [...row.features];
+          const targetValuesForValue = valueTargetMap.get(row.features[catIndex] as string) || [0];
+          const targetMean = targetValuesForValue.reduce((sum, val) => sum + val, 0) / targetValuesForValue.length;
+          newFeatures[catIndex] = targetMean;
+          return { ...row, features: newFeatures };
+        });
+        newFeatureTypes[catIndex] = 'numerical';
+      }
+    }
+
+    // 最終的にすべて数値に変換
+    const finalData = processedData.map(row => ({
+      ...row,
+      features: row.features.map(f => typeof f === 'string' ? 0 : f) as number[]
+    }));
+
+    return { data: finalData, featureNames: newFeatureNames, featureTypes: newFeatureTypes };
   }
 
 }

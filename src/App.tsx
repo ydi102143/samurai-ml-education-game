@@ -3,7 +3,7 @@ import { QuoteIntro } from './components/QuoteIntro';
 import { ShogunRoom } from './components/ShogunRoom';
 import { JapanMap } from './components/JapanMap';
 import { ChallengeView } from './components/ChallengeView';
-import { DynamicEnhancedOnlineBattle } from './components/DynamicEnhancedOnlineBattle';
+import SimpleMLWorkflow from './components/SimpleMLWorkflow';
 import { UserAuth } from './components/UserAuth';
 import { userManager } from './utils/userManager';
 import { DynamicSystemProvider } from './contexts/DynamicSystemContext';
@@ -114,7 +114,7 @@ function GameContent() {
           return <ChallengeView />;
         } else if ((currentView as string) === 'online') {
           console.log('オンライン対戦画面を表示します');
-          return <DynamicEnhancedOnlineBattle onBack={() => handleSetCurrentView('home')} />;
+          return <SimpleMLWorkflow onBack={() => handleSetCurrentView('home')} />;
         } else {
           console.log('ホーム画面を表示します');
           return <ShogunRoom />;
