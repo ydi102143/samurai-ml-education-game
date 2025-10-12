@@ -44,7 +44,7 @@ export class SimpleMLManager {
         type: 'classification',
         description: '線形分類器。解釈しやすく、高速に動作します。',
         hyperparameters: {
-          learningRate: 0.5,
+          learningRate: 0.01,
           maxIterations: 1000,
           regularization: 0.001
         }
@@ -103,7 +103,7 @@ export class SimpleMLManager {
         type: 'regression',
         description: '線形回帰モデル。解釈しやすく、高速です。',
         hyperparameters: {
-          learningRate: 0.1,
+          learningRate: 0.001,
           maxIterations: 1000,
           regularization: 0.01
         }
@@ -383,7 +383,7 @@ export class SimpleMLManager {
 
   // 線形回帰
   private async trainLinearRegression(X: number[][], y: number[], params: any) {
-    const learningRate = params.learningRate || 0.01;
+    const learningRate = params.learningRate || 0.001;
     const maxIterations = params.maxIterations || 1000;
     const regularization = params.regularization || 0.01;
 
@@ -392,11 +392,14 @@ export class SimpleMLManager {
       throw new Error('Invalid training data');
     }
 
-    const nFeatures = X[0].length;
+    // データの正規化
+    const { normalizedX, normalizedY, xMeans, xStds, yMean, yStd } = this.normalizeData(X, y);
+
+    const nFeatures = normalizedX[0].length;
     let weights = new Array(nFeatures).fill(0).map(() => (Math.random() - 0.5) * 0.1);
     let bias = (Math.random() - 0.5) * 0.1;
 
-    console.log('Training Linear Regression with:', { learningRate, maxIterations, regularization, nFeatures, samples: X.length });
+    console.log('Training Linear Regression with:', { learningRate, maxIterations, regularization, nFeatures, samples: normalizedX.length });
 
     // 勾配降下法
     let prevLoss = Infinity;
@@ -408,24 +411,30 @@ export class SimpleMLManager {
       const gradWeights = new Array(nFeatures).fill(0);
       let gradBias = 0;
 
-      for (let i = 0; i < X.length; i++) {
-        const prediction = this.dotProduct(X[i], weights) + bias;
-        const error = prediction - y[i];
+      for (let i = 0; i < normalizedX.length; i++) {
+        const prediction = this.dotProduct(normalizedX[i], weights) + bias;
+        const error = prediction - normalizedY[i];
         totalLoss += error * error;
 
         for (let j = 0; j < nFeatures; j++) {
-          gradWeights[j] += error * X[i][j];
+          gradWeights[j] += error * normalizedX[i][j];
         }
         gradBias += error;
       }
 
-      const avgLoss = totalLoss / X.length;
+      const avgLoss = totalLoss / normalizedX.length;
+
+      // NaNチェック
+      if (isNaN(avgLoss) || !isFinite(avgLoss)) {
+        console.log(`NaN detected at iteration ${iter}, stopping training`);
+        break;
+      }
 
       // 重みの更新（L2正則化）
       for (let j = 0; j < nFeatures; j++) {
-        weights[j] -= learningRate * (gradWeights[j] / X.length + regularization * weights[j]);
+        weights[j] -= learningRate * (gradWeights[j] / normalizedX.length + regularization * weights[j]);
       }
-      bias -= learningRate * (gradBias / X.length);
+      bias -= learningRate * (gradBias / normalizedX.length);
 
       // 早期停止チェック
       if (Math.abs(prevLoss - avgLoss) < 1e-8) {
@@ -445,10 +454,21 @@ export class SimpleMLManager {
       }
     }
 
-    // 予測
-    const predictions = X.map(x => this.dotProduct(x, weights) + bias);
+    // 予測（正規化されたデータで学習したので、元のスケールに戻す）
+    const predictions = X.map(x => {
+      // 特徴量を正規化
+      const normalizedX = x.map((val, i) => (val - xMeans[i]) / (xStds[i] + 1e-8));
+      // 予測
+      const normalizedPred = this.dotProduct(normalizedX, weights) + bias;
+      // 元のスケールに戻す
+      return normalizedPred * yStd + yMean;
+    });
+    
     const rSquared = this.calculateRSquared(predictions, y);
     const loss = this.calculateMSE(predictions, y);
+
+    // 重みを保存（正規化された重み）
+    this.trainedWeights = { weights, bias };
 
     console.log(`Linear Regression - Final R²: ${(rSquared * 100).toFixed(2)}%`);
     console.log(`Final MSE: ${loss.toFixed(6)}`);
@@ -918,6 +938,47 @@ export class SimpleMLManager {
 
   private dotProduct(a: number[], b: number[]): number {
     return a.reduce((sum, val, i) => sum + val * b[i], 0);
+  }
+
+  // データの正規化
+  private normalizeData(X: number[][], y: number[]) {
+    const nFeatures = X[0].length;
+    
+    // 特徴量の正規化
+    const xMeans = new Array(nFeatures).fill(0);
+    const xStds = new Array(nFeatures).fill(0);
+    
+    // 平均を計算
+    for (let i = 0; i < nFeatures; i++) {
+      xMeans[i] = X.reduce((sum, row) => sum + row[i], 0) / X.length;
+    }
+    
+    // 標準偏差を計算
+    for (let i = 0; i < nFeatures; i++) {
+      const variance = X.reduce((sum, row) => sum + Math.pow(row[i] - xMeans[i], 2), 0) / X.length;
+      xStds[i] = Math.sqrt(variance) + 1e-8; // ゼロ除算を防ぐ
+    }
+    
+    // 正規化された特徴量
+    const normalizedX = X.map(row => 
+      row.map((val, i) => (val - xMeans[i]) / xStds[i])
+    );
+    
+    // ターゲットの正規化
+    const yMean = y.reduce((sum, val) => sum + val, 0) / y.length;
+    const yVariance = y.reduce((sum, val) => sum + Math.pow(val - yMean, 2), 0) / y.length;
+    const yStd = Math.sqrt(yVariance) + 1e-8;
+    
+    const normalizedY = y.map(val => (val - yMean) / yStd);
+    
+    return {
+      normalizedX,
+      normalizedY,
+      xMeans,
+      xStds,
+      yMean,
+      yStd
+    };
   }
 
   private calculateAccuracy(predictions: number[], targets: number[]): number {
