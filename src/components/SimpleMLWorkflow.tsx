@@ -271,12 +271,19 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         missingValueStrategy: preprocessingOptions.missingValueStrategy,
         selectedFeatures: preprocessingOptions.selectedMissingColumns.length > 0 
           ? preprocessingOptions.selectedMissingColumns 
-          : undefined
+          : undefined,
+        updateRawData: true // 生データも更新
       };
       
       const processed = simpleDataManager.processData(options);
       setProcessedDataset(processed);
       setShowProcessedData(true);
+      
+      // 生データも更新
+      const updatedDataset = simpleDataManager.getCurrentDataset();
+      if (updatedDataset) {
+        setCurrentDataset(updatedDataset);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '欠損値処理に失敗しました';
       setError(errorMessage);
@@ -297,12 +304,19 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         outlierThreshold: preprocessingOptions.outlierThreshold,
         selectedFeatures: preprocessingOptions.selectedOutlierColumns.length > 0 
           ? preprocessingOptions.selectedOutlierColumns 
-          : undefined
+          : undefined,
+        updateRawData: true // 生データも更新
       };
       
       const processed = simpleDataManager.processData(options);
       setProcessedDataset(processed);
       setShowProcessedData(true);
+      
+      // 生データも更新
+      const updatedDataset = simpleDataManager.getCurrentDataset();
+      if (updatedDataset) {
+        setCurrentDataset(updatedDataset);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '外れ値処理に失敗しました';
       setError(errorMessage);
@@ -322,12 +336,19 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         scalingStrategy: preprocessingOptions.scalingStrategy,
         selectedFeatures: preprocessingOptions.selectedScalingColumns.length > 0 
           ? preprocessingOptions.selectedScalingColumns 
-          : undefined
+          : undefined,
+        updateRawData: true // 生データも更新
       };
       
       const processed = simpleDataManager.processData(options);
       setProcessedDataset(processed);
       setShowProcessedData(true);
+      
+      // 生データも更新
+      const updatedDataset = simpleDataManager.getCurrentDataset();
+      if (updatedDataset) {
+        setCurrentDataset(updatedDataset);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '正規化・標準化に失敗しました';
       setError(errorMessage);
@@ -347,12 +368,19 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         categoricalEncoding: preprocessingOptions.categoricalEncoding,
         selectedFeatures: preprocessingOptions.selectedCategoricalColumns.length > 0 
           ? preprocessingOptions.selectedCategoricalColumns 
-          : undefined
+          : undefined,
+        updateRawData: true // 生データも更新
       };
       
       const processed = simpleDataManager.processData(options);
       setProcessedDataset(processed);
       setShowProcessedData(true);
+      
+      // 生データも更新
+      const updatedDataset = simpleDataManager.getCurrentDataset();
+      if (updatedDataset) {
+        setCurrentDataset(updatedDataset);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'カテゴリカルエンコーディングに失敗しました';
       setError(errorMessage);
@@ -379,12 +407,20 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
           ...preprocessingOptions.selectedOutlierColumns,
           ...preprocessingOptions.selectedScalingColumns,
           ...preprocessingOptions.selectedCategoricalColumns
-        ].filter((value, index, self) => self.indexOf(value) === index) // 重複を除去
+        ].filter((value, index, self) => self.indexOf(value) === index), // 重複を除去
+        updateRawData: true // 生データも更新
       };
       
       const processed = simpleDataManager.processData(options);
       setProcessedDataset(processed);
       setShowProcessedData(true);
+      
+      // 生データも更新
+      const updatedDataset = simpleDataManager.getCurrentDataset();
+      if (updatedDataset) {
+        setCurrentDataset(updatedDataset);
+      }
+      
       setCurrentStep('feature_engineering');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '前処理に失敗しました';
@@ -493,6 +529,13 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       });
       setProcessedDataset(result);
       setShowProcessedData(true); // 加工済みデータを表示
+      
+      // 生データも更新
+      const updatedDataset = simpleDataManager.getCurrentDataset();
+      if (updatedDataset) {
+        setCurrentDataset(updatedDataset);
+      }
+      
       setCurrentStep('feature_selection');
     } catch (err) {
       setError('特徴エンジニアリングに失敗しました');
@@ -959,55 +1002,42 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                 <div className="space-y-6">
                   <h2 className="text-2xl font-bold">探索的データ分析 (EDA)</h2>
                   
-                  {/* データ表示切り替えタブ */}
-                  <div className="flex space-x-4 border-b border-white/20">
-                    <button
-                      onClick={() => setShowProcessedData(false)}
-                      className={`pb-2 px-1 border-b-2 transition-colors ${
-                        !showProcessedData 
-                          ? 'border-blue-500 text-blue-400' 
-                          : 'border-transparent text-white/60 hover:text-white'
-                      }`}
-                    >
-                      生データ
-                    </button>
-                    {processedDataset && (
+                  {/* データ状態表示 */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-white/80 text-sm">
+                        データ表示
+                      </span>
+                      {processedDataset && (
+                        <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
+                          前処理済み
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => setShowProcessedData(true)}
-                        className={`pb-2 px-1 border-b-2 transition-colors ${
-                          showProcessedData 
-                            ? 'border-blue-500 text-blue-400' 
-                            : 'border-transparent text-white/60 hover:text-white'
-                        }`}
+                        onClick={() => {
+                          setShowProcessedData(!showProcessedData);
+                        }}
+                        className="px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-sm rounded-lg transition-colors"
                       >
-                        加工済みデータ
+                        {showProcessedData ? '元データ表示' : '処理後データ表示'}
                       </button>
-                    )}
+                    </div>
                   </div>
 
                   {/* EDAパネル */}
                   <EDAPanel
-                    data={showProcessedData && processedDataset ? 
-                      processedDataset.data.map((row, i) => ({
-                        features: row,
-                        target: processedDataset.targetValues[i]
-                      })) :
-                      currentDataset.data.map((row, i) => ({
-                        features: row,
-                        target: currentDataset.targetValues[i]
-                      }))
-                    }
+                    data={currentDataset.data.map((row, i) => ({
+                      features: row,
+                      target: currentDataset.targetValues[i]
+                    }))}
                     problemType={currentDataset.type}
-                    featureNames={showProcessedData && processedDataset ? 
-                      processedDataset.featureNames : 
-                      currentDataset.featureNames
-                    }
-                    displayFeatureTypes={showProcessedData && processedDataset ? 
-                      processedDataset.featureTypes : 
-                      getFeatureTypes(currentDataset)
-                    }
-                    targetName={currentDataset.targetName}
+                    featureNames={currentDataset.featureNames}
+                    displayFeatureTypes={getFeatureTypes(currentDataset)}
                     showProcessedData={showProcessedData}
+                    processedDataset={processedDataset}
+                    currentDataset={currentDataset}
                   />
 
                   <div className="flex justify-between">

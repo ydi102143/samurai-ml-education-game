@@ -609,6 +609,9 @@ export class SimpleDataManager {
     // 次元削減
     dimensionalityReduction?: 'none' | 'pca' | 'lda' | 'tsne' | 'umap';
     nComponents?: number;
+    
+    // 生データを更新するかどうか
+    updateRawData?: boolean;
   }): ProcessedDataset {
     if (!this.currentDataset) {
       throw new Error('No dataset loaded');
@@ -725,6 +728,16 @@ export class SimpleDataManager {
       encodingInfo
     };
 
+    // 生データを更新する場合
+    if (options.updateRawData) {
+      this.currentDataset = {
+        ...this.currentDataset,
+        data: processedData,
+        featureNames: processedFeatureNames,
+        featureTypes: featureTypes
+      };
+    }
+
     return this.processedDataset;
   }
 
@@ -810,8 +823,10 @@ export class SimpleDataManager {
               newRow.push(value === val ? 1 : 0);
             });
           } else {
-            // エンコーディングしない場合はそのまま
-            newRow.push(0); // デフォルト値
+            // エンコーディングしない場合は文字列のまま保持
+            // 数値として表示するためにハッシュ値を計算
+            const hashValue = this.stringToNumber(value);
+            newRow.push(hashValue);
             if (i === 0) {
               newFeatureNames.push(featureName);
               newFeatureTypes.push('categorical');
@@ -829,6 +844,17 @@ export class SimpleDataManager {
       featureTypes: newFeatureTypes,
       encodingInfo
     };
+  }
+
+  // 文字列を数値に変換（ハッシュ値）
+  private stringToNumber(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 32bit整数に変換
+    }
+    return Math.abs(hash) % 1000; // 0-999の範囲に正規化
   }
 
   // 特徴量エンジニアリング
