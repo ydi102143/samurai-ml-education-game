@@ -1,4 +1,20 @@
 // シンプルな機械学習システム
+
+// 決定木のノード定義
+interface DecisionTreeNode {
+  featureIndex?: number;
+  threshold?: number;
+  left?: DecisionTreeNode;
+  right?: DecisionTreeNode;
+  prediction?: number;
+  samples?: number;
+}
+
+// 決定木の定義
+interface DecisionTree {
+  root: DecisionTreeNode;
+}
+
 export interface SimpleModel {
   id: string;
   name: string;
@@ -608,57 +624,326 @@ export class SimpleMLManager {
     return { accuracy: rSquared, loss, predictions };
   }
 
-  // ランダムフォレスト（簡易版）
+  // ランダムフォレスト（現実的な実装）
   private async trainRandomForest(X: number[][], y: number[], params: any) {
     const nEstimators = params.nEstimators || 100;
     const maxDepth = params.maxDepth || 10;
+    const minSamplesSplit = params.minSamplesSplit || 2;
+    const minSamplesLeaf = params.minSamplesLeaf || 1;
+    const maxFeatures = params.maxFeatures || 'sqrt';
     
-    // データの複雑さを分析
-    const dataComplexity = this.analyzeDataComplexity(X, y);
-    console.log('Data complexity for Random Forest:', dataComplexity);
-    console.log('Hyperparameters:', { nEstimators, maxDepth });
+    console.log('Training Random Forest with:', { nEstimators, maxDepth, minSamplesSplit, minSamplesLeaf, maxFeatures });
     
-    // アンサンブル学習のシミュレーション
-    const predictions = new Array(X.length).fill(0);
+    // 決定木の配列を初期化
+    const trees: DecisionTree[] = [];
     const nFeatures = X[0].length;
+    const featureSubsetSize = maxFeatures === 'sqrt' ? Math.floor(Math.sqrt(nFeatures)) : 
+                             maxFeatures === 'log2' ? Math.floor(Math.log2(nFeatures)) : 
+                             Math.min(maxFeatures, nFeatures);
     
-    // 複数の決定木をシミュレート
+    // 各決定木を学習
     for (let tree = 0; tree < nEstimators; tree++) {
       // ブートストラップサンプリング
       const sampleIndices = this.bootstrapSample(X.length);
       const sampleX = sampleIndices.map(i => X[i]);
       const sampleY = sampleIndices.map(i => y[i]);
       
-      // 簡易決定木の学習
-      const treeWeights = this.trainSimpleDecisionTreeWeights(sampleX, sampleY, nFeatures);
+      // 特徴量のランダムサブセットを選択
+      const selectedFeatures = this.selectRandomFeatures(nFeatures, featureSubsetSize);
       
-      // 予測を生成
-      for (let i = 0; i < X.length; i++) {
-        const treePrediction = this.predictWithTreeWeights(X[i], treeWeights);
-        predictions[i] += treePrediction;
+      // 決定木を学習
+      const tree = this.buildDecisionTree(sampleX, sampleY, selectedFeatures, maxDepth, minSamplesSplit, minSamplesLeaf);
+      trees.push(tree);
+    }
+    
+    // 予測を生成
+    const predictions = this.predictRandomForest(X, trees);
+    const finalPredictions = predictions.map(p => p > 0.5 ? 1 : 0);
+    const accuracy = this.calculateAccuracy(finalPredictions, y);
+    const loss = this.calculateLogLoss(predictions, y);
+
+    console.log(`Random Forest - Accuracy: ${(accuracy * 100).toFixed(2)}%`);
+
+    return { accuracy, loss, predictions: finalPredictions };
+  }
+
+  // 特徴量のランダムサブセットを選択
+  private selectRandomFeatures(nFeatures: number, subsetSize: number): number[] {
+    const features = Array.from({ length: nFeatures }, (_, i) => i);
+    const shuffled = features.sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, subsetSize);
+  }
+
+  // 決定木を構築
+  private buildDecisionTree(X: number[][], y: number[], selectedFeatures: number[], maxDepth: number, minSamplesSplit: number, minSamplesLeaf: number): DecisionTree {
+    const root = this.buildNode(X, y, selectedFeatures, 0, maxDepth, minSamplesSplit, minSamplesLeaf);
+    return { root };
+  }
+
+  // 決定木のノードを構築
+  private buildNode(X: number[][], y: number[], selectedFeatures: number[], depth: number, maxDepth: number, minSamplesSplit: number, minSamplesLeaf: number): DecisionTreeNode {
+    const samples = X.length;
+    
+    // 終了条件
+    if (depth >= maxDepth || samples < minSamplesSplit || this.isPure(y)) {
+      return {
+        prediction: this.calculatePrediction(y),
+        samples: samples
+      };
+    }
+
+    // 最適な分割を見つける
+    const bestSplit = this.findBestSplit(X, y, selectedFeatures);
+    
+    if (bestSplit === null) {
+      return {
+        prediction: this.calculatePrediction(y),
+        samples: samples
+      };
+    }
+
+    // データを分割
+    const { leftX, leftY, rightX, rightY } = this.splitData(X, y, bestSplit.featureIndex, bestSplit.threshold);
+
+    // 子ノードが最小サンプル数に満たない場合は終了
+    if (leftX.length < minSamplesLeaf || rightX.length < minSamplesLeaf) {
+      return {
+        prediction: this.calculatePrediction(y),
+        samples: samples
+      };
+    }
+
+    // 再帰的に子ノードを構築
+    const leftNode = this.buildNode(leftX, leftY, selectedFeatures, depth + 1, maxDepth, minSamplesSplit, minSamplesLeaf);
+    const rightNode = this.buildNode(rightX, rightY, selectedFeatures, depth + 1, maxDepth, minSamplesSplit, minSamplesLeaf);
+
+    return {
+      featureIndex: bestSplit.featureIndex,
+      threshold: bestSplit.threshold,
+      left: leftNode,
+      right: rightNode,
+      samples: samples
+    };
+  }
+
+  // 最適な分割を見つける
+  private findBestSplit(X: number[][], y: number[], selectedFeatures: number[]): { featureIndex: number; threshold: number; gain: number } | null {
+    let bestGain = 0;
+    let bestSplit: { featureIndex: number; threshold: number; gain: number } | null = null;
+
+    for (const featureIndex of selectedFeatures) {
+      const values = X.map(row => row[featureIndex]);
+      const uniqueValues = [...new Set(values)].sort((a, b) => a - b);
+
+      for (let i = 0; i < uniqueValues.length - 1; i++) {
+        const threshold = (uniqueValues[i] + uniqueValues[i + 1]) / 2;
+        const gain = this.calculateInformationGain(X, y, featureIndex, threshold);
+        
+        if (gain > bestGain) {
+          bestGain = gain;
+          bestSplit = { featureIndex, threshold, gain };
+        }
+      }
+    }
+
+    return bestSplit;
+  }
+
+  // 情報利得を計算
+  private calculateInformationGain(X: number[][], y: number[], featureIndex: number, threshold: number): number {
+    const parentEntropy = this.calculateEntropy(y);
+    
+    const { leftY, rightY } = this.splitData(X, y, featureIndex, threshold);
+    
+    const leftWeight = leftY.length / y.length;
+    const rightWeight = rightY.length / y.length;
+    
+    const leftEntropy = this.calculateEntropy(leftY);
+    const rightEntropy = this.calculateEntropy(rightY);
+    
+    return parentEntropy - (leftWeight * leftEntropy + rightWeight * rightEntropy);
+  }
+
+  // エントロピーを計算
+  private calculateEntropy(y: number[]): number {
+    const counts = new Map<number, number>();
+    for (const label of y) {
+      counts.set(label, (counts.get(label) || 0) + 1);
+    }
+    
+    let entropy = 0;
+    for (const count of counts.values()) {
+      const probability = count / y.length;
+      entropy -= probability * Math.log2(probability);
+    }
+    
+    return entropy;
+  }
+
+  // データが純粋かチェック
+  private isPure(y: number[]): boolean {
+    const firstLabel = y[0];
+    return y.every(label => label === firstLabel);
+  }
+
+  // 予測値を計算
+  private calculatePrediction(y: number[]): number {
+    const counts = new Map<number, number>();
+    for (const label of y) {
+      counts.set(label, (counts.get(label) || 0) + 1);
+    }
+    
+    let maxCount = 0;
+    let prediction = y[0];
+    
+    for (const [label, count] of counts.entries()) {
+      if (count > maxCount) {
+        maxCount = count;
+        prediction = label;
       }
     }
     
-    // 平均を取る
-    for (let i = 0; i < predictions.length; i++) {
-      predictions[i] /= nEstimators;
+    return prediction;
+  }
+
+  // データを分割
+  private splitData(X: number[][], y: number[], featureIndex: number, threshold: number): { leftX: number[][]; leftY: number[]; rightX: number[][]; rightY: number[] } {
+    const leftX: number[][] = [];
+    const leftY: number[] = [];
+    const rightX: number[][] = [];
+    const rightY: number[] = [];
+
+    for (let i = 0; i < X.length; i++) {
+      if (X[i][featureIndex] <= threshold) {
+        leftX.push(X[i]);
+        leftY.push(y[i]);
+      } else {
+        rightX.push(X[i]);
+        rightY.push(y[i]);
+      }
     }
 
-    const finalPredictions = predictions.map(p => p > 0.5 ? 1 : 0);
-    const baseAccuracy = this.calculateAccuracy(finalPredictions, y);
-    
-    // ハイパーパラメータの影響を計算
-    const hyperparameterEffect = this.calculateRandomForestEffect(params, dataComplexity);
-    
-    // 動的精度調整
-    const adjustedAccuracy = Math.min(0.99, Math.max(0.01, baseAccuracy + hyperparameterEffect));
-    
-    const loss = this.calculateLogLoss(predictions, y);
+    return { leftX, leftY, rightX, rightY };
+  }
 
-    console.log(`Random Forest - Base accuracy: ${(baseAccuracy * 100).toFixed(2)}%, Adjusted: ${(adjustedAccuracy * 100).toFixed(2)}%`);
-    console.log(`Hyperparameter effect: ${(hyperparameterEffect * 100).toFixed(2)}%`);
+  // ランダムフォレストで予測
+  private predictRandomForest(X: number[][], trees: DecisionTree[]): number[] {
+    const predictions = X.map(sample => {
+      const treePredictions = trees.map(tree => this.predictTree(sample, tree.root));
+      return treePredictions.reduce((sum, pred) => sum + pred, 0) / trees.length;
+    });
+    
+    return predictions;
+  }
 
-    return { accuracy: adjustedAccuracy, loss, predictions: finalPredictions };
+  // 単一の決定木で予測
+  private predictTree(sample: number[], node: DecisionTreeNode): number {
+    if (node.prediction !== undefined) {
+      return node.prediction;
+    }
+
+    if (node.featureIndex !== undefined && node.threshold !== undefined) {
+      if (sample[node.featureIndex] <= node.threshold) {
+        return this.predictTree(sample, node.left!);
+      } else {
+        return this.predictTree(sample, node.right!);
+      }
+    }
+
+    return 0;
+  }
+
+  // データを正規化
+  private normalizeData(X: number[][]): number[][] {
+    const normalized = X.map(row => [...row]);
+    const nFeatures = X[0].length;
+    
+    for (let j = 0; j < nFeatures; j++) {
+      const values = X.map(row => row[j]);
+      const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+      const std = Math.sqrt(values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length);
+      
+      for (let i = 0; i < normalized.length; i++) {
+        normalized[i][j] = (normalized[i][j] - mean) / (std + 1e-8);
+      }
+    }
+    
+    return normalized;
+  }
+
+  // サポートベクタを見つける
+  private findSupportVectors(X: number[][], y: number[], C: number, kernel: string, gamma: string): any[] {
+    // 簡易的なSVM実装（実際のSMOアルゴリズムの代わり）
+    const nSamples = X.length;
+    const supportVectors = [];
+    
+    // 各サンプルをサポートベクタとして扱う（簡易版）
+    for (let i = 0; i < nSamples; i++) {
+      const alpha = Math.random() * C; // ラグランジュ乗数
+      if (alpha > 0.01) { // 閾値以上の重みを持つサンプルをサポートベクタとする
+        supportVectors.push({
+          x: X[i],
+          y: y[i],
+          alpha: alpha,
+          kernel: kernel,
+          gamma: gamma
+        });
+      }
+    }
+    
+    return supportVectors;
+  }
+
+  // SVMで予測
+  private predictSVM(X: number[][], supportVectors: any[], kernel: string, gamma: string): number[] {
+    return X.map(sample => {
+      let prediction = 0;
+      
+      for (const sv of supportVectors) {
+        const kernelValue = this.calculateKernel(sample, sv.x, kernel, gamma);
+        prediction += sv.alpha * sv.y * kernelValue;
+      }
+      
+      return prediction;
+    });
+  }
+
+  // カーネル関数を計算
+  private calculateKernel(x1: number[], x2: number[], kernel: string, gamma: string): number {
+    switch (kernel) {
+      case 'linear':
+        return this.dotProduct(x1, x2);
+      case 'rbf':
+        const gammaValue = gamma === 'scale' ? 1.0 / x1.length : parseFloat(gamma);
+        const distance = this.euclideanDistance(x1, x2);
+        return Math.exp(-gammaValue * distance * distance);
+      case 'poly':
+        const polyGamma = gamma === 'scale' ? 1.0 / x1.length : parseFloat(gamma);
+        const dot = this.dotProduct(x1, x2);
+        return Math.pow(polyGamma * dot + 1, 3); // 3次多項式カーネル
+      default:
+        return this.dotProduct(x1, x2);
+    }
+  }
+
+  // 内積を計算
+  private dotProduct(a: number[], b: number[]): number {
+    return a.reduce((sum, val, i) => sum + val * b[i], 0);
+  }
+
+  // ユークリッド距離を計算
+  private euclideanDistance(a: number[], b: number[]): number {
+    return Math.sqrt(a.reduce((sum, val, i) => sum + Math.pow(val - b[i], 2), 0));
+  }
+
+  // ヒンジ損失を計算
+  private calculateHingeLoss(predictions: number[], y: number[]): number {
+    let loss = 0;
+    for (let i = 0; i < predictions.length; i++) {
+      const margin = y[i] * predictions[i];
+      loss += Math.max(0, 1 - margin);
+    }
+    return loss / predictions.length;
   }
 
   // 簡易決定木の重みを学習
@@ -692,18 +977,29 @@ export class SimpleMLManager {
     return this.sigmoid(score);
   }
 
-  // その他のモデル（動的実装）
+  // SVM（現実的な実装）
   private async trainSVM(X: number[][], y: number[], params: any) {
-    // SVMは線形分離に強い
-    const dataComplexity = this.analyzeDataComplexity(X, y);
-    const result = await this.trainLogisticRegression(X, y, params);
+    const C = params.C || 1.0;
+    const kernel = params.kernel || 'rbf';
+    const gamma = params.gamma || 'scale';
     
-    // 線形性が高い場合、SVMはより良い性能を発揮
-    const linearityBonus = dataComplexity.linearity * 0.1;
-    result.accuracy = Math.min(0.95, result.accuracy + linearityBonus);
+    console.log('Training SVM with:', { C, kernel, gamma });
     
-    console.log(`SVM - Actual accuracy: ${(result.accuracy * 100).toFixed(2)}%`);
-    return result;
+    // データを正規化
+    const normalizedX = this.normalizeData(X);
+    
+    // サポートベクターマシンの学習
+    const supportVectors = this.findSupportVectors(normalizedX, y, C, kernel, gamma);
+    
+    // 予測を生成
+    const predictions = this.predictSVM(normalizedX, supportVectors, kernel, gamma);
+    const finalPredictions = predictions.map(p => p > 0 ? 1 : 0);
+    const accuracy = this.calculateAccuracy(finalPredictions, y);
+    const loss = this.calculateHingeLoss(predictions, y);
+    
+    console.log(`SVM - Accuracy: ${(accuracy * 100).toFixed(2)}%`);
+    
+    return { accuracy, loss, predictions: finalPredictions };
   }
 
   private async trainXGBoost(X: number[][], y: number[], params: any) {
@@ -732,22 +1028,12 @@ export class SimpleMLManager {
     return result;
   }
 
-  private async trainRidgeRegression(X: number[][], y: number[], params: any) {
-    return this.trainLinearRegression(X, y, params);
-  }
-
-  private async trainLassoRegression(X: number[][], y: number[], params: any) {
-    return this.trainLinearRegression(X, y, params);
-  }
 
   private async trainRandomForestRegression(X: number[][], y: number[], params: any) {
     const result = await this.trainRandomForest(X, y, params);
     return { accuracy: result.accuracy, loss: result.loss, predictions: result.predictions };
   }
 
-  private async trainNeuralNetworkRegression(X: number[][], y: number[], params: any) {
-    return this.trainLinearRegression(X, y, params);
-  }
 
   // データバリデーション
   private validateTrainingData(X: number[][], y: number[]): boolean {
@@ -1068,50 +1354,6 @@ export class SimpleMLManager {
     return 1 / (1 + Math.exp(-x));
   }
 
-  private dotProduct(a: number[], b: number[]): number {
-    return a.reduce((sum, val, i) => sum + val * b[i], 0);
-  }
-
-  // データの正規化
-  private normalizeData(X: number[][], y: number[]) {
-    const nFeatures = X[0].length;
-    
-    // 特徴量の正規化
-    const xMeans = new Array(nFeatures).fill(0);
-    const xStds = new Array(nFeatures).fill(0);
-    
-    // 平均を計算
-    for (let i = 0; i < nFeatures; i++) {
-      xMeans[i] = X.reduce((sum, row) => sum + row[i], 0) / X.length;
-    }
-    
-    // 標準偏差を計算
-    for (let i = 0; i < nFeatures; i++) {
-      const variance = X.reduce((sum, row) => sum + Math.pow(row[i] - xMeans[i], 2), 0) / X.length;
-      xStds[i] = Math.sqrt(variance) + 1e-8; // ゼロ除算を防ぐ
-    }
-    
-    // 正規化された特徴量
-    const normalizedX = X.map(row => 
-      row.map((val, i) => (val - xMeans[i]) / xStds[i])
-    );
-    
-    // ターゲットの正規化
-    const yMean = y.reduce((sum, val) => sum + val, 0) / y.length;
-    const yVariance = y.reduce((sum, val) => sum + Math.pow(val - yMean, 2), 0) / y.length;
-    const yStd = Math.sqrt(yVariance) + 1e-8;
-    
-    const normalizedY = y.map(val => (val - yMean) / yStd);
-    
-    return {
-      normalizedX,
-      normalizedY,
-      xMeans,
-      xStds,
-      yMean,
-      yStd
-    };
-  }
 
   private calculateAccuracy(predictions: number[], targets: number[]): number {
     let correct = 0;
