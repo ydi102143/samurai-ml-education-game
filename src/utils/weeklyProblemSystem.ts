@@ -39,11 +39,16 @@ export interface WeeklyProblem {
 
 export interface FinalSubmission {
   userId: string;
+  username: string;
   modelName: string;
   publicScore: number;
   privateScore: number;
   rank: number;
   submissionTime: Date;
+  modelParameters: {
+    weights: number[];
+    bias: number;
+  };
   metadata: {
     hyperparameters: Record<string, any>;
     preprocessing: string[];
@@ -419,10 +424,19 @@ export class WeeklyProblemSystem {
       if (this.currentProblem && this.currentProblem.status === 'active') {
         const now = new Date();
         if (this.currentProblem.finalResults && now >= this.currentProblem.finalResults.evaluationDate) {
+          console.log('週次問題の評価を開始:', this.currentProblem.title);
           this.completeProblemEvaluation();
         }
       }
     }, 60000); // 1分ごとにチェック
+    
+    // デバッグ用: 5分後に評価を実行（開発中）
+    setTimeout(() => {
+      if (this.currentProblem && this.currentProblem.status === 'active') {
+        console.log('デバッグ: 5分後に評価を実行');
+        this.completeProblemEvaluation();
+      }
+    }, 5 * 60 * 1000); // 5分後
   }
 
   // 問題の評価を完了
@@ -431,11 +445,19 @@ export class WeeklyProblemSystem {
       return;
     }
 
+    console.log('問題の評価を開始:', this.currentProblem.title);
     this.currentProblem.status = 'evaluating';
     
     // 提出されたモデルを評価
     const submissions = this.submissions.get(this.currentProblem.id) || [];
+    console.log(`評価対象の提出数: ${submissions.length}`);
+    
     const evaluatedSubmissions = this.evaluateSubmissions(submissions);
+    
+    // 評価結果をログ出力
+    evaluatedSubmissions.forEach((submission, index) => {
+      console.log(`提出 ${index + 1}: ${submission.username} - Public: ${(submission.publicScore * 100).toFixed(2)}%, Private: ${(submission.privateScore * 100).toFixed(2)}%`);
+    });
     
     this.currentProblem.finalResults = {
       submissions: evaluatedSubmissions,
@@ -444,6 +466,7 @@ export class WeeklyProblemSystem {
     };
 
     this.currentProblem.status = 'completed';
+    console.log('問題の評価が完了しました');
     
     // リスナーに通知
     this.notifyListeners();
@@ -460,10 +483,100 @@ export class WeeklyProblemSystem {
 
   // Privateスコアを計算
   private calculatePrivateScore(submission: FinalSubmission): number {
-    // 実際のPrivateテストデータでの評価をシミュレート
-    const baseScore = submission.publicScore;
-    const noise = (Math.random() - 0.5) * 0.1; // ±5%のノイズ
-    return Math.max(0, Math.min(1, baseScore + noise));
+    if (!this.currentProblem || !this.currentProblem.privateTestData) {
+      // Privateテストデータがない場合はシミュレーション
+      const baseScore = submission.publicScore;
+      const noise = (Math.random() - 0.5) * 0.1; // ±5%のノイズ
+      return Math.max(0, Math.min(1, baseScore + noise));
+    }
+
+    // 実際のPrivateテストデータで評価
+    const privateData = this.currentProblem.privateTestData;
+    const { data, targets } = privateData;
+    
+    try {
+      // 提出されたモデルのパラメータを使用して予測
+      const predictions = this.predictWithModel(
+        data, 
+        submission.modelParameters, 
+        this.currentProblem.type
+      );
+      
+      // 精度を計算
+      const accuracy = this.calculateAccuracy(predictions, targets, this.currentProblem.type);
+      return accuracy;
+      
+    } catch (error) {
+      console.error('Private評価でエラー:', error);
+      // エラーの場合はシミュレーション
+      const baseScore = submission.publicScore;
+      const noise = (Math.random() - 0.5) * 0.1;
+      return Math.max(0, Math.min(1, baseScore + noise));
+    }
+  }
+
+  // モデルで予測を実行
+  private predictWithModel(data: number[][], modelParams: any, type: 'classification' | 'regression'): number[] {
+    if (type === 'classification') {
+      return this.predictClassification(data, modelParams);
+    } else {
+      return this.predictRegression(data, modelParams);
+    }
+  }
+
+  // 分類問題の予測
+  private predictClassification(data: number[][], modelParams: any): number[] {
+    const { weights, bias } = modelParams;
+    const predictions: number[] = [];
+    
+    for (const row of data) {
+      let logit = bias;
+      for (let i = 0; i < Math.min(row.length, weights.length); i++) {
+        logit += row[i] * weights[i];
+      }
+      
+      // シグモイド関数で確率に変換
+      const probability = 1 / (1 + Math.exp(-logit));
+      predictions.push(probability > 0.5 ? 1 : 0);
+    }
+    
+    return predictions;
+  }
+
+  // 回帰問題の予測
+  private predictRegression(data: number[][], modelParams: any): number[] {
+    const { weights, bias } = modelParams;
+    const predictions: number[] = [];
+    
+    for (const row of data) {
+      let prediction = bias;
+      for (let i = 0; i < Math.min(row.length, weights.length); i++) {
+        prediction += row[i] * weights[i];
+      }
+      predictions.push(prediction);
+    }
+    
+    return predictions;
+  }
+
+  // 精度を計算
+  private calculateAccuracy(predictions: number[], targets: number[], type: 'classification' | 'regression'): number {
+    if (type === 'classification') {
+      // 分類問題: 正解率
+      let correct = 0;
+      for (let i = 0; i < predictions.length; i++) {
+        if (Math.round(predictions[i]) === targets[i]) {
+          correct++;
+        }
+      }
+      return correct / predictions.length;
+    } else {
+      // 回帰問題: R²スコア
+      const mean = targets.reduce((a, b) => a + b, 0) / targets.length;
+      const ssRes = predictions.reduce((sum, pred, i) => sum + Math.pow(targets[i] - pred, 2), 0);
+      const ssTot = targets.reduce((sum, target) => sum + Math.pow(target - mean, 2), 0);
+      return 1 - (ssRes / ssTot);
+    }
   }
 
   // 提出を追加
