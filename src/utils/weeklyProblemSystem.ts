@@ -124,31 +124,31 @@ export class WeeklyProblemSystem {
     }
   }
 
-  // ローカルストレージから問題を取得
-  private getStoredProblem(): WeeklyProblem | null {
-    try {
-      const stored = localStorage.getItem('ml_battle_current_problem') || 
-                     sessionStorage.getItem('ml_battle_current_problem');
-      if (!stored) return null;
-      
-      const problemData = JSON.parse(stored);
-      return {
-        ...problemData,
-        startDate: new Date(problemData.startDate),
-        endDate: new Date(problemData.endDate),
-        // privateTestDataは必要時に再生成
-        privateTestData: undefined
-      };
-    } catch (error) {
-      console.error('問題の読み込みに失敗:', error);
-      return null;
-    }
-  }
+  // ローカルストレージから問題を取得（将来使用予定）
+  // private getStoredProblem(): WeeklyProblem | null {
+  //   try {
+  //     const stored = localStorage.getItem('ml_battle_current_problem') || 
+  //                    sessionStorage.getItem('ml_battle_current_problem');
+  //     if (!stored) return null;
+  //     
+  //     const problemData = JSON.parse(stored);
+  //     return {
+  //       ...problemData,
+  //       startDate: new Date(problemData.startDate),
+  //       endDate: new Date(problemData.endDate),
+  //       // privateTestDataは必要時に再生成
+  //       privateTestData: undefined
+  //     };
+  //   } catch (error) {
+  //     console.error('問題の読み込みに失敗:', error);
+  //     return null;
+  //   }
+  // }
 
-  // 問題がまだ有効かチェック
-  private isProblemStillValid(problem: WeeklyProblem, now: Date): boolean {
-    return now >= problem.startDate && now <= problem.endDate;
-  }
+  // 問題がまだ有効かチェック（将来使用予定）
+  // private isProblemStillValid(problem: WeeklyProblem, now: Date): boolean {
+  //   return now >= problem.startDate && now <= problem.endDate;
+  // }
 
   // 週の開始日を取得
   private getWeekStart(date: Date): Date {
