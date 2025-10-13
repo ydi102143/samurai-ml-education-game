@@ -5,8 +5,8 @@ import { Play, BarChart3, Settings, Upload, ArrowLeft, RefreshCw, Trophy, CheckS
 import { EDAPanel } from './EDAPanel';
 import { simpleDataManager, type SimpleDataset, type ProcessedDataset } from '../utils/simpleDataManager';
 import { simpleMLManager, type SimpleModel, type TrainingResult, type ValidationResult } from '../utils/simpleMLManager';
-import { realtimeSystem, type LeaderboardEntry, type ChatMessage } from '../utils/realtimeSystem';
-import { weeklyProblemSystem } from '../utils/weeklyProblemSystem';
+import { realtimeSystem, type LeaderboardEntry, type ChatMessage, type Participant, type WeeklyProblem } from '../utils/realtimeSystem';
+import { weeklyProblemSystem, type WeeklyProblem as WeeklyProblemType } from '../utils/weeklyProblemSystem';
 import { scoringSystem } from '../utils/scoringSystem';
 
 interface SimpleMLWorkflowProps {
@@ -92,6 +92,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   // リアルタイム機能
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [currentProblem, setCurrentProblem] = useState<WeeklyProblem | null>(null);
   const [weeklyProblem, setWeeklyProblem] = useState<WeeklyProblemType | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -192,6 +194,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   const loadRealtimeData = () => {
     setLeaderboard(realtimeSystem.getLeaderboard());
     setChatMessages(realtimeSystem.getChatMessages());
+    setParticipants(realtimeSystem.getParticipants());
+    setCurrentProblem(realtimeSystem.getCurrentProblem());
   };
 
   // 週次問題の読み込み
