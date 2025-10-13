@@ -25,12 +25,15 @@ export class SimpleDataManager {
   private processedDataset: ProcessedDataset | null = null;
 
   // データセットを生成
-  generateDataset(type: 'classification' | 'regression'): SimpleDataset {
+  generateDataset(type: 'classification' | 'regression', specificType?: string): SimpleDataset {
     const datasetTypes = type === 'classification' ? 
       ['customer', 'medical', 'financial', 'marketing', 'social'] :
       ['housing', 'sales', 'stock', 'weather', 'energy'];
     
-    const selectedType = datasetTypes[Math.floor(Math.random() * datasetTypes.length)];
+    // 特定のタイプが指定されている場合はそれを使用、そうでなければランダム選択
+    const selectedType = specificType && datasetTypes.includes(specificType) ? 
+      specificType : 
+      datasetTypes[Math.floor(Math.random() * datasetTypes.length)];
     
     const datasets = {
       classification: {

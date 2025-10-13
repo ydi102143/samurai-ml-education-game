@@ -13,6 +13,7 @@ export interface WeeklyProblem {
     features: number;
     samples: number;
     targetName: string;
+    type?: string;
   };
   evaluation: {
     metric: string;
@@ -175,13 +176,13 @@ export class WeeklyProblemSystem {
         templates: [
           {
             title: '顧客離脱予測',
-            description: '顧客の行動データから離脱を予測する分類問題です。',
+            description: '顧客の属性から離脱を予測する分類問題です。',
             difficulty: 'medium' as const,
             dataset: {
               name: '顧客離脱データセット',
-              description: '顧客の利用履歴、属性、行動パターンを含むデータセット',
-              features: 15,
-              samples: 10000,
+              description: '年齢、収入、教育、性別、都市規模、クレジットスコアなどの顧客属性データセット',
+              features: 8,
+              samples: 1500,
               targetName: '離脱フラグ'
             },
             evaluation: {
@@ -195,9 +196,9 @@ export class WeeklyProblemSystem {
             difficulty: 'hard' as const,
             dataset: {
               name: '医療診断データセット',
-              description: '血液検査、画像診断、症状データを含む医療データセット',
-              features: 25,
-              samples: 5000,
+              description: '年齢、血圧、コレステロール、血糖値、心拍数、BMI、喫煙歴、家族歴などの検査データセット',
+              features: 8,
+              samples: 2000,
               targetName: '疾患分類'
             },
             evaluation: {
@@ -206,15 +207,15 @@ export class WeeklyProblemSystem {
             }
           },
           {
-            title: '不正検出',
-            description: '金融取引データから不正な取引を検出する分類問題です。',
-            difficulty: 'easy' as const,
+            title: 'ローンデフォルト予測',
+            description: '借入者の属性からデフォルトリスクを予測する分類問題です。',
+            difficulty: 'medium' as const,
             dataset: {
-              name: '金融取引データセット',
-              description: '取引金額、時間、場所、顧客情報を含むデータセット',
-              features: 12,
-              samples: 15000,
-              targetName: '不正フラグ'
+              name: 'ローンデフォルトデータセット',
+              description: '口座残高、クレジットスコア、借入金額、勤続年数、負債比率、収入安定性、借入目的、担保などのデータセット',
+              features: 8,
+              samples: 2000,
+              targetName: 'デフォルトリスク'
             },
             evaluation: {
               metric: 'Precision',
@@ -227,14 +228,30 @@ export class WeeklyProblemSystem {
         type: 'regression' as const,
         templates: [
           {
-            title: '不動産価格予測',
-            description: '物件の特徴から価格を予測する回帰問題です。',
+            title: '売上予測',
+            description: '商品の特徴から売上を予測する回帰問題です。',
             difficulty: 'medium' as const,
             dataset: {
-              name: '不動産価格データセット',
-              description: '立地、面積、築年数、設備などの物件情報を含むデータセット',
-              features: 18,
-              samples: 8000,
+              name: '売上データセット',
+              description: '商品カテゴリ、価格、割引、季節、広告予算、競合価格、店舗規模、立地タイプなどの特徴を含むデータセット',
+              features: 8,
+              samples: 1800,
+              targetName: '売上'
+            },
+            evaluation: {
+              metric: 'RMSE',
+              description: '平均二乗平方根誤差で評価されます'
+            }
+          },
+          {
+            title: '住宅価格予測',
+            description: '住宅の特徴から価格を予測する回帰問題です。',
+            difficulty: 'medium' as const,
+            dataset: {
+              name: '住宅価格データセット',
+              description: '住宅のサイズ、部屋数、立地、築年数などの特徴を含むデータセット',
+              features: 9,
+              samples: 2000,
               targetName: '価格'
             },
             evaluation: {
@@ -243,35 +260,19 @@ export class WeeklyProblemSystem {
             }
           },
           {
-            title: '売上予測',
-            description: '過去の売上データから将来の売上を予測する回帰問題です。',
+            title: '株価予測',
+            description: '企業の財務指標から株価を予測する回帰問題です。',
             difficulty: 'hard' as const,
             dataset: {
-              name: '売上データセット',
-              description: '季節性、トレンド、外部要因を含む時系列データセット',
-              features: 20,
-              samples: 12000,
-              targetName: '売上金額'
+              name: '株価予測データセット',
+              description: 'セクター、時価総額、PER、負債比率、収益成長率などの財務指標データセット',
+              features: 8,
+              samples: 1500,
+              targetName: '株価'
             },
             evaluation: {
               metric: 'MAE',
               description: '平均絶対誤差で評価されます'
-            }
-          },
-          {
-            title: 'エネルギー消費予測',
-            description: '建物の使用状況からエネルギー消費量を予測する回帰問題です。',
-            difficulty: 'easy' as const,
-            dataset: {
-              name: 'エネルギー消費データセット',
-              description: '気温、湿度、使用人数、時間帯などの環境データセット',
-              features: 14,
-              samples: 20000,
-              targetName: '消費量'
-            },
-            evaluation: {
-              metric: 'R²',
-              description: '決定係数で評価されます'
             }
           }
         ]
@@ -281,6 +282,9 @@ export class WeeklyProblemSystem {
     const typeGroup = problemTypes[Math.floor(Math.random() * problemTypes.length)];
     const template = typeGroup.templates[Math.floor(Math.random() * typeGroup.templates.length)];
 
+    // データセットタイプを決定
+    const datasetType = this.getDatasetTypeFromTitle(template.title);
+    
     const problem: WeeklyProblem = {
       id: weekId || `problem_${Date.now()}`,
       title: template.title,
@@ -289,7 +293,10 @@ export class WeeklyProblemSystem {
       difficulty: template.difficulty,
       startDate,
       endDate,
-      dataset: template.dataset,
+      dataset: {
+        ...template.dataset,
+        type: datasetType // データセットタイプを追加
+      },
       evaluation: template.evaluation,
       leaderboard: {
         totalParticipants: Math.floor(Math.random() * 1000) + 100,
@@ -306,6 +313,20 @@ export class WeeklyProblemSystem {
     };
 
     return problem;
+  }
+
+  // 問題タイトルからデータセットタイプを決定
+  private getDatasetTypeFromTitle(title: string): string {
+    const titleToTypeMap: Record<string, string> = {
+      '顧客離脱予測': 'customer',
+      '医療診断支援': 'medical',
+      'ローンデフォルト予測': 'financial',
+      '売上予測': 'sales',
+      '住宅価格予測': 'housing',
+      '株価予測': 'stock'
+    };
+    
+    return titleToTypeMap[title] || 'housing'; // デフォルトは住宅
   }
 
   // Privateテストデータを生成

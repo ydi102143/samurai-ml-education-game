@@ -150,7 +150,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     // 週次問題に基づいてデータセットを生成
     const problem = weeklyProblemSystem.getCurrentProblem();
     if (problem) {
-      const dataset = simpleDataManager.generateDataset(problem.type);
+      const datasetType = (problem.dataset as any).type || 'housing';
+      const dataset = simpleDataManager.generateDataset(problem.type, datasetType);
       setCurrentDataset(dataset);
       simpleDataManager.setCurrentDataset(dataset);
     } else {
@@ -174,7 +175,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         loadAvailableModels();
         
         // 新しい問題に基づいてデータセットを生成
-        const dataset = simpleDataManager.generateDataset(problem.type);
+        const datasetType = (problem.dataset as any).type || 'housing';
+        const dataset = simpleDataManager.generateDataset(problem.type, datasetType);
         setCurrentDataset(dataset);
         simpleDataManager.setCurrentDataset(dataset);
       }
@@ -225,7 +227,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       
       // 週次問題に基づいてデータセットを生成
       if (currentDataset) {
-        const newDataset = simpleDataManager.generateDataset(problem.type);
+        const datasetType = (problem.dataset as any).type || 'housing';
+        const newDataset = simpleDataManager.generateDataset(problem.type, datasetType);
         setCurrentDataset(newDataset);
         simpleDataManager.setCurrentDataset(newDataset);
       }
