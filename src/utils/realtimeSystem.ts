@@ -84,13 +84,66 @@ export class RealtimeSystem {
 
   // システム初期化
   private initializeSystem() {
-    // サンプルデータを生成
-    this.generateSampleData();
+    // ローカルストレージからデータを読み込み
+    this.loadFromStorage();
     
     // 定期的な更新を開始
     setInterval(() => {
       this.updateSystem();
     }, 1000);
+    
+    // 定期的にローカルストレージに保存
+    setInterval(() => {
+      this.saveToStorage();
+    }, 5000);
+  }
+
+  // ローカルストレージからデータを読み込み
+  private loadFromStorage() {
+    try {
+      const leaderboardData = localStorage.getItem('ml_battle_leaderboard');
+      if (leaderboardData) {
+        this.leaderboard = JSON.parse(leaderboardData);
+      }
+      
+      const chatData = localStorage.getItem('ml_battle_chat');
+      if (chatData) {
+        this.chatMessages = JSON.parse(chatData);
+      }
+      
+      const participantsData = localStorage.getItem('ml_battle_participants');
+      if (participantsData) {
+        this.participants = JSON.parse(participantsData);
+      }
+      
+      const problemData = localStorage.getItem('ml_battle_current_problem');
+      if (problemData) {
+        const parsed = JSON.parse(problemData);
+        this.currentProblem = {
+          ...parsed,
+          startTime: parsed.startTime,
+          endTime: parsed.endTime
+        };
+      }
+    } catch (error) {
+      console.error('Failed to load from storage:', error);
+      this.generateSampleData();
+    }
+  }
+
+  // ローカルストレージにデータを保存
+  private saveToStorage() {
+    try {
+      localStorage.setItem('ml_battle_leaderboard', JSON.stringify(this.leaderboard));
+      localStorage.setItem('ml_battle_chat', JSON.stringify(this.chatMessages));
+      localStorage.setItem('ml_battle_participants', JSON.stringify(this.participants));
+      
+      if (this.currentProblem) {
+        localStorage.setItem('ml_battle_current_problem', JSON.stringify(this.currentProblem));
+      }
+    } catch (error) {
+      console.error('Failed to save to storage:', error);
+    }
   }
 
   // サンプルデータ生成
@@ -154,6 +207,9 @@ export class RealtimeSystem {
     if (this.chatMessages.length > 100) {
       this.chatMessages = this.chatMessages.slice(-100);
     }
+    
+    // 即座に保存
+    this.saveToStorage();
   }
 
   // リーダーボードにスコアを追加
@@ -180,6 +236,9 @@ export class RealtimeSystem {
     if (this.leaderboard.length > 20) {
       this.leaderboard = this.leaderboard.slice(0, 20);
     }
+    
+    // 即座に保存
+    this.saveToStorage();
   }
 
   // 参加者ステータス更新
@@ -199,6 +258,9 @@ export class RealtimeSystem {
         lastActivity: Date.now()
       });
     }
+    
+    // 即座に保存
+    this.saveToStorage();
   }
 
   // 更新コールバック登録

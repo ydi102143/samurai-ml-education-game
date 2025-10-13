@@ -69,20 +69,23 @@ export class WeeklyProblemSystem {
 
   // 週次問題を初期化
   private initializeWeeklyProblem() {
+    const now = new Date();
+    const weekStart = this.getWeekStart(now);
+    const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    // 週次問題IDを生成（週の開始日時ベース）
+    const weekId = `week_${weekStart.getFullYear()}_${weekStart.getMonth() + 1}_${weekStart.getDate()}`;
+    
     // ローカルストレージから現在の問題を取得
     const storedProblem = this.getStoredProblem();
-    const now = new Date();
     
-    if (storedProblem && this.isProblemStillValid(storedProblem, now)) {
+    if (storedProblem && this.isProblemStillValid(storedProblem, now) && storedProblem.id === weekId) {
       // 既存の問題が有効な場合はそれを使用
       this.currentProblem = storedProblem;
       console.log('既存の週次問題を使用:', storedProblem.title);
     } else {
-      // 新しい問題を生成
-      const weekStart = this.getWeekStart(now);
-      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-      
-      this.currentProblem = this.generateWeeklyProblem(weekStart, weekEnd);
+      // 新しい問題を生成（週次IDを使用）
+      this.currentProblem = this.generateWeeklyProblem(weekStart, weekEnd, weekId);
       this.problemHistory.push(this.currentProblem);
       
       // ローカルストレージに保存
@@ -165,7 +168,7 @@ export class WeeklyProblemSystem {
   }
 
   // 週次問題を生成
-  private generateWeeklyProblem(startDate: Date, endDate: Date): WeeklyProblem {
+  private generateWeeklyProblem(startDate: Date, endDate: Date, weekId?: string): WeeklyProblem {
     const problemTypes = [
       {
         type: 'classification' as const,
@@ -279,7 +282,7 @@ export class WeeklyProblemSystem {
     const template = typeGroup.templates[Math.floor(Math.random() * typeGroup.templates.length)];
 
     const problem: WeeklyProblem = {
-      id: `problem_${Date.now()}`,
+      id: weekId || `problem_${Date.now()}`,
       title: template.title,
       description: template.description,
       type: typeGroup.type,
