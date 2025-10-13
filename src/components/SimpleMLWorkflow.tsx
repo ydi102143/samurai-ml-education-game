@@ -5,8 +5,8 @@ import { Play, BarChart3, Settings, Upload, ArrowLeft, RefreshCw, Trophy, CheckS
 import { EDAPanel } from './EDAPanel';
 import { simpleDataManager, type SimpleDataset, type ProcessedDataset } from '../utils/simpleDataManager';
 import { simpleMLManager, type SimpleModel, type TrainingResult, type ValidationResult } from '../utils/simpleMLManager';
-import { realtimeSystem, type LeaderboardEntry, type ChatMessage, type Participant, type WeeklyProblem } from '../utils/realtimeSystem';
-import { weeklyProblemSystem, type WeeklyProblem as WeeklyProblemType } from '../utils/weeklyProblemSystem';
+import { realtimeSystem, type LeaderboardEntry, type ChatMessage } from '../utils/realtimeSystem';
+import { weeklyProblemSystem } from '../utils/weeklyProblemSystem';
 import { scoringSystem } from '../utils/scoringSystem';
 
 interface SimpleMLWorkflowProps {
@@ -25,9 +25,9 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   const [currentDataset, setCurrentDataset] = useState<SimpleDataset | null>(null);
   const [processedDataset, setProcessedDataset] = useState<ProcessedDataset | null>(null);
   const [dataSplit, setDataSplit] = useState<{
-    train: { data: (number | string)[][], targets: number[] };
-    validation: { data: (number | string)[][], targets: number[] };
-    test: { data: (number | string)[][], targets: number[] };
+    train: { data: number[][], targets: number[] };
+    validation: { data: number[][], targets: number[] };
+    test: { data: number[][], targets: number[] };
   } | null>(null);
   const [trainRatio, setTrainRatio] = useState(0.7);
   const [validationRatio, setValidationRatio] = useState(0.2);
@@ -164,7 +164,17 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
 
     // スコアリングシステム更新を購読
     scoringSystem.onLeaderboardUpdate((leaderboard) => {
-      setLeaderboard(leaderboard);
+      // scoringSystemのLeaderboardEntryをrealtimeSystemの形式に変換
+      const convertedLeaderboard = leaderboard.map((entry, index) => ({
+        id: entry.userId,
+        username: entry.teamName,
+        score: entry.publicScore,
+        accuracy: entry.publicScore,
+        modelName: entry.modelName,
+        timestamp: entry.lastSubmission.getTime(),
+        rank: entry.rank
+      }));
+      setLeaderboard(convertedLeaderboard);
     });
 
     // タイマーを開始
@@ -182,8 +192,6 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   const loadRealtimeData = () => {
     setLeaderboard(realtimeSystem.getLeaderboard());
     setChatMessages(realtimeSystem.getChatMessages());
-    setParticipants(realtimeSystem.getParticipants());
-    setCurrentProblem(realtimeSystem.getCurrentProblem());
   };
 
   // 週次問題の読み込み
@@ -225,7 +233,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       return dataset?.featureNames?.map(() => 'numerical') || [];
     }
     
-    return dataset.featureNames.map((name: string, index: number) => {
+    return dataset.featureNames.map((_: string, index: number) => {
       // データセットにfeatureTypesが定義されている場合はそれを使用
       if (dataset.featureTypes && dataset.featureTypes[index]) {
         return dataset.featureTypes[index];
@@ -491,37 +499,9 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         min: false,
         count: false,
       },
-      timeSeriesFeatures: {
-        lag: false,
-        rolling_mean: false,
-        rolling_std: false,
-        rolling_max: false,
-        rolling_min: false,
-        diff: false,
-        pct_change: false
-      },
-      categoricalFeatures: {
-        target_encoding: false,
-        frequency_encoding: false,
-        binary_encoding: false,
-        hash_encoding: false,
-        ordinal_encoding: false
-      },
-      featureCombinations: {
-        ratio_features: false,
-        difference_features: false,
-        product_features: false,
-        sum_features: false,
-        custom_combinations: false
-      },
       dimensionalityReduction: {
         method: 'none' as 'none' | 'pca' | 'lda' | 'tsne',
         components: 2
-      },
-      featureSelection: {
-        method: 'none' as 'none' | 'correlation' | 'mutual_info' | 'chi2' | 'f_score' | 'recursive',
-        threshold: 0.1,
-        max_features: 10
       }
     });
     setFeatureSelectionOptions({
@@ -550,7 +530,9 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     try {
       const result = simpleDataManager.executeFeatureEngineering({
         selectedFeatures: Array.from({ length: processedDataset.featureNames.length }, (_, i) => i),
-        ...featureEngineeringOptions
+        transformations: featureEngineeringOptions.transformations,
+        aggregations: featureEngineeringOptions.aggregations,
+        dimensionalityReduction: featureEngineeringOptions.dimensionalityReduction
       });
       setProcessedDataset(result);
       setShowProcessedData(true); // 加工済みデータを表示
@@ -712,7 +694,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       const result = simpleMLManager.submitResults();
       if (result.success) {
         // スコアリングシステムに提出
-        const scoringSubmission = scoringSystem.addSubmission({
+        scoringSystem.addSubmission({
           userId: username,
           problemId: weeklyProblem.id,
           modelName: selectedModel.name,
@@ -776,7 +758,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     { id: 'submission', name: '提出', icon: Upload }
   ];
 
-  const getCurrentStepIndex = () => steps.findIndex(s => s.id === currentStep);
+  // const getCurrentStepIndex = () => steps.findIndex(s => s.id === currentStep);
   
   // ステップの完了状態を判定（無効化）
   const isStepCompleted = (stepId: string) => {
@@ -935,11 +917,9 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
               <h2 className="text-lg font-bold mb-6">ワークフロー</h2>
               <div className="space-y-2">
-                {steps.map((step, index) => {
+                {steps.map((step) => {
                   const Icon = step.icon;
                   const isActive = step.id === currentStep;
-                  const isCompleted = isStepCompleted(step.id);
-                  const isAccessible = true; // いつでも選択可能
 
                   return (
                     <button
@@ -1062,7 +1042,6 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                     showProcessedData={showProcessedData}
                     processedDataset={processedDataset}
                     currentDataset={currentDataset}
-                    dataManager={simpleDataManager}
                   />
 
                   <div className="flex justify-between">
