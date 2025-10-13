@@ -77,22 +77,14 @@ export class WeeklyProblemSystem {
     // 週次問題IDを生成（週の開始日時ベース）
     const weekId = `week_${weekStart.getFullYear()}_${weekStart.getMonth() + 1}_${weekStart.getDate()}`;
     
-    // ローカルストレージから現在の問題を取得
-    const storedProblem = this.getStoredProblem();
+    // デバッグ用：常に新しい問題を生成（開発中）
+    console.log('新しい週次問題を生成（デバッグモード）:', weekId);
+    this.currentProblem = this.generateWeeklyProblem(weekStart, weekEnd, weekId);
+    this.problemHistory.push(this.currentProblem);
     
-    if (storedProblem && this.isProblemStillValid(storedProblem, now) && storedProblem.id === weekId) {
-      // 既存の問題が有効な場合はそれを使用
-      this.currentProblem = storedProblem;
-      console.log('既存の週次問題を使用:', storedProblem.title);
-    } else {
-      // 新しい問題を生成（週次IDを使用）
-      this.currentProblem = this.generateWeeklyProblem(weekStart, weekEnd, weekId);
-      this.problemHistory.push(this.currentProblem);
-      
-      // ローカルストレージに保存
-      this.storeProblem(this.currentProblem);
-      console.log('新しい週次問題を生成:', this.currentProblem.title);
-    }
+    // ローカルストレージに保存
+    this.storeProblem(this.currentProblem);
+    console.log('新しい週次問題を生成:', this.currentProblem.title);
   }
 
   // 問題をローカルストレージに保存
@@ -326,7 +318,9 @@ export class WeeklyProblemSystem {
       '株価予測': 'stock'
     };
     
-    return titleToTypeMap[title] || 'housing'; // デフォルトは住宅
+    const datasetType = titleToTypeMap[title] || 'housing'; // デフォルトは住宅
+    console.log(`問題タイトル "${title}" -> データセットタイプ "${datasetType}"`);
+    return datasetType;
   }
 
   // Privateテストデータを生成

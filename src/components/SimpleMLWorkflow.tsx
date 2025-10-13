@@ -151,7 +151,17 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     const problem = weeklyProblemSystem.getCurrentProblem();
     if (problem) {
       const datasetType = (problem.dataset as any).type || 'housing';
+      console.log('週次問題に基づいてデータセットを生成:', {
+        problemTitle: problem.title,
+        problemType: problem.type,
+        datasetType: datasetType
+      });
       const dataset = simpleDataManager.generateDataset(problem.type, datasetType);
+      console.log('生成されたデータセット:', {
+        name: dataset.name,
+        featureNames: dataset.featureNames,
+        sampleCount: dataset.data.length
+      });
       setCurrentDataset(dataset);
       simpleDataManager.setCurrentDataset(dataset);
     } else {
