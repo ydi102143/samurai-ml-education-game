@@ -104,9 +104,9 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
     });
   } else if (showProcessedData && processedData) {
     // realDataProcessorからの処理済みデータ
-    displayData = processedData.data.map((row: any[], i: number) => ({
-      features: row,
-      target: processedData.targetValues[i] || 0
+    displayData = processedData.data.map((row: any, i: number) => ({
+      features: Array.isArray(row) ? row : [row],
+      target: (processedData as any).targetValues ? (processedData as any).targetValues[i] || 0 : 0
     }));
     displayFeatureNames = processedData.featureNames;
     displayFeatureTypes = processedData.featureTypes;

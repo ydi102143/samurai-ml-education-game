@@ -92,8 +92,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   // リアルタイム機能
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [currentProblem, setCurrentProblem] = useState<WeeklyProblem | null>(null);
+  const [, setParticipants] = useState<Participant[]>([]);
+  const [, setCurrentProblem] = useState<WeeklyProblem | null>(null);
   const [weeklyProblem, setWeeklyProblem] = useState<WeeklyProblemType | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -125,17 +125,47 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         setUsername(playerName);
       } else {
         // 新しいユーザーIDを生成（現実的な実装）
-        const newUserId = `user_${Date.now()}_${this.generateSecureId()}`;
+        const newUserId = `user_${Date.now()}_${generateSecureId()}`;
         localStorage.setItem(storageKey, newUserId);
         
         // 現実的なユーザー名生成（重み付き選択）
-        const username = this.generateRealisticUsername();
+        const username = generateRealisticUsername();
         setUsername(username);
       }
     };
 
     getUserName();
   }, []);
+
+  // ヘルパー関数
+  const generateSecureId = () => {
+    return Math.random().toString(36).substring(2, 8);
+  };
+
+  const generateRealisticUsername = () => {
+    const adjectives = ['Cool', 'Smart', 'Fast', 'Bright', 'Sharp', 'Quick', 'Bold', 'Wise'];
+    const nouns = ['Player', 'Master', 'Expert', 'Pro', 'Champ', 'Hero', 'Star', 'Ace'];
+    const adjectiveIndex = Math.floor(Math.random() * adjectives.length);
+    const nounIndex = Math.floor(Math.random() * nouns.length);
+    const number = Math.floor(Math.random() * 999) + 1;
+    return `${adjectives[adjectiveIndex]}${nouns[nounIndex]}${number}`;
+  };
+
+  const selectBalancedDatasetType = () => {
+    const history = JSON.parse(localStorage.getItem('dataset_type_history') || '[]');
+    const classificationCount = history.filter((type: string) => type === 'classification').length;
+    const regressionCount = history.filter((type: string) => type === 'regression').length;
+    
+    if (classificationCount <= regressionCount) {
+      history.push('classification');
+      localStorage.setItem('dataset_type_history', JSON.stringify(history));
+      return 'classification';
+    } else {
+      history.push('regression');
+      localStorage.setItem('dataset_type_history', JSON.stringify(history));
+      return 'regression';
+    }
+  };
 
   // 初期化
   useEffect(() => {
@@ -190,7 +220,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     // スコアリングシステム更新を購読
     scoringSystem.onLeaderboardUpdate((leaderboard) => {
       // scoringSystemのLeaderboardEntryをrealtimeSystemの形式に変換
-      const convertedLeaderboard = leaderboard.map((entry, index) => ({
+      const convertedLeaderboard = leaderboard.map((entry) => ({
         id: entry.userId,
         username: entry.teamName,
         score: entry.publicScore,
@@ -303,7 +333,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         }
       } else {
         // 週次問題がない場合はバランスよく選択
-        datasetType = this.selectBalancedDatasetType();
+        datasetType = selectBalancedDatasetType();
       }
       
       const dataset = simpleDataManager.generateDataset(datasetType as 'classification' | 'regression');
@@ -565,9 +595,27 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     try {
       const result = simpleDataManager.executeFeatureEngineering({
         selectedFeatures: Array.from({ length: processedDataset.featureNames.length }, (_, i) => i),
-        transformations: featureEngineeringOptions.transformations,
-        aggregations: featureEngineeringOptions.aggregations,
-        dimensionalityReduction: featureEngineeringOptions.dimensionalityReduction
+        transformations: {
+          ...featureEngineeringOptions.transformations,
+          exponential: false,
+          reciprocal: false,
+          sin: false,
+          cos: false,
+          tan: false
+        },
+        aggregations: {
+          ...featureEngineeringOptions.aggregations,
+          median: false,
+          mode: false,
+          variance: false,
+          skewness: false,
+          kurtosis: false
+        },
+        dimensionalityReduction: featureEngineeringOptions.dimensionalityReduction,
+        timeSeriesFeatures: { lag: false, rolling_mean: false, rolling_std: false, rolling_max: false, rolling_min: false, diff: false, pct_change: false },
+        categoricalFeatures: { target_encoding: false, frequency_encoding: false, binary_encoding: false, hash_encoding: false, ordinal_encoding: false },
+        featureCombinations: { ratio_features: false, difference_features: false, product_features: false, sum_features: false, custom_combinations: false },
+        featureSelection: { method: 'none', threshold: 0.1, max_features: 10 }
       });
       setProcessedDataset(result);
       setShowProcessedData(true); // 加工済みデータを表示
@@ -619,7 +667,22 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     
     try {
       const split = simpleDataManager.splitData(trainRatio, validationRatio, testRatio);
-      setDataSplit(split);
+      // データ型を変換
+      const convertedSplit = {
+        train: {
+          data: split.train.data.map(row => row.map(val => typeof val === 'string' ? 0 : val)),
+          targets: split.train.targets
+        },
+        validation: {
+          data: split.validation.data.map(row => row.map(val => typeof val === 'string' ? 0 : val)),
+          targets: split.validation.targets
+        },
+        test: {
+          data: split.test.data.map(row => row.map(val => typeof val === 'string' ? 0 : val)),
+          targets: split.test.targets
+        }
+      };
+      setDataSplit(convertedSplit);
       setCurrentStep('model_selection');
     } catch (err) {
       setError('データ分割に失敗しました');
@@ -794,11 +857,6 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   ];
 
   // const getCurrentStepIndex = () => steps.findIndex(s => s.id === currentStep);
-  
-  // ステップの完了状態を判定（無効化）
-  const isStepCompleted = (stepId: string) => {
-    return false; // 完了状態の表示を無効化
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white">
@@ -2182,5 +2240,6 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       </div>
     </div>
   );
+}
 
 export default SimpleMLWorkflow;

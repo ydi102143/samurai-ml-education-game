@@ -44,7 +44,6 @@ export class SimpleMLManager {
   private trainingData: { data: number[][], targets: number[] } | null = null;
   private validationData: { data: number[][], targets: number[] } | null = null;
   private testData: { data: number[][], targets: number[] } | null = null;
-  private trainedModel: any = null;
   private trainingResult: TrainingResult | null = null;
   private validationResult: ValidationResult | null = null;
   private testResult: ValidationResult | null = null;
@@ -301,7 +300,7 @@ export class SimpleMLManager {
       case 'random_forest_reg':
         return this.trainRandomForestRegression(X, y, params);
       case 'neural_network_reg':
-        return this.trainNeuralNetworkRegression(X, y, params);
+        return this.trainNeuralNetwork(X, y, params);
       default:
         return this.trainLinearRegression(X, y, params);
     }
@@ -409,7 +408,8 @@ export class SimpleMLManager {
     }
 
     // データの正規化
-    const { normalizedX, normalizedY, xMeans, xStds, yMean, yStd } = this.normalizeData(X, y);
+    const normalizedX = this.normalizeData(X);
+    const normalizedY = y;
 
     const nFeatures = normalizedX[0].length;
     let weights = new Array(nFeatures).fill(0).map(() => (Math.random() - 0.5) * 0.1);
@@ -472,12 +472,8 @@ export class SimpleMLManager {
 
     // 予測（正規化されたデータで学習したので、元のスケールに戻す）
     const predictions = X.map(x => {
-      // 特徴量を正規化
-      const normalizedX = x.map((val, i) => (val - xMeans[i]) / (xStds[i] + 1e-8));
-      // 予測
-      const normalizedPred = this.dotProduct(normalizedX, weights) + bias;
-      // 元のスケールに戻す
-      return normalizedPred * yStd + yMean;
+      // 予測（正規化なし）
+      return this.dotProduct(x, weights) + bias;
     });
     
     const rSquared = this.calculateRSquared(predictions, y);
@@ -503,7 +499,8 @@ export class SimpleMLManager {
     }
 
     // データの正規化
-    const { normalizedX, normalizedY, xMeans, xStds, yMean, yStd } = this.normalizeData(X, y);
+    const normalizedX = this.normalizeData(X);
+    const normalizedY = y;
 
     const nFeatures = normalizedX[0].length;
     let weights = new Array(nFeatures).fill(0).map(() => (Math.random() - 0.5) * 0.1);
@@ -543,9 +540,7 @@ export class SimpleMLManager {
 
     // 予測（正規化されたデータで学習したので、元のスケールに戻す）
     const predictions = X.map(x => {
-      const normalizedX = x.map((val, i) => (val - xMeans[i]) / (xStds[i] + 1e-8));
-      const normalizedPred = this.dotProduct(normalizedX, weights) + bias;
-      return normalizedPred * yStd + yMean;
+      return this.dotProduct(x, weights) + bias;
     });
     
     const rSquared = this.calculateRSquared(predictions, y);
@@ -568,7 +563,8 @@ export class SimpleMLManager {
     }
 
     // データの正規化
-    const { normalizedX, normalizedY, xMeans, xStds, yMean, yStd } = this.normalizeData(X, y);
+    const normalizedX = this.normalizeData(X);
+    const normalizedY = y;
 
     const nFeatures = normalizedX[0].length;
     let weights = new Array(nFeatures).fill(0).map(() => (Math.random() - 0.5) * 0.1);
@@ -610,9 +606,7 @@ export class SimpleMLManager {
 
     // 予測（正規化されたデータで学習したので、元のスケールに戻す）
     const predictions = X.map(x => {
-      const normalizedX = x.map((val, i) => (val - xMeans[i]) / (xStds[i] + 1e-8));
-      const normalizedPred = this.dotProduct(normalizedX, weights) + bias;
-      return normalizedPred * yStd + yMean;
+      return this.dotProduct(x, weights) + bias;
     });
     
     const rSquared = this.calculateRSquared(predictions, y);
@@ -1090,8 +1084,6 @@ export class SimpleMLManager {
     dimensionality: number;
     overall: number;
   } {
-    const nSamples = X.length;
-    const nFeatures = X[0].length;
     
     // 1. 線形性の分析
     const linearity = this.calculateLinearity(X, y);
@@ -1165,47 +1157,6 @@ export class SimpleMLManager {
     return Math.max(-0.2, Math.min(0.2, effect)); // -20%から+20%の範囲に制限
   }
 
-  // ランダムフォレスト用のハイパーパラメータ効果計算
-  private calculateRandomForestEffect(params: any, dataComplexity: any): number {
-    let effect = 0;
-    
-    // 木の数の影響
-    if (params.nEstimators) {
-      const optimalTrees = 100;
-      const treeDiff = Math.abs(params.nEstimators - optimalTrees) / optimalTrees;
-      if (params.nEstimators < optimalTrees) {
-        effect -= treeDiff * 0.15; // 木が少ないと精度低下
-      } else if (params.nEstimators > optimalTrees * 2) {
-        effect -= (params.nEstimators - optimalTrees * 2) / optimalTrees * 0.05; // 過度に多いと過学習
-      }
-    }
-    
-    // 最大深度の影響
-    if (params.maxDepth) {
-      const optimalDepth = 10;
-      const depthDiff = Math.abs(params.maxDepth - optimalDepth) / optimalDepth;
-      effect -= depthDiff * 0.1; // 最適値から離れるほど精度低下
-    }
-    
-    // データの複雑さに応じた調整
-    if (dataComplexity.overall > 0.7) {
-      // 複雑なデータでは深い木が有効
-      if (params.maxDepth && params.maxDepth > 10) {
-        effect += 0.05;
-      }
-      // 複雑なデータでは多くの木が有効
-      if (params.nEstimators && params.nEstimators > 100) {
-        effect += 0.03;
-      }
-    } else {
-      // 単純なデータでは浅い木が有効
-      if (params.maxDepth && params.maxDepth < 10) {
-        effect += 0.03;
-      }
-    }
-    
-    return Math.max(-0.2, Math.min(0.2, effect)); // -20%から+20%の範囲に制限
-  }
 
   // 過学習ペナルティの計算
   private calculateOverfittingPenalty(trainingComplexity: any, validationComplexity: any): number {
@@ -1291,11 +1242,11 @@ export class SimpleMLManager {
   }
 
   // 次元性の計算
-  private calculateDimensionality(X: number[][], y: number[]): number {
+  private calculateDimensionality(X: number[][]): number {
     const nFeatures = X[0].length;
-    const nSamples = X.length;
     
     // 次元の呪いを考慮
+    const nSamples = X.length;
     const ratio = nSamples / nFeatures;
     return Math.min(1, ratio / 10); // サンプル数/特徴量数の比
   }
@@ -1346,7 +1297,7 @@ export class SimpleMLManager {
       return acc;
     }, {} as Record<number, number>);
     
-    return Object.keys(counts).reduce((a, b) => counts[Number(a)] > counts[Number(b)] ? Number(a) : Number(b));
+    return Number(Object.keys(counts).reduce((a, b) => counts[Number(a)] > counts[Number(b)] ? a : b));
   }
 
   // ヘルパー関数
@@ -1391,14 +1342,6 @@ export class SimpleMLManager {
     return indices;
   }
 
-  private trainSimpleDecisionTree(X: number[][], y: number[], testX: number[][], maxDepth: number): number[] {
-    // 簡易決定木実装
-    const predictions = new Array(testX.length).fill(0);
-    for (let i = 0; i < testX.length; i++) {
-      predictions[i] = Math.random() > 0.5 ? 1 : 0;
-    }
-    return predictions;
-  }
 
   // 検証を実行
   async validate(): Promise<ValidationResult> {
@@ -1468,8 +1411,6 @@ export class SimpleMLManager {
     if (modelId === 'logistic_regression') {
       // ロジスティック回帰の検証（ハイパーパラメータを反映）
       const nFeatures = X[0].length;
-      const learningRate = params.learningRate || 0.01;
-      const regularization = params.regularization || 0.1;
       
       // 検証用の重みを計算（学習済み重みがある場合は使用、ない場合は簡易計算）
       let weights, bias;
@@ -1495,7 +1436,6 @@ export class SimpleMLManager {
     } else if (modelId === 'random_forest') {
       // ランダムフォレストの検証（ハイパーパラメータを反映）
       const nEstimators = params.nEstimators || 100;
-      const maxDepth = params.maxDepth || 10;
       const nFeatures = X[0].length;
       
       // アンサンブル予測を計算
@@ -1621,23 +1561,6 @@ export class SimpleMLManager {
     return matrix;
   }
 
-  // 学習シミュレーション
-  private async simulateTraining(): Promise<void> {
-    const steps = 10;
-    for (let i = 0; i < steps; i++) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      console.log(`Training step ${i + 1}/${steps}`);
-    }
-  }
-
-  // 検証シミュレーション
-  private async simulateValidation(): Promise<void> {
-    const steps = 5;
-    for (let i = 0; i < steps; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      console.log(`Validation step ${i + 1}/${steps}`);
-    }
-  }
 
   // 現在のモデルを取得
   getCurrentModel(): SimpleModel | null {
@@ -1764,7 +1687,6 @@ export class SimpleMLManager {
     this.trainingData = null;
     this.validationData = null;
     this.testData = null;
-    this.trainedModel = null;
     this.trainingResult = null;
     this.validationResult = null;
     this.testResult = null;
