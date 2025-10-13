@@ -144,10 +144,21 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
 
   // 初期化
   useEffect(() => {
-    loadAvailableModels();
-    loadRandomDataset();
-    loadRealtimeData();
+    // 週次問題を先に読み込み
     loadWeeklyProblem();
+    
+    // 週次問題に基づいてデータセットを生成
+    const problem = weeklyProblemSystem.getCurrentProblem();
+    if (problem) {
+      const dataset = simpleDataManager.generateDataset(problem.type);
+      setCurrentDataset(dataset);
+      simpleDataManager.setCurrentDataset(dataset);
+    } else {
+      loadRandomDataset();
+    }
+    
+    loadAvailableModels();
+    loadRealtimeData();
     updateParticipantStatus('online');
     
     // リアルタイム更新の登録
@@ -161,6 +172,11 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       // 問題が変更されたらモデルも更新
       if (problem) {
         loadAvailableModels();
+        
+        // 新しい問題に基づいてデータセットを生成
+        const dataset = simpleDataManager.generateDataset(problem.type);
+        setCurrentDataset(dataset);
+        simpleDataManager.setCurrentDataset(dataset);
       }
     });
 
@@ -206,6 +222,13 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     // 問題が変更されたらモデルも更新
     if (problem) {
       loadAvailableModels();
+      
+      // 週次問題に基づいてデータセットを生成
+      if (currentDataset) {
+        const newDataset = simpleDataManager.generateDataset(problem.type);
+        setCurrentDataset(newDataset);
+        simpleDataManager.setCurrentDataset(newDataset);
+      }
     }
   };
 
@@ -977,8 +1000,12 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
                 <div className="space-y-6">
                   <h2 className="text-2xl font-bold">データセット選択</h2>
                   <div className="bg-white/5 rounded-lg p-6">
-                    <h3 className="text-xl font-semibold mb-4">{currentDataset.name}</h3>
-                    <p className="text-white/70 mb-4">{currentDataset.description}</p>
+                    <h3 className="text-xl font-semibold mb-4">
+                      {weeklyProblem ? weeklyProblem.title : currentDataset.name}
+                    </h3>
+                    <p className="text-white/70 mb-4">
+                      {weeklyProblem ? weeklyProblem.description : currentDataset.description}
+                    </p>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-white/60">タイプ:</span>
