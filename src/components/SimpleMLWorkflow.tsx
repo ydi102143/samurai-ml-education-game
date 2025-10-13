@@ -124,18 +124,13 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         const playerName = `${adjectives[adjectiveIndex]}${nouns[nounIndex]}${number}`;
         setUsername(playerName);
       } else {
-        // 新しいユーザーIDを生成
-        const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // 新しいユーザーIDを生成（現実的な実装）
+        const newUserId = `user_${Date.now()}_${this.generateSecureId()}`;
         localStorage.setItem(storageKey, newUserId);
         
-        const adjectives = ['Swift', 'Bright', 'Sharp', 'Bold', 'Quick', 'Smart', 'Wise', 'Strong', 'Fast', 'Cool'];
-        const nouns = ['Warrior', 'Ninja', 'Master', 'Expert', 'Wizard', 'Hero', 'Champion', 'Legend', 'Pro', 'Ace'];
-        
-        const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-        const noun = nouns[Math.floor(Math.random() * nouns.length)];
-        const number = Math.floor(Math.random() * 999) + 1;
-        
-        setUsername(`${adjective}${noun}${number}`);
+        // 現実的なユーザー名生成（重み付き選択）
+        const username = this.generateRealisticUsername();
+        setUsername(username);
       }
     };
 
@@ -307,8 +302,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
           datasetType = 'regression';
         }
       } else {
-        // 週次問題がない場合はランダムに選択
-        datasetType = Math.random() > 0.5 ? 'classification' : 'regression';
+        // 週次問題がない場合はバランスよく選択
+        datasetType = this.selectBalancedDatasetType();
       }
       
       const dataset = simpleDataManager.generateDataset(datasetType as 'classification' | 'regression');
@@ -2187,6 +2182,5 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       </div>
     </div>
   );
-}
 
 export default SimpleMLWorkflow;
