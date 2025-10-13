@@ -48,6 +48,7 @@ export class RealtimeSystem {
   constructor() {
     this.initializeUser();
     this.initializeSystem();
+    this.startCrossDeviceSync();
   }
 
   // ユーザー初期化
@@ -87,6 +88,9 @@ export class RealtimeSystem {
     // ローカルストレージからデータを読み込み
     this.loadFromStorage();
     
+    // 共有ストレージからデータを読み込み（異なるデバイス間の同期）
+    this.loadFromSharedStorage();
+    
     // 定期的な更新を開始
     setInterval(() => {
       this.updateSystem();
@@ -96,6 +100,19 @@ export class RealtimeSystem {
     setInterval(() => {
       this.saveToStorage();
     }, 5000);
+    
+    // 定期的に共有ストレージと同期
+    setInterval(() => {
+      this.syncWithSharedStorage();
+    }, 3000);
+    
+    // ストレージイベントを監視（他のタブからの変更を検知）
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'ml_battle_shared_data') {
+        this.loadFromSharedStorage();
+        this.notifyUpdate();
+      }
+    });
   }
 
   // ローカルストレージからデータを読み込み
@@ -144,6 +161,81 @@ export class RealtimeSystem {
     } catch (error) {
       console.error('Failed to save to storage:', error);
     }
+  }
+
+  // 共有ストレージからデータを読み込み（異なるデバイス間の同期）
+  private loadFromSharedStorage() {
+    try {
+      const sharedData = localStorage.getItem('ml_battle_shared_data');
+      if (!sharedData) return;
+      
+      const data = JSON.parse(sharedData);
+      
+      // タイムスタンプをチェックして、新しいデータのみを適用
+      if (data.leaderboard && data.leaderboard.timestamp > (this.getLastSyncTime('leaderboard') || 0)) {
+        this.leaderboard = data.leaderboard.data;
+        this.setLastSyncTime('leaderboard', data.leaderboard.timestamp);
+      }
+      
+      if (data.chat && data.chat.timestamp > (this.getLastSyncTime('chat') || 0)) {
+        this.chatMessages = data.chat.data;
+        this.setLastSyncTime('chat', data.chat.timestamp);
+      }
+      
+      if (data.participants && data.participants.timestamp > (this.getLastSyncTime('participants') || 0)) {
+        this.participants = data.participants.data;
+        this.setLastSyncTime('participants', data.participants.timestamp);
+      }
+      
+      if (data.currentProblem && data.currentProblem.timestamp > (this.getLastSyncTime('currentProblem') || 0)) {
+        this.currentProblem = data.currentProblem.data;
+        this.setLastSyncTime('currentProblem', data.currentProblem.timestamp);
+      }
+      
+    } catch (error) {
+      console.error('共有ストレージからの読み込みに失敗:', error);
+    }
+  }
+
+  // 共有ストレージと同期
+  private syncWithSharedStorage() {
+    try {
+      const now = Date.now();
+      const sharedData = {
+        leaderboard: {
+          data: this.leaderboard,
+          timestamp: now
+        },
+        chat: {
+          data: this.chatMessages,
+          timestamp: now
+        },
+        participants: {
+          data: this.participants,
+          timestamp: now
+        },
+        currentProblem: {
+          data: this.currentProblem,
+          timestamp: now
+        }
+      };
+      
+      localStorage.setItem('ml_battle_shared_data', JSON.stringify(sharedData));
+      
+    } catch (error) {
+      console.error('共有ストレージへの同期に失敗:', error);
+    }
+  }
+
+  // 最後の同期時間を取得
+  private getLastSyncTime(key: string): number | null {
+    const stored = localStorage.getItem(`ml_battle_sync_${key}`);
+    return stored ? parseInt(stored) : null;
+  }
+
+  // 最後の同期時間を設定
+  private setLastSyncTime(key: string, timestamp: number) {
+    localStorage.setItem(`ml_battle_sync_${key}`, timestamp.toString());
   }
 
   // サンプルデータ生成
@@ -210,6 +302,7 @@ export class RealtimeSystem {
     
     // 即座に保存
     this.saveToStorage();
+    this.syncWithSharedStorage();
   }
 
   // リーダーボードにスコアを追加
@@ -239,6 +332,7 @@ export class RealtimeSystem {
     
     // 即座に保存
     this.saveToStorage();
+    this.syncWithSharedStorage();
   }
 
   // 参加者ステータス更新
@@ -261,6 +355,7 @@ export class RealtimeSystem {
     
     // 即座に保存
     this.saveToStorage();
+    this.syncWithSharedStorage();
   }
 
   // 更新コールバック登録
