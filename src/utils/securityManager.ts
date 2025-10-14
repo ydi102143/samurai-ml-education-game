@@ -138,19 +138,6 @@ export class SecurityManager {
     });
   }
 
-  // レート制限情報を取得
-  private getRateLimitInfo(userId: string): RateLimitInfo {
-    if (!this.rateLimits.has(userId)) {
-      this.rateLimits.set(userId, {
-        userId,
-        submissionsLastHour: 0,
-        submissionsLastDay: 0,
-        lastSubmissionTime: 0,
-        isBlocked: false
-      });
-    }
-    return this.rateLimits.get(userId)!;
-  }
 
   // ユーザーをブロック
   private blockUser(userId: string, duration: number): void {
@@ -217,7 +204,16 @@ export class SecurityManager {
 
   // レート制限情報を取得
   getRateLimitInfo(userId: string): RateLimitInfo {
-    return this.getRateLimitInfo(userId);
+    if (!this.rateLimits.has(userId)) {
+      this.rateLimits.set(userId, {
+        userId,
+        submissionsLastHour: 0,
+        submissionsLastDay: 0,
+        lastSubmissionTime: 0,
+        isBlocked: false
+      });
+    }
+    return this.rateLimits.get(userId)!;
   }
 
   // 疑わしいユーザーかチェック
