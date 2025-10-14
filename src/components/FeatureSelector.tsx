@@ -1,127 +1,183 @@
-import { CheckCircle, Circle, Lightbulb } from 'lucide-react';
-import { formatNumber } from '../utils/format';
-import type { Dataset } from '../types/ml';
+import { useState } from 'react';
+import { Check, Search, Filter } from 'lucide-react';
 
-interface Props {
-  dataset: Dataset;
+interface FeatureSelectorProps {
+  dataset: any;
   selectedFeatures: number[];
   onFeaturesChange: (features: number[]) => void;
 }
 
-export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }: Props) {
+export function FeatureSelector({ dataset, selectedFeatures, onFeaturesChange }: FeatureSelectorProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'numerical' | 'categorical'>('all');
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+
+  const featureNames = dataset?.featureNames || [];
+  const featureTypes = dataset?.featureTypes || [];
+
+  // フィルタリングされた特徴量を取得
+  const filteredFeatures = featureNames
+    .map((name: string, index: number) => ({
+      name,
+      index,
+      type: featureTypes[index] || 'numerical'
+    }))
+    .filter((feature: any) => {
+      const matchesSearch = feature.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'all' || feature.type === filterType;
+      const matchesSelected = !showSelectedOnly || selectedFeatures.includes(feature.index);
+      
+      return matchesSearch && matchesType && matchesSelected;
+    });
+
+  // 特徴量を選択/選択解除
   const toggleFeature = (index: number) => {
     if (selectedFeatures.includes(index)) {
       onFeaturesChange(selectedFeatures.filter(i => i !== index));
     } else {
-      onFeaturesChange([...selectedFeatures, index].sort((a, b) => a - b));
+      onFeaturesChange([...selectedFeatures, index]);
     }
   };
 
+  // すべて選択/すべて選択解除
   const selectAll = () => {
-    onFeaturesChange(dataset.featureNames.map((_, i) => i));
+    const allIndices = filteredFeatures.map((feature: any) => feature.index);
+    onFeaturesChange([...new Set([...selectedFeatures, ...allIndices])]);
   };
 
-  const calculateFeatureStats = (featureIndex: number) => {
-    const values = dataset.train.map(d => d.features[featureIndex]);
-    const sum = values.reduce((a, b) => a + b, 0);
-    const mean = sum / values.length;
-    const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
-    const std = Math.sqrt(variance);
-    return { mean, std, min: Math.min(...values), max: Math.max(...values) };
+  const deselectAll = () => {
+    const filteredIndices = filteredFeatures.map((feature: any) => feature.index);
+    onFeaturesChange(selectedFeatures.filter(index => !filteredIndices.includes(index)));
   };
 
   return (
-    <div className="rounded-xl shadow-lg border-2 overflow-hidden" style={{ background: 'var(--ink-white)', borderColor: 'var(--gold)' }}>
-      <div className="p-6" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%)' }}>
-        <h3 className="text-2xl font-bold text-white">使う特徴を選ぼう</h3>
-        <p className="text-lg mt-2 text-yellow-200">
-          予測に役立ちそうな特徴を選びます。最低1つは選んでください。
-        </p>
+    <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-white flex items-center">
+          <Filter className="w-6 h-6 mr-2" />
+          特徴量選択
+        </h2>
+        <div className="text-sm text-white/70">
+          {selectedFeatures.length} / {featureNames.length} 選択中
+        </div>
       </div>
 
-      <div className="p-8">
-        <div className="mb-8 p-6 rounded-lg border-2 bg-slate-50" style={{ borderColor: 'var(--gold)' }}>
-          <div className="flex items-start space-x-4">
-            <Lightbulb className="w-6 h-6 flex-shrink-0 mt-1 text-yellow-500" />
-            <div>
-              <p className="text-lg leading-relaxed mb-3 text-blue-900">
-                <span className="font-bold">特徴選択のポイント：</span>
-              </p>
-              <ul className="text-base space-y-2 text-blue-800">
-                <li>• 値のばらつき（標準偏差）が大きい特徴は予測に役立つことが多い</li>
-                <li>• すべての特徴を使うと、逆に精度が下がることもある</li>
-                <li>• まずは全部使ってみて、少しずつ減らして試してみよう</li>
-              </ul>
-            </div>
-          </div>
+      {/* 検索・フィルター */}
+      <div className="space-y-4 mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="特徴量を検索..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
-        <div className="flex justify-between items-center mb-6">
-          <div className="text-lg text-blue-900">
-            選択中: <span className="font-bold text-blue-700">{selectedFeatures.length}</span> / {dataset.featureNames.length}
+        <div className="flex space-x-4">
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                filterType === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              すべて
+            </button>
+            <button
+              onClick={() => setFilterType('numerical')}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                filterType === 'numerical'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              数値
+            </button>
+            <button
+              onClick={() => setFilterType('categorical')}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                filterType === 'categorical'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              カテゴリ
+            </button>
           </div>
+
+          <button
+            onClick={() => setShowSelectedOnly(!showSelectedOnly)}
+            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+              showSelectedOnly
+                ? 'bg-green-600 text-white'
+                : 'bg-white/10 text-white/70 hover:bg-white/20'
+            }`}
+          >
+            選択済みのみ
+          </button>
+        </div>
+      </div>
+
+      {/* 特徴量一覧 */}
+      <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
+        {filteredFeatures.map((feature: any) => (
+          <div
+            key={feature.index}
+            className={`flex items-center justify-between p-3 rounded-lg transition-colors cursor-pointer ${
+              selectedFeatures.includes(feature.index)
+                ? 'bg-blue-600/20 border border-blue-500/50'
+                : 'bg-white/5 hover:bg-white/10'
+            }`}
+            onClick={() => toggleFeature(feature.index)}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                selectedFeatures.includes(feature.index)
+                  ? 'bg-blue-600 border-blue-600'
+                  : 'border-white/30'
+              }`}>
+                {selectedFeatures.includes(feature.index) && (
+                  <Check className="w-3 h-3 text-white" />
+                )}
+              </div>
+              <div>
+                <div className="font-medium text-white">{feature.name}</div>
+                <div className="text-sm text-white/70">
+                  {feature.type === 'numerical' ? '数値' : 'カテゴリ'}
+                </div>
+              </div>
+            </div>
+            <div className="text-sm text-white/50">
+              #{feature.index}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* アクションボタン */}
+      <div className="flex justify-between">
+        <div className="space-x-2">
           <button
             onClick={selectAll}
-            className="text-lg font-bold transition-colors text-blue-600 hover:text-blue-800 px-4 py-2 rounded-lg border-2 border-blue-300 hover:border-blue-500"
+            className="px-4 py-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg transition-colors"
           >
             すべて選択
           </button>
+          <button
+            onClick={deselectAll}
+            className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors"
+          >
+            すべて選択解除
+          </button>
         </div>
-
-        <div className="space-y-4">
-          {dataset.featureNames.map((name, index) => {
-            const isSelected = selectedFeatures.includes(index);
-            const stats = calculateFeatureStats(index);
-
-            return (
-              <button
-                key={index}
-                onClick={() => toggleFeature(index)}
-                className={`w-full text-left p-6 rounded-lg border-2 transition-all ${isSelected ? 'bg-yellow-50 shadow-lg border-yellow-400' : 'bg-slate-50 hover:bg-blue-50 border-slate-300'}`}
-              >
-                <div className="flex items-start space-x-4">
-                  <div className="flex-shrink-0 mt-1">
-                    {isSelected ? (
-                      <CheckCircle className="w-8 h-8 text-yellow-500" />
-                    ) : (
-                      <Circle className="w-8 h-8 text-slate-400" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className={`text-xl font-bold ${isSelected ? 'text-blue-900' : 'text-slate-600'}`}>
-                        {name}
-                      </h4>
-                      {isSelected && (<span className="text-sm px-3 py-1 rounded-full font-bold bg-blue-600 text-white">使用中</span>)}
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-base">
-                      <div className={isSelected ? 'text-blue-800' : 'text-slate-500'}>
-                        <span className="font-bold">平均:</span> {formatNumber(stats.mean)}
-                      </div>
-                      <div className={isSelected ? 'text-blue-800' : 'text-slate-500'}>
-                        <span className="font-bold">ばらつき:</span> {formatNumber(stats.std)}
-                      </div>
-                      <div className={isSelected ? 'text-blue-800' : 'text-slate-500'}>
-                        <span className="font-bold">最小:</span> {formatNumber(stats.min)}
-                      </div>
-                      <div className={isSelected ? 'text-blue-800' : 'text-slate-500'}>
-                        <span className="font-bold">最大:</span> {formatNumber(stats.max)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+        
+        <div className="text-sm text-white/70">
+          {selectedFeatures.length} 個の特徴量が選択されています
         </div>
-
-        {selectedFeatures.length === 0 && (
-          <div className="mt-6 bg-red-50 p-6 rounded-lg border-2 border-red-200">
-            <p className="text-lg text-red-800 text-center font-bold">
-              少なくとも1つの特徴を選んでください
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

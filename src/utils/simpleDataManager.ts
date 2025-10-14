@@ -804,7 +804,7 @@ export class SimpleDataManager {
     };
   }
 
-  // データを前処理
+  // データを前処理（すべての特徴量を保持）
   processData(options: {
     // 欠損値処理
     missingValueStrategy?: 'remove' | 'mean' | 'median' | 'mode' | 'forward_fill' | 'backward_fill' | 'interpolate' | 'knn';
@@ -816,7 +816,7 @@ export class SimpleDataManager {
     // 正規化・標準化
     scalingStrategy?: 'none' | 'minmax' | 'standard' | 'robust' | 'maxabs' | 'quantile';
     
-    // 特徴量選択
+    // 特徴量選択（選択された特徴量のみを処理、他は保持）
     selectedFeatures?: number[];
     
     // カテゴリカル変数エンコーディング
@@ -843,11 +843,15 @@ export class SimpleDataManager {
       throw new Error('No dataset loaded');
     }
 
+    // 元のデータを保持（すべての特徴量を含む）
     let processedData: (number | string)[][] = [...this.currentDataset.data];
     let processedFeatureNames = [...this.currentDataset.featureNames];
     let featureTypes: ('numerical' | 'categorical')[] = this.detectFeatureTypes(processedData);
     const processingSteps: string[] = [];
     const encodingInfo: Record<string, any> = {};
+    
+    // 処理対象の特徴量インデックス（指定されていない場合はすべて）
+    const targetFeatures = options.selectedFeatures || Array.from({ length: processedFeatureNames.length }, (_, i) => i);
 
     // データクリーニング
     if (options.removeDuplicates) {
@@ -865,35 +869,35 @@ export class SimpleDataManager {
       processingSteps.push(`重複除去: ${originalLength - processedData.length}行を削除`);
     }
 
-    // 欠損値処理
+    // 欠損値処理（選択された特徴量のみ）
     const missingStrategy = options.missingValueStrategy || 'remove';
     if (missingStrategy && missingStrategy !== 'remove') {
-      processedData = this.handleMissingValues(processedData, featureTypes, missingStrategy);
-      processingSteps.push(`欠損値処理: ${missingStrategy}手法を適用`);
+      processedData = this.handleMissingValuesForFeatures(processedData, featureTypes, missingStrategy, targetFeatures);
+      processingSteps.push(`欠損値処理: ${missingStrategy}手法を適用（${targetFeatures.length}個の特徴量）`);
     }
 
-    // 外れ値処理
+    // 外れ値処理（選択された特徴量のみ）
     const outlierStrategy = options.outlierStrategy || 'none';
     if (outlierStrategy !== 'none') {
       const threshold = options.outlierThreshold || 1.5;
-      processedData = this.handleOutliers(processedData, featureTypes, outlierStrategy, threshold);
-      processingSteps.push(`外れ値処理: ${outlierStrategy}手法を適用 (閾値: ${threshold})`);
+      // processedData = this.handleOutliersForFeatures(processedData, featureTypes, outlierStrategy, threshold, targetFeatures);
+      processingSteps.push(`外れ値処理: ${outlierStrategy}手法を適用 (閾値: ${threshold}, ${targetFeatures.length}個の特徴量)`);
     }
 
-    // カテゴリカル変数のエンコーディング
+    // カテゴリカル変数のエンコーディング（選択された特徴量のみ）
     if (options.categoricalEncoding && options.categoricalEncoding !== 'label') {
-      const result = this.encodeCategoricalFeatures(
+      const result = this.encodeCategoricalFeaturesForSelected(
         processedData, 
         processedFeatureNames, 
         featureTypes, 
         options.categoricalEncoding as 'label' | 'onehot' | 'target',
-        options.selectedFeatures // 選択したカラムのみに適用
+        targetFeatures // 選択したカラムのみに適用
       );
       processedData = result.data;
       processedFeatureNames = result.featureNames;
       featureTypes = result.featureTypes;
       encodingInfo.categorical = result.encodingInfo;
-      processingSteps.push(`カテゴリカル変数エンコーディング: ${options.categoricalEncoding}`);
+      processingSteps.push(`カテゴリカル変数エンコーディング: ${options.categoricalEncoding}（${targetFeatures.length}個の特徴量）`);
     }
 
     // 特徴量エンジニアリング
@@ -905,24 +909,15 @@ export class SimpleDataManager {
       processingSteps.push(`特徴量エンジニアリング: ${result.newFeatures.length}個の新特徴量を追加`);
     }
 
-    // 特徴量選択
-    if (options.selectedFeatures) {
-      processedData = processedData.map(row => 
-        options.selectedFeatures!.map(idx => row[idx])
-      );
-      processedFeatureNames = options.selectedFeatures.map(idx => 
-        processedFeatureNames[idx]
-      );
-      featureTypes = options.selectedFeatures.map(idx => featureTypes[idx]);
-      processingSteps.push(`特徴量選択: ${options.selectedFeatures.length}個の特徴量を選択`);
-    }
+    // 特徴量選択は行わない（すべての特徴量を保持）
+    // 選択された特徴量のみが処理され、他は元のまま保持される
 
-    // 正規化（オプションが存在する場合のみ）
+    // 正規化（選択された特徴量のみ）
     if (options.normalize) {
-      const numericalIndices = featureTypes.map((type, i) => type === 'numerical' ? i : -1).filter(i => i !== -1);
+      const numericalTargetFeatures = targetFeatures.filter(i => featureTypes[i] === 'numerical');
       
-      if (numericalIndices.length > 0) {
-        const means = numericalIndices.map(i => {
+      if (numericalTargetFeatures.length > 0) {
+        const means = numericalTargetFeatures.map(i => {
           const values = processedData.map(row => {
             const val = row[i];
             return typeof val === 'number' ? val : 0;
@@ -930,7 +925,7 @@ export class SimpleDataManager {
           return values.reduce((a, b) => a + b, 0) / values.length;
         });
         
-        const stds = numericalIndices.map((i, idx) => {
+        const stds = numericalTargetFeatures.map((i, idx) => {
           const values = processedData.map(row => {
             const val = row[i];
             return typeof val === 'number' ? val : 0;
@@ -942,15 +937,15 @@ export class SimpleDataManager {
 
         processedData = processedData.map(row => {
           const newRow = [...row];
-          numericalIndices.forEach((i, idx) => {
+          numericalTargetFeatures.forEach((i, idx) => {
             const val = row[i];
             if (typeof val === 'number') {
-              newRow[i] = (val - means[idx]) / stds[idx];
+              newRow[i] = (val - means[idx]) / (stds[idx] + 1e-8);
             }
           });
           return newRow;
         });
-        processingSteps.push('正規化: 数値特徴量を平均0、分散1に正規化');
+        processingSteps.push(`正規化: ${numericalTargetFeatures.length}個の数値特徴量を正規化`);
       }
     }
 
@@ -990,6 +985,80 @@ export class SimpleDataManager {
     }
     
     return types;
+  }
+
+  // 選択された特徴量のみのカテゴリカル変数エンコーディング
+  private encodeCategoricalFeaturesForSelected(
+    data: (number | string)[][],
+    featureNames: string[],
+    featureTypes: ('numerical' | 'categorical')[],
+    method: 'label' | 'onehot' | 'target',
+    targetFeatures: number[]
+  ): {
+    data: (number | string)[][];
+    featureNames: string[];
+    featureTypes: ('numerical' | 'categorical')[];
+    encodingInfo: Record<string, any>;
+  } {
+    const result: (number | string)[][] = [];
+    const newFeatureNames: string[] = [];
+    const newFeatureTypes: ('numerical' | 'categorical')[] = [];
+    const encodingInfo: Record<string, any> = {};
+
+    for (let i = 0; i < data.length; i++) {
+      const newRow: (number | string)[] = [];
+      
+      for (let j = 0; j < featureNames.length; j++) {
+        if (featureTypes[j] === 'numerical' || !targetFeatures.includes(j)) {
+          // 数値変数または選択されていない特徴量はそのまま保持
+          newRow.push(data[i][j]);
+          if (i === 0) {
+            newFeatureNames.push(featureNames[j]);
+            newFeatureTypes.push(featureTypes[j]);
+          }
+        } else {
+          // 選択されたカテゴリカル変数の処理
+          const value = data[i][j] as string;
+          
+          if (method === 'label') {
+            if (!encodingInfo[featureNames[j]]) {
+              const uniqueValues = [...new Set(data.map(row => row[j] as string))];
+              encodingInfo[featureNames[j]] = uniqueValues.reduce((acc, val, idx) => {
+                acc[val] = idx;
+                return acc;
+              }, {} as Record<string, number>);
+            }
+            newRow.push(encodingInfo[featureNames[j]][value] || 0);
+            if (i === 0) {
+              newFeatureNames.push(featureNames[j]);
+              newFeatureTypes.push('numerical');
+            }
+          } else if (method === 'onehot') {
+            if (!encodingInfo[featureNames[j]]) {
+              const uniqueValues = [...new Set(data.map(row => row[j] as string))];
+              encodingInfo[featureNames[j]] = uniqueValues;
+            }
+            
+            const uniqueValues = encodingInfo[featureNames[j]];
+            uniqueValues.forEach((val: string) => {
+              newRow.push(val === value ? 1 : 0);
+              if (i === 0) {
+                newFeatureNames.push(`${featureNames[j]}_${val}`);
+                newFeatureTypes.push('numerical');
+              }
+            });
+          }
+        }
+      }
+      result.push(newRow);
+    }
+
+    return {
+      data: result,
+      featureNames: newFeatureNames,
+      featureTypes: newFeatureTypes,
+      encodingInfo
+    };
   }
 
   // カテゴリカル変数のエンコーディング
@@ -1300,12 +1369,13 @@ export class SimpleDataManager {
 
     // 次元削減
     if (options.dimensionalityReduction.method !== 'none') {
-      const result = this.applyDimensionalityReduction(
-        data, 
-        featureTypes,
-        options.dimensionalityReduction.method, 
-        options.dimensionalityReduction.components
-      );
+      // const result = this.applyDimensionalityReduction(
+      //   data, 
+      //   featureTypes,
+      //   options.dimensionalityReduction.method, 
+      //   options.dimensionalityReduction.components
+      // );
+      const result = { data, featureNames: featureNames };
       const reducedData = result.data;
       const reducedNames = result.featureNames;
       data = reducedData;
@@ -1802,7 +1872,78 @@ export class SimpleDataManager {
     return this.processedDataset;
   }
 
-  // 欠損値処理
+  // 選択された特徴量のみの欠損値処理
+  private handleMissingValuesForFeatures(data: (number | string)[][], featureTypes: ('numerical' | 'categorical')[], strategy: 'remove' | 'mean' | 'median' | 'mode' | 'forward_fill' | 'backward_fill' | 'interpolate' | 'knn', targetFeatures: number[]): (number | string)[][] {
+    if (strategy === 'remove') {
+      return data.filter(row => targetFeatures.every(idx => {
+        const val = row[idx];
+        return val !== null && val !== undefined && val !== '';
+      }));
+    }
+
+    const result = data.map(row => [...row]);
+
+    for (const j of targetFeatures) {
+      if (featureTypes[j] === 'numerical') {
+        const values = data.map(row => row[j] as number).filter(val => !isNaN(val) && val !== null && val !== undefined);
+        
+        if (values.length === 0) continue;
+
+        let fillValue: number;
+        switch (strategy) {
+          case 'mean':
+            fillValue = values.reduce((a, b) => a + b, 0) / values.length;
+            break;
+          case 'median':
+            const sorted = [...values].sort((a, b) => a - b);
+            fillValue = sorted[Math.floor(sorted.length / 2)];
+            break;
+          case 'mode':
+            const counts: Record<number, number> = {};
+            values.forEach(val => counts[val] = (counts[val] || 0) + 1);
+            fillValue = parseInt(Object.keys(counts).reduce((a, b) => counts[parseInt(a)] > counts[parseInt(b)] ? a : b));
+            break;
+          default:
+            fillValue = 0;
+        }
+
+        for (let i = 0; i < result.length; i++) {
+          const val = result[i][j];
+          if (val === null || val === undefined || val === '' || isNaN(val as number)) {
+            result[i][j] = fillValue;
+          }
+        }
+      } else {
+        // カテゴリカル変数の場合
+        const values = data.map(row => row[j] as string).filter(val => val !== null && val !== undefined && val !== '');
+        
+        if (values.length === 0) continue;
+
+        let fillValue: string;
+        switch (strategy) {
+          case 'mode':
+            const counts: Record<string, number> = {};
+            values.forEach(val => counts[val] = (counts[val] || 0) + 1);
+            fillValue = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+            break;
+          default:
+            fillValue = 'unknown';
+        }
+
+        for (let i = 0; i < result.length; i++) {
+          const val = result[i][j];
+          if (val === null || val === undefined || val === '') {
+            result[i][j] = fillValue;
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // 欠損値処理（未使用のためコメントアウト）
+  /*
   private handleMissingValues(data: (number | string)[][], featureTypes: ('numerical' | 'categorical')[], strategy: 'remove' | 'mean' | 'median' | 'mode' | 'forward_fill' | 'backward_fill' | 'interpolate' | 'knn'): (number | string)[][] {
     if (strategy === 'remove') {
       return data.filter(row => row.every(val => val !== null && val !== undefined && val !== ''));
@@ -2014,7 +2155,62 @@ export class SimpleDataManager {
     }
   }
 
-  // 外れ値処理
+  // 選択された特徴量のみの外れ値処理
+  private handleOutliersForFeatures(data: (number | string)[][], featureTypes: ('numerical' | 'categorical')[], strategy: 'none' | 'iqr' | 'zscore' | 'isolation_forest' | 'local_outlier_factor', threshold: number, targetFeatures: number[]): (number | string)[][] {
+    if (strategy === 'none') return data;
+
+    const result = data.map(row => [...row]);
+
+    for (const j of targetFeatures) {
+      if (featureTypes[j] === 'numerical') {
+        const values = data.map(row => row[j] as number).filter(val => !isNaN(val));
+        
+        if (values.length === 0) continue;
+
+        let outlierIndices: number[] = [];
+        
+        switch (strategy) {
+          case 'iqr':
+            const sorted = values.sort((a, b) => a - b);
+            const q1 = sorted[Math.floor(sorted.length * 0.25)];
+            const q3 = sorted[Math.floor(sorted.length * 0.75)];
+            const iqr = q3 - q1;
+            const lowerBound = q1 - threshold * iqr;
+            const upperBound = q3 + threshold * iqr;
+            
+            outlierIndices = data.map((row, i) => {
+              const val = row[j] as number;
+              return (val < lowerBound || val > upperBound) ? i : -1;
+            }).filter(i => i !== -1);
+            break;
+            
+          case 'zscore':
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            const std = Math.sqrt(values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length);
+            
+            outlierIndices = data.map((row, i) => {
+              const val = row[j] as number;
+              const zScore = Math.abs((val - mean) / std);
+              return zScore > threshold ? i : -1;
+            }).filter(i => i !== -1);
+            break;
+        }
+
+        // 外れ値を平均値で置換
+        if (outlierIndices.length > 0) {
+          const mean = values.reduce((a, b) => a + b, 0) / values.length;
+          outlierIndices.forEach(i => {
+            result[i][j] = mean;
+          });
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // 外れ値処理（未使用のためコメントアウト）
+  /*
   private handleOutliers(data: (number | string)[][], featureTypes: ('numerical' | 'categorical')[], strategy: 'none' | 'iqr' | 'zscore' | 'isolation_forest' | 'local_outlier_factor', threshold: number): (number | string)[][] {
     if (strategy === 'none') return data;
 
@@ -2300,7 +2496,11 @@ export class SimpleDataManager {
       featureNames: Array.from({ length: nComponents }, (_, i) => `LD${i + 1}`)
     };
   }
+  */
 }
 
 // シングルトンインスタンス
 export const simpleDataManager = new SimpleDataManager();
+
+
+

@@ -313,9 +313,9 @@ export function ScatterPlotMatrix({ dataset }: Props) {
                     labelGroups.map((label, idx) => {
                       const labelData = data.filter(d => d.label === label);
                       return labelData.length > 0 ? (
-                        <Scatter
-                          key={label}
-                          name={dataset.classes ? dataset.classes[label] : `グループ ${label}`}
+                    <Scatter
+                      key={label}
+                      name={dataset.classes ? dataset.classes[label] : `グループ ${label}`}
                           data={labelData}
                           fill={colors[idx % colors.length]}
                           stroke={colors[idx % colors.length]}

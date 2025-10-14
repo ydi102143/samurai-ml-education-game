@@ -1696,3 +1696,5 @@ export class SimpleMLManager {
 
 // シングルトンインスタンス
 export const simpleMLManager = new SimpleMLManager();
+
+

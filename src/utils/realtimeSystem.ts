@@ -1,4 +1,5 @@
-// リアルタイム機能システム
+import { WeeklyProblem } from './weeklyProblemSystem';
+
 export interface LeaderboardEntry {
   id: string;
   username: string;
@@ -20,16 +21,16 @@ export interface ChatMessage {
 export interface Participant {
   id: string;
   username: string;
-  status: 'online' | 'offline' | 'training' | 'validating';
+  status: 'online' | 'offline';
   currentStep: string;
   lastActivity: number;
 }
 
-export interface WeeklyProblem {
+export interface BattleChallenge {
   id: string;
   title: string;
   description: string;
-  type: 'classification' | 'regression';
+  difficulty: 'easy' | 'medium' | 'hard';
   startTime: number;
   endTime: number;
   maxSubmissions: number;
@@ -48,7 +49,6 @@ export class RealtimeSystem {
   constructor() {
     this.initializeUser();
     this.initializeSystem();
-    this.startCrossDeviceSync();
   }
 
   // ユーザー初期化
@@ -85,182 +85,133 @@ export class RealtimeSystem {
 
   // システム初期化
   private initializeSystem() {
-    // ローカルストレージからデータを読み込み
     this.loadFromStorage();
-    
-    // 共有ストレージからデータを読み込み（異なるデバイス間の同期）
-    this.loadFromSharedStorage();
-    
-    // 定期的な更新を開始
-    setInterval(() => {
-      this.updateSystem();
-    }, 1000);
-    
-    // 定期的にローカルストレージに保存
-    setInterval(() => {
-      this.saveToStorage();
-    }, 5000);
-    
-    // 定期的に共有ストレージと同期
-    setInterval(() => {
-      this.syncWithSharedStorage();
-    }, 3000);
-    
-    // ストレージイベントを監視（他のタブからの変更を検知）
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'ml_battle_shared_data') {
-        this.loadFromSharedStorage();
-        this.notifyUpdate();
-      }
-    });
+    this.startPeriodicUpdates();
+    this.startCrossDeviceSync();
   }
 
-  // ローカルストレージからデータを読み込み
+  // ストレージからデータを読み込み
   private loadFromStorage() {
     try {
-      const leaderboardData = localStorage.getItem('ml_battle_leaderboard');
-      if (leaderboardData) {
-        this.leaderboard = JSON.parse(leaderboardData);
+      const storedLeaderboard = localStorage.getItem('ml_battle_leaderboard');
+      if (storedLeaderboard) {
+        this.leaderboard = JSON.parse(storedLeaderboard);
       }
-      
-      const chatData = localStorage.getItem('ml_battle_chat');
-      if (chatData) {
-        this.chatMessages = JSON.parse(chatData);
+
+      const storedChat = localStorage.getItem('ml_battle_chat');
+      if (storedChat) {
+        this.chatMessages = JSON.parse(storedChat);
       }
-      
-      const participantsData = localStorage.getItem('ml_battle_participants');
-      if (participantsData) {
-        this.participants = JSON.parse(participantsData);
+
+      const storedParticipants = localStorage.getItem('ml_battle_participants');
+      if (storedParticipants) {
+        this.participants = JSON.parse(storedParticipants);
       }
-      
-      const problemData = localStorage.getItem('ml_battle_current_problem');
-      if (problemData) {
-        const parsed = JSON.parse(problemData);
-        this.currentProblem = {
-          ...parsed,
-          startTime: parsed.startTime,
-          endTime: parsed.endTime
-        };
+
+      const storedProblem = localStorage.getItem('ml_battle_current_problem');
+      if (storedProblem) {
+        this.currentProblem = JSON.parse(storedProblem);
       }
     } catch (error) {
       console.error('Failed to load from storage:', error);
-      this.generateSampleData();
     }
   }
 
-  // ローカルストレージにデータを保存
-  private saveToStorage() {
-    try {
-      localStorage.setItem('ml_battle_leaderboard', JSON.stringify(this.leaderboard));
-      localStorage.setItem('ml_battle_chat', JSON.stringify(this.chatMessages));
-      localStorage.setItem('ml_battle_participants', JSON.stringify(this.participants));
-      
-      if (this.currentProblem) {
-        localStorage.setItem('ml_battle_current_problem', JSON.stringify(this.currentProblem));
-      }
-    } catch (error) {
-      console.error('Failed to save to storage:', error);
-    }
+  // 定期的な更新を開始
+  private startPeriodicUpdates() {
+    // リーダーボード更新（30秒ごと）
+    setInterval(() => {
+      this.updateLeaderboard();
+    }, 30000);
+
+    // 参加者ステータス更新（10秒ごと）
+    setInterval(() => {
+      this.updateParticipantStatus();
+    }, 10000);
+
+    // チャット更新（5秒ごと）
+    setInterval(() => {
+      this.notifyUpdate();
+    }, 5000);
   }
 
-  // 共有ストレージからデータを読み込み（異なるデバイス間の同期）
-  private loadFromSharedStorage() {
-    try {
-      const sharedData = localStorage.getItem('ml_battle_shared_data');
-      if (!sharedData) return;
-      
-      const data = JSON.parse(sharedData);
-      
-      // タイムスタンプをチェックして、新しいデータのみを適用
-      if (data.leaderboard && data.leaderboard.timestamp > (this.getLastSyncTime('leaderboard') || 0)) {
-        this.leaderboard = data.leaderboard.data;
-        this.setLastSyncTime('leaderboard', data.leaderboard.timestamp);
-      }
-      
-      if (data.chat && data.chat.timestamp > (this.getLastSyncTime('chat') || 0)) {
-        this.chatMessages = data.chat.data;
-        this.setLastSyncTime('chat', data.chat.timestamp);
-      }
-      
-      if (data.participants && data.participants.timestamp > (this.getLastSyncTime('participants') || 0)) {
-        this.participants = data.participants.data;
-        this.setLastSyncTime('participants', data.participants.timestamp);
-      }
-      
-      if (data.currentProblem && data.currentProblem.timestamp > (this.getLastSyncTime('currentProblem') || 0)) {
-        this.currentProblem = data.currentProblem.data;
-        this.setLastSyncTime('currentProblem', data.currentProblem.timestamp);
-      }
-      
-    } catch (error) {
-      console.error('共有ストレージからの読み込みに失敗:', error);
-    }
-  }
-
-  // 共有ストレージと同期
-  private syncWithSharedStorage() {
-    try {
-      const now = Date.now();
-      const sharedData = {
-        leaderboard: {
-          data: this.leaderboard,
-          timestamp: now
-        },
-        chat: {
-          data: this.chatMessages,
-          timestamp: now
-        },
-        participants: {
-          data: this.participants,
-          timestamp: now
-        },
-        currentProblem: {
-          data: this.currentProblem,
-          timestamp: now
-        }
-      };
-      
-      localStorage.setItem('ml_battle_shared_data', JSON.stringify(sharedData));
-      
-    } catch (error) {
-      console.error('共有ストレージへの同期に失敗:', error);
-    }
-  }
-
-  // 最後の同期時間を取得
-  private getLastSyncTime(key: string): number | null {
-    const stored = localStorage.getItem(`ml_battle_sync_${key}`);
-    return stored ? parseInt(stored) : null;
-  }
-
-  // 最後の同期時間を設定
-  private setLastSyncTime(key: string, timestamp: number) {
-    localStorage.setItem(`ml_battle_sync_${key}`, timestamp.toString());
-  }
-
-  // サンプルデータ生成
-  private generateSampleData() {
-    // 空の状態で開始
-    this.leaderboard = [];
-    this.chatMessages = [];
-    this.participants = [];
-    
-    // 週次問題は動的に生成
-    this.currentProblem = null;
-  }
-
-  // システム更新
-  private updateSystem() {
-    // 参加者のステータスをランダムに更新
-    this.participants.forEach(participant => {
-      if (participant.status === 'online' && Math.random() < 0.1) {
-        const steps = ['data', 'eda', 'preprocessing', 'model_selection', 'training', 'validation', 'submission'];
-        participant.currentStep = steps[Math.floor(Math.random() * steps.length)];
-        participant.lastActivity = Date.now();
+  // クロスデバイス同期を開始
+  private startCrossDeviceSync() {
+    // ストレージイベントリスナーを設定
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'ml_battle_shared_data') {
+        this.loadFromSharedStorage();
       }
     });
 
-    // コールバックを実行
+    // 定期的に共有ストレージをチェック（10秒ごと）
+    setInterval(() => {
+      this.syncWithSharedStorage();
+    }, 10000);
+  }
+
+  // 共有ストレージからデータを読み込み
+  private loadFromSharedStorage() {
+    try {
+      const sharedData = localStorage.getItem('ml_battle_shared_data');
+      if (sharedData) {
+        const data = JSON.parse(sharedData);
+        const lastSync = this.getLastSyncTime();
+        
+        if (data.timestamp > lastSync) {
+          this.leaderboard = data.leaderboard || this.leaderboard;
+          this.chatMessages = data.chatMessages || this.chatMessages;
+          this.participants = data.participants || this.participants;
+          this.currentProblem = data.currentProblem || this.currentProblem;
+          this.setLastSyncTime(data.timestamp);
+          this.notifyUpdate();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load from shared storage:', error);
+    }
+  }
+
+  // 共有ストレージにデータを同期
+  private syncWithSharedStorage() {
+    try {
+      const sharedData = {
+        leaderboard: this.leaderboard,
+        chatMessages: this.chatMessages,
+        participants: this.participants,
+        currentProblem: this.currentProblem,
+        timestamp: Date.now()
+      };
+      
+      localStorage.setItem('ml_battle_shared_data', JSON.stringify(sharedData));
+    } catch (error) {
+      console.error('Failed to sync with shared storage:', error);
+    }
+  }
+
+  // 最後の同期時刻を取得
+  private getLastSyncTime(): number {
+    const stored = localStorage.getItem('ml_battle_last_sync');
+    return stored ? parseInt(stored, 10) : 0;
+  }
+
+  // 最後の同期時刻を設定
+  private setLastSyncTime(timestamp: number) {
+    localStorage.setItem('ml_battle_last_sync', timestamp.toString());
+  }
+
+  // 更新コールバックを追加
+  addUpdateCallback(callback: () => void) {
+    this.updateCallbacks.add(callback);
+  }
+
+  // 更新コールバックを削除
+  removeUpdateCallback(callback: () => void) {
+    this.updateCallbacks.delete(callback);
+  }
+
+  // 更新を通知
+  private notifyUpdate() {
     this.updateCallbacks.forEach(callback => callback());
   }
 
@@ -284,88 +235,165 @@ export class RealtimeSystem {
     return this.currentProblem;
   }
 
-  // チャットメッセージ送信
-  sendMessage(username: string, message: string): void {
-    const newMessage: ChatMessage = {
-      id: Date.now().toString(),
-      username,
-      message,
-      timestamp: Date.now(),
-      type: 'user'
-    };
-    this.chatMessages.push(newMessage);
-    
-    // メッセージが多すぎる場合は古いものを削除
-    if (this.chatMessages.length > 100) {
-      this.chatMessages = this.chatMessages.slice(-100);
-    }
-    
-    // 即座に保存
-    this.saveToStorage();
-    this.syncWithSharedStorage();
+  // ユーザーID取得
+  getUserId(): string {
+    return this.userId;
+  }
+
+  // プレイヤー名取得
+  getPlayerName(): string {
+    return this.playerName;
   }
 
   // リーダーボードにスコアを追加
-  addScore(username: string, score: number, accuracy: number, modelName: string): void {
-    const newEntry: LeaderboardEntry = {
-      id: Date.now().toString(),
-      username,
+  addScore(score: number, accuracy: number, modelName: string) {
+    const entry: LeaderboardEntry = {
+      id: this.userId,
+      username: this.playerName,
       score,
       accuracy,
       modelName,
       timestamp: Date.now(),
-      rank: 0 // 後で計算
+      rank: 0
     };
 
-    this.leaderboard.push(newEntry);
-    
+    // 既存のエントリを更新または追加
+    const existingIndex = this.leaderboard.findIndex(e => e.id === this.userId);
+    if (existingIndex >= 0) {
+      this.leaderboard[existingIndex] = entry;
+    } else {
+      this.leaderboard.push(entry);
+    }
+
     // スコアでソートしてランクを更新
     this.leaderboard.sort((a, b) => b.score - a.score);
     this.leaderboard.forEach((entry, index) => {
       entry.rank = index + 1;
     });
 
-    // 上位20位のみ保持
-    if (this.leaderboard.length > 20) {
-      this.leaderboard = this.leaderboard.slice(0, 20);
-    }
+    // 上位10位のみ保持
+    this.leaderboard = this.leaderboard.slice(0, 10);
+
+    // ストレージに保存
+    localStorage.setItem('ml_battle_leaderboard', JSON.stringify(this.leaderboard));
     
-    // 即座に保存
-    this.saveToStorage();
+    // 共有ストレージに同期
     this.syncWithSharedStorage();
+    
+    this.notifyUpdate();
   }
 
-  // 参加者ステータス更新
-  updateParticipantStatus(username: string, status: Participant['status'], currentStep: string): void {
-    const participant = this.participants.find(p => p.username === username);
-    if (participant) {
-      participant.status = status;
-      participant.currentStep = currentStep;
-      participant.lastActivity = Date.now();
+  // チャットメッセージを送信
+  sendMessage(message: string) {
+    const chatMessage: ChatMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      username: this.playerName,
+      message,
+      timestamp: Date.now(),
+      type: 'user'
+    };
+
+    this.chatMessages.push(chatMessage);
+    
+    // 最新50件のみ保持
+    this.chatMessages = this.chatMessages.slice(-50);
+
+    // ストレージに保存
+    localStorage.setItem('ml_battle_chat', JSON.stringify(this.chatMessages));
+    
+    // 共有ストレージに同期
+    this.syncWithSharedStorage();
+    
+    this.notifyUpdate();
+  }
+
+  // 参加者ステータスを更新
+  updateParticipantStatus() {
+    const participant: Participant = {
+      id: this.userId,
+      username: this.playerName,
+      status: 'online',
+      currentStep: 'battle',
+      lastActivity: Date.now()
+    };
+
+    const existingIndex = this.participants.findIndex(p => p.id === this.userId);
+    if (existingIndex >= 0) {
+      this.participants[existingIndex] = participant;
     } else {
-      // 新しい参加者を追加
-      this.participants.push({
-        id: Date.now().toString(),
-        username,
-        status,
-        currentStep,
-        lastActivity: Date.now()
-      });
+      this.participants.push(participant);
     }
+
+    // 5分以上非アクティブな参加者を削除
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    this.participants = this.participants.filter(p => p.lastActivity > fiveMinutesAgo);
+
+    // ストレージに保存
+    localStorage.setItem('ml_battle_participants', JSON.stringify(this.participants));
     
-    // 即座に保存
-    this.saveToStorage();
+    // 共有ストレージに同期
     this.syncWithSharedStorage();
   }
 
-  // 更新コールバック登録
-  onUpdate(callback: () => void): () => void {
-    this.updateCallbacks.add(callback);
-    return () => this.updateCallbacks.delete(callback);
+  // リーダーボードを更新
+  private updateLeaderboard() {
+    // ランダムな参加者をシミュレート
+    if (this.participants.length > 0) {
+      const randomParticipant = this.participants[Math.floor(Math.random() * this.participants.length)];
+      if (randomParticipant.id !== this.userId) {
+        const randomScore = Math.random() * 100;
+        const randomAccuracy = Math.random() * 100;
+        const models = ['ロジスティック回帰', 'ランダムフォレスト', 'SVM', 'XGBoost', 'ニューラルネットワーク'];
+        const randomModel = models[Math.floor(Math.random() * models.length)];
+
+        const entry: LeaderboardEntry = {
+          id: randomParticipant.id,
+          username: randomParticipant.username,
+          score: randomScore,
+          accuracy: randomAccuracy,
+          modelName: randomModel,
+          timestamp: Date.now(),
+          rank: 0
+        };
+
+        const existingIndex = this.leaderboard.findIndex(e => e.id === randomParticipant.id);
+        if (existingIndex >= 0) {
+          this.leaderboard[existingIndex] = entry;
+        } else {
+          this.leaderboard.push(entry);
+        }
+
+        // スコアでソートしてランクを更新
+        this.leaderboard.sort((a, b) => b.score - a.score);
+        this.leaderboard.forEach((entry, index) => {
+          entry.rank = index + 1;
+        });
+
+        // 上位10位のみ保持
+        this.leaderboard = this.leaderboard.slice(0, 10);
+
+        // ストレージに保存
+        localStorage.setItem('ml_battle_leaderboard', JSON.stringify(this.leaderboard));
+        
+        // 共有ストレージに同期
+        this.syncWithSharedStorage();
+      }
+    }
   }
 
-  // 週次問題の残り時間取得
-  getTimeRemaining(): number {
+  // 週次問題を設定
+  setCurrentProblem(problem: WeeklyProblem) {
+    this.currentProblem = problem;
+    localStorage.setItem('ml_battle_current_problem', JSON.stringify(problem));
+    
+    // 共有ストレージに同期
+    this.syncWithSharedStorage();
+    
+    this.notifyUpdate();
+  }
+
+  // 残り時間を取得
+  getRemainingTime(): number {
     if (!this.currentProblem) return 0;
     return Math.max(0, this.currentProblem.endTime - Date.now());
   }

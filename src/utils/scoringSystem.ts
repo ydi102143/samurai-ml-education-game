@@ -53,151 +53,320 @@ export class ScoringSystem {
   }
 
   // 提出を評価
-  private async evaluateSubmission(submission: Submission) {
+  private evaluateSubmission(submission: Submission) {
     try {
-      // 実際の評価ロジック（簡易版）
+      // パブリックスコアを計算
       const publicScore = this.calculatePublicScore(submission);
-      const privateScore = this.calculatePrivateScore(submission, publicScore);
+      
+      // プライベートスコアを計算（実際のコンペでは後で計算）
+      const privateScore = this.calculatePrivateScore(submission);
 
       submission.publicScore = publicScore;
       submission.privateScore = privateScore;
+      submission.score = publicScore; // 現在はパブリックスコアを使用
       submission.status = 'evaluated';
 
-      // 少し遅延を追加してリアルな感じに
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+      console.log(`Submission evaluated: ${submission.id}, Public: ${publicScore.toFixed(4)}, Private: ${privateScore.toFixed(4)}`);
     } catch (error) {
+      console.error('Failed to evaluate submission:', error);
       submission.status = 'failed';
-      console.error('Submission evaluation failed:', error);
     }
   }
 
-  // パブリックスコアを計算（現実的な実装）
+  // パブリックスコアを計算
   private calculatePublicScore(submission: Submission): number {
-    // 実際の検証データでの性能をシミュレート
-    const baseScore = this.simulateModelPerformance(submission);
+    // ベーススコア（モデル性能に基づく）
+    let baseScore = this.simulateModelPerformance(submission);
     
-    // データの複雑さによる調整
+    // 複雑さ調整
     const complexityAdjustment = this.calculateComplexityAdjustment(submission);
     
-    // ハイパーパラメータの最適化度による調整
+    // ハイパーパラメータ調整
     const hyperparameterAdjustment = this.calculateHyperparameterAdjustment(submission.metadata.hyperparameters);
     
-    // 前処理の効果による調整
+    // 前処理調整
     const preprocessingAdjustment = this.calculatePreprocessingAdjustment(submission.metadata.preprocessing);
     
-    // 特徴量エンジニアリングの効果による調整
+    // 特徴エンジニアリング調整
     const featureEngineeringAdjustment = this.calculateFeatureEngineeringAdjustment(submission.metadata.featureEngineering);
     
-    // 最終スコアを計算
-    const finalScore = baseScore + complexityAdjustment + hyperparameterAdjustment + 
-                      preprocessingAdjustment + featureEngineeringAdjustment;
+    // 最終スコア計算
+    const finalScore = baseScore * complexityAdjustment * hyperparameterAdjustment * preprocessingAdjustment * featureEngineeringAdjustment;
     
-    return Math.min(0.99, Math.max(0.01, finalScore));
+    return Math.max(0, Math.min(100, finalScore));
   }
 
-  // プライベートスコアを計算（現実的な実装）
-  private calculatePrivateScore(submission: Submission, publicScore: number): number {
-    // Privateデータでの性能をシミュレート
+  // プライベートスコアを計算
+  private calculatePrivateScore(submission: Submission): number {
+    const publicScore = submission.publicScore;
+    
+    // プライベートデータの複雑さを推定
     const privateDataComplexity = this.estimatePrivateDataComplexity(submission);
     
-    // モデルの汎化性能を考慮
+    // 汎化性能を計算
     const generalizationFactor = this.calculateGeneralizationFactor(submission);
     
-    // 過学習の影響を考慮
+    // オーバーフィッティングペナルティ
     const overfittingPenalty = this.calculateOverfittingPenalty(submission, publicScore);
     
-    // Privateスコアを計算
-    const privateScore = publicScore * generalizationFactor - overfittingPenalty + privateDataComplexity;
+    // プライベートスコア計算
+    const privateScore = publicScore * privateDataComplexity * generalizationFactor * overfittingPenalty;
     
-    return Math.min(0.99, Math.max(0.01, privateScore));
+    return Math.max(0, Math.min(100, privateScore));
   }
 
-  // ハイパーパラメータボーナスを計算
-  private calculateHyperparameterBonus(hyperparameters: Record<string, any>): number {
-    let bonus = 0;
+  // モデル性能をシミュレート
+  private simulateModelPerformance(submission: Submission): number {
+    const modelType = submission.modelName;
+    const basePerformance = this.getModelBasePerformance(modelType);
+    
+    // ハイパーパラメータの影響
+    const hyperparameterQuality = this.evaluateHyperparameterQuality(submission.metadata.hyperparameters, modelType);
+    
+    // 前処理の影響
+    const preprocessingQuality = submission.metadata.preprocessing.length * 0.1;
+    
+    // 特徴エンジニアリングの影響
+    const featureEngineeringQuality = submission.metadata.featureEngineering.length * 0.05;
+    
+    return basePerformance * (1 + hyperparameterQuality + preprocessingQuality + featureEngineeringQuality);
+  }
 
-    // 学習率の最適化
+  // モデルの基本性能を取得
+  private getModelBasePerformance(modelType: string): number {
+    const performanceMap: Record<string, number> = {
+      'ロジスティック回帰': 75,
+      '線形回帰': 70,
+      'ランダムフォレスト': 85,
+      'SVM': 80,
+      'XGBoost': 90,
+      'ニューラルネットワーク': 88,
+      'リッジ回帰': 72,
+      'ラッソ回帰': 68
+    };
+    
+    return performanceMap[modelType] || 70;
+  }
+
+  // 複雑さ調整を計算
+  private calculateComplexityAdjustment(submission: Submission): number {
+    const preprocessingCount = submission.metadata.preprocessing.length;
+    const featureEngineeringCount = submission.metadata.featureEngineering.length;
+    
+    // 適度な複雑さが良いスコアにつながる
+    const totalComplexity = preprocessingCount + featureEngineeringCount;
+    
+    if (totalComplexity === 0) return 0.8; // 何もしないのは低いスコア
+    if (totalComplexity <= 3) return 1.0; // 適度な複雑さ
+    if (totalComplexity <= 6) return 1.1; // 良い複雑さ
+    if (totalComplexity <= 10) return 1.05; // やや複雑すぎる
+    return 0.95; // 複雑すぎる
+  }
+
+  // ハイパーパラメータ調整を計算
+  private calculateHyperparameterAdjustment(hyperparameters: Record<string, any>): number {
+    let adjustment = 1.0;
+    
+    // 学習率の影響
     if (hyperparameters.learningRate) {
       const lr = hyperparameters.learningRate;
-      if (lr >= 0.001 && lr <= 0.1) {
-        bonus += 0.02;
-      }
+      if (lr >= 0.001 && lr <= 0.1) adjustment *= 1.1;
+      else if (lr < 0.001 || lr > 0.3) adjustment *= 0.9;
     }
-
-    // 正則化の最適化
+    
+    // 正則化の影響
     if (hyperparameters.regularization) {
       const reg = hyperparameters.regularization;
-      if (reg >= 0.01 && reg <= 0.1) {
-        bonus += 0.02;
-      }
+      if (reg >= 0.01 && reg <= 0.1) adjustment *= 1.05;
+      else if (reg < 0.001 || reg > 1.0) adjustment *= 0.95;
     }
-
-    // エポック数の最適化
-    if (hyperparameters.maxIterations) {
-      const epochs = hyperparameters.maxIterations;
-      if (epochs >= 100 && epochs <= 1000) {
-        bonus += 0.01;
-      }
+    
+    // エポック数の影響
+    if (hyperparameters.epochs) {
+      const epochs = hyperparameters.epochs;
+      if (epochs >= 50 && epochs <= 200) adjustment *= 1.05;
+      else if (epochs < 10 || epochs > 500) adjustment *= 0.9;
     }
+    
+    return adjustment;
+  }
 
-    // ランダムフォレストのパラメータ
-    if (hyperparameters.nEstimators) {
-      const nEst = hyperparameters.nEstimators;
-      if (nEst >= 50 && nEst <= 200) {
-        bonus += 0.03;
-      }
+  // 前処理調整を計算
+  private calculatePreprocessingAdjustment(preprocessing: string[]): number {
+    let adjustment = 1.0;
+    
+    // 有用な前処理手法
+    const usefulPreprocessing = ['missing_value_imputation', 'outlier_removal', 'scaling', 'categorical_encoding'];
+    const usefulCount = preprocessing.filter(p => usefulPreprocessing.includes(p)).length;
+    
+    adjustment += usefulCount * 0.05;
+    
+    // 過度な前処理はペナルティ
+    if (preprocessing.length > 8) {
+      adjustment *= 0.95;
     }
+    
+    return adjustment;
+  }
 
-    if (hyperparameters.maxDepth) {
-      const maxDepth = hyperparameters.maxDepth;
-      if (maxDepth >= 5 && maxDepth <= 15) {
-        bonus += 0.02;
-      }
+  // 特徴エンジニアリング調整を計算
+  private calculateFeatureEngineeringAdjustment(featureEngineering: string[]): number {
+    let adjustment = 1.0;
+    
+    // 有用な特徴エンジニアリング手法
+    const usefulFeatureEngineering = ['polynomial_features', 'log_transformation', 'feature_combination', 'pca'];
+    const usefulCount = featureEngineering.filter(f => usefulFeatureEngineering.includes(f)).length;
+    
+    adjustment += usefulCount * 0.03;
+    
+    // 過度な特徴エンジニアリングはペナルティ
+    if (featureEngineering.length > 10) {
+      adjustment *= 0.9;
     }
+    
+    return adjustment;
+  }
 
-    return bonus;
+  // プライベートデータの複雑さを推定
+  private estimatePrivateDataComplexity(submission: Submission): number {
+    const modelComplexity = this.getModelComplexity(submission.modelName);
+    const preprocessingComplexity = submission.metadata.preprocessing.length * 0.1;
+    const featureEngineeringComplexity = submission.metadata.featureEngineering.length * 0.05;
+    
+    const totalComplexity = modelComplexity + preprocessingComplexity + featureEngineeringComplexity;
+    
+    // 複雑さが高いほど、プライベートデータでの性能が変動しやすい
+    return Math.max(0.8, Math.min(1.2, 1.0 + (totalComplexity - 1.0) * 0.1));
+  }
+
+  // 汎化性能を計算
+  private calculateGeneralizationFactor(submission: Submission): number {
+    const regularization = submission.metadata.hyperparameters.regularization || 0;
+    const modelComplexity = this.getModelComplexity(submission.modelName);
+    
+    // 正則化が適切で、モデルが適度に複雑な場合、汎化性能が良い
+    let generalizationFactor = 1.0;
+    
+    if (regularization > 0.01 && regularization < 0.1) {
+      generalizationFactor += 0.1;
+    }
+    
+    if (modelComplexity > 0.5 && modelComplexity < 1.5) {
+      generalizationFactor += 0.05;
+    }
+    
+    return Math.max(0.8, Math.min(1.2, generalizationFactor));
+  }
+
+  // オーバーフィッティングペナルティを計算
+  private calculateOverfittingPenalty(submission: Submission, publicScore: number): number {
+    const modelComplexity = this.getModelComplexity(submission.modelName);
+    const featureEngineeringCount = submission.metadata.featureEngineering.length;
+    const preprocessingCount = submission.metadata.preprocessing.length;
+    
+    const totalComplexity = modelComplexity + featureEngineeringCount * 0.1 + preprocessingCount * 0.05;
+    
+    // 複雑さが高く、スコアが高い場合、オーバーフィッティングの可能性
+    if (totalComplexity > 2.0 && publicScore > 85) {
+      return 0.9; // 10%のペナルティ
+    }
+    
+    return 1.0;
+  }
+
+  // モデルの複雑さを取得
+  private getModelComplexity(modelName: string): number {
+    const complexityMap: Record<string, number> = {
+      'ロジスティック回帰': 0.5,
+      '線形回帰': 0.5,
+      'ランダムフォレスト': 1.2,
+      'SVM': 1.0,
+      'XGBoost': 1.5,
+      'ニューラルネットワーク': 1.8,
+      'リッジ回帰': 0.6,
+      'ラッソ回帰': 0.7
+    };
+    
+    return complexityMap[modelName] || 1.0;
+  }
+
+  // ハイパーパラメータの品質を評価
+  private evaluateHyperparameterQuality(hyperparameters: Record<string, any>, modelType: string): number {
+    let quality = 0;
+    
+    // 学習率の評価
+    if (hyperparameters.learningRate) {
+      const lr = hyperparameters.learningRate;
+      if (lr >= 0.001 && lr <= 0.01) quality += 0.1;
+      else if (lr >= 0.01 && lr <= 0.1) quality += 0.05;
+    }
+    
+    // 正則化の評価
+    if (hyperparameters.regularization) {
+      const reg = hyperparameters.regularization;
+      if (reg >= 0.01 && reg <= 0.1) quality += 0.1;
+      else if (reg >= 0.001 && reg <= 0.5) quality += 0.05;
+    }
+    
+    // エポック数の評価
+    if (hyperparameters.epochs) {
+      const epochs = hyperparameters.epochs;
+      if (epochs >= 50 && epochs <= 200) quality += 0.05;
+    }
+    
+    return quality;
   }
 
   // リーダーボードを更新
   private updateLeaderboard() {
-    // ユーザーごとの最高スコアを取得
-    const userScores = new Map<string, {
-      userId: string;
-      teamName: string;
-      publicScore: number;
-      privateScore: number;
-      submissions: number;
-      lastSubmission: Date;
-      modelName: string;
-    }>();
-
-    this.submissions
-      .filter(s => s.status === 'evaluated')
-      .forEach(submission => {
+    // ユーザーごとに最高スコアを取得
+    const userScores = new Map<string, Submission>();
+    
+    this.submissions.forEach(submission => {
+      if (submission.status === 'evaluated') {
         const existing = userScores.get(submission.userId);
-        if (!existing || submission.publicScore > existing.publicScore) {
-          userScores.set(submission.userId, {
-            userId: submission.userId,
-            teamName: `Team_${submission.userId}`,
-            publicScore: submission.publicScore,
-            privateScore: submission.privateScore,
-            submissions: (existing?.submissions || 0) + 1,
-            lastSubmission: submission.submittedAt,
-            modelName: submission.modelName
-          });
-        } else if (existing) {
-          existing.submissions++;
+        if (!existing || submission.score > existing.score) {
+          userScores.set(submission.userId, submission);
         }
-      });
+      }
+    });
 
-    // スコア順にソート
+    // リーダーボードエントリを作成
     this.leaderboard = Array.from(userScores.values())
+      .map(submission => ({
+        rank: 0,
+        userId: submission.userId,
+        teamName: `Team ${submission.userId.slice(-4)}`,
+        publicScore: submission.publicScore,
+        privateScore: submission.privateScore,
+        submissions: this.submissions.filter(s => s.userId === submission.userId).length,
+        lastSubmission: submission.submittedAt,
+        modelName: submission.modelName,
+        isCurrentUser: false
+      }))
       .sort((a, b) => b.publicScore - a.publicScore)
       .map((entry, index) => ({
         ...entry,
-        rank: index + 1,
-        isCurrentUser: false // 後で設定
+        rank: index + 1
       }));
+  }
+
+  // リスナーを追加
+  addListener(listener: (leaderboard: LeaderboardEntry[]) => void) {
+    this.listeners.push(listener);
+  }
+
+  // リスナーを削除
+  removeListener(listener: (leaderboard: LeaderboardEntry[]) => void) {
+    const index = this.listeners.indexOf(listener);
+    if (index > -1) {
+      this.listeners.splice(index, 1);
+    }
+  }
+
+  // リスナーに通知
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.leaderboard));
   }
 
   // リーダーボードを取得
@@ -205,250 +374,36 @@ export class ScoringSystem {
     return [...this.leaderboard];
   }
 
-  // ユーザーの提出履歴を取得
-  getUserSubmissions(userId: string): Submission[] {
-    return this.submissions
-      .filter(s => s.userId === userId)
-      .sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
-  }
-
-  // ユーザーの最高スコアを取得
-  getUserBestScore(userId: string): number {
-    const userSubmissions = this.getUserSubmissions(userId);
-    return userSubmissions.length > 0 
-      ? Math.max(...userSubmissions.map(s => s.publicScore))
-      : 0;
+  // 提出履歴を取得
+  getSubmissions(userId?: string): Submission[] {
+    if (userId) {
+      return this.submissions.filter(s => s.userId === userId);
+    }
+    return [...this.submissions];
   }
 
   // 統計情報を取得
   getStats() {
     const totalSubmissions = this.submissions.length;
     const evaluatedSubmissions = this.submissions.filter(s => s.status === 'evaluated').length;
+    const failedSubmissions = this.submissions.filter(s => s.status === 'failed').length;
+    
     const averageScore = evaluatedSubmissions > 0 
       ? this.submissions
           .filter(s => s.status === 'evaluated')
-          .reduce((sum, s) => sum + s.publicScore, 0) / evaluatedSubmissions
+          .reduce((sum, s) => sum + s.score, 0) / evaluatedSubmissions
       : 0;
 
     return {
       totalSubmissions,
       evaluatedSubmissions,
-      averageScore,
-      totalParticipants: this.leaderboard.length
+      failedSubmissions,
+      averageScore: Math.round(averageScore * 100) / 100,
+      leaderboardSize: this.leaderboard.length
     };
-  }
-
-  // リスナーを追加
-  onLeaderboardUpdate(callback: (leaderboard: LeaderboardEntry[]) => void) {
-    this.listeners.push(callback);
-  }
-
-  // リスナーに通知
-  private notifyListeners() {
-    this.listeners.forEach(callback => callback(this.leaderboard));
-  }
-
-  // 現在のユーザーを設定
-  setCurrentUser(userId: string) {
-    this.leaderboard.forEach(entry => {
-      entry.isCurrentUser = entry.userId === userId;
-    });
-  }
-
-  // モデル性能をシミュレート
-  private simulateModelPerformance(submission: Submission): number {
-    const modelType = submission.modelName;
-    const hyperparameters = submission.metadata.hyperparameters;
-    
-    // モデルタイプによる基本性能
-    const basePerformance: Record<string, number> = {
-      'logistic_regression': 0.75,
-      'random_forest': 0.82,
-      'svm': 0.78,
-      'xgboost': 0.85,
-      'neural_network': 0.80
-    };
-    
-    let performance = basePerformance[modelType] || 0.70;
-    
-    // ハイパーパラメータの最適化度を評価
-    const hyperparameterScore = this.evaluateHyperparameterQuality(hyperparameters, modelType);
-    performance += hyperparameterScore * 0.1;
-    
-    return performance;
-  }
-
-  // データの複雑さによる調整を計算
-  private calculateComplexityAdjustment(submission: Submission): number {
-    // 前処理と特徴量エンジニアリングの数から複雑さを推定
-    const preprocessingCount = submission.metadata.preprocessing.length;
-    const featureEngineeringCount = submission.metadata.featureEngineering.length;
-    
-    const complexity = (preprocessingCount + featureEngineeringCount) / 10;
-    return Math.min(0.05, complexity * 0.01);
-  }
-
-  // ハイパーパラメータの最適化度を評価
-  private calculateHyperparameterAdjustment(hyperparameters: Record<string, any>): number {
-    let adjustment = 0;
-    
-    // 学習率の最適化
-    if (hyperparameters.learningRate) {
-      const lr = hyperparameters.learningRate;
-      if (lr >= 0.001 && lr <= 0.01) {
-        adjustment += 0.02;
-      } else if (lr > 0.01 && lr <= 0.1) {
-        adjustment += 0.01;
-      }
-    }
-    
-    // 正則化の最適化
-    if (hyperparameters.regularization) {
-      const reg = hyperparameters.regularization;
-      if (reg >= 0.001 && reg <= 0.01) {
-        adjustment += 0.015;
-      }
-    }
-    
-    // エポック数の最適化
-    if (hyperparameters.maxIterations) {
-      const epochs = hyperparameters.maxIterations;
-      if (epochs >= 100 && epochs <= 500) {
-        adjustment += 0.01;
-      }
-    }
-    
-    return Math.min(0.1, adjustment);
-  }
-
-  // 前処理の効果を評価
-  private calculatePreprocessingAdjustment(preprocessing: string[]): number {
-    let adjustment = 0;
-    
-    // 各前処理手法の効果を評価
-    preprocessing.forEach(method => {
-      switch (method) {
-        case 'missing_value_imputation':
-          adjustment += 0.01;
-          break;
-        case 'outlier_removal':
-          adjustment += 0.015;
-          break;
-        case 'feature_scaling':
-          adjustment += 0.02;
-          break;
-        case 'categorical_encoding':
-          adjustment += 0.01;
-          break;
-        default:
-          adjustment += 0.005;
-      }
-    });
-    
-    return Math.min(0.05, adjustment);
-  }
-
-  // 特徴量エンジニアリングの効果を評価
-  private calculateFeatureEngineeringAdjustment(featureEngineering: string[]): number {
-    let adjustment = 0;
-    
-    // 各特徴量エンジニアリング手法の効果を評価
-    featureEngineering.forEach(method => {
-      switch (method) {
-        case 'polynomial_features':
-          adjustment += 0.02;
-          break;
-        case 'interaction_features':
-          adjustment += 0.015;
-          break;
-        case 'log_transformation':
-          adjustment += 0.01;
-          break;
-        case 'sqrt_transformation':
-          adjustment += 0.01;
-          break;
-        case 'pca':
-          adjustment += 0.01;
-          break;
-        default:
-          adjustment += 0.005;
-      }
-    });
-    
-    return Math.min(0.05, adjustment);
-  }
-
-  // Privateデータの複雑さを推定
-  private estimatePrivateDataComplexity(submission: Submission): number {
-    // モデルの複雑さと前処理の量から推定
-    const modelComplexity = this.getModelComplexity(submission.modelName);
-    const preprocessingComplexity = submission.metadata.preprocessing.length * 0.01;
-    
-    return (modelComplexity + preprocessingComplexity) * 0.1;
-  }
-
-  // 汎化性能を計算
-  private calculateGeneralizationFactor(submission: Submission): number {
-    // 正則化の強さとモデルの複雑さから汎化性能を推定
-    const regularization = submission.metadata.hyperparameters.regularization || 0.01;
-    const modelComplexity = this.getModelComplexity(submission.modelName);
-    
-    // 正則化が強く、モデルが適度に複雑な場合、汎化性能が高い
-    const regularizationFactor = Math.min(1.0, regularization * 10);
-    const complexityFactor = Math.min(1.0, modelComplexity);
-    
-    return 0.8 + (regularizationFactor * 0.1) + (complexityFactor * 0.1);
-  }
-
-  // 過学習ペナルティを計算
-  private calculateOverfittingPenalty(submission: Submission, publicScore: number): number {
-    // モデルの複雑さと前処理の多さから過学習のリスクを推定
-    const modelComplexity = this.getModelComplexity(submission.modelName);
-    const preprocessingCount = submission.metadata.preprocessing.length;
-    const featureEngineeringCount = submission.metadata.featureEngineering.length;
-    
-    const overfittingRisk = (modelComplexity + preprocessingCount + featureEngineeringCount) / 20;
-    
-    // 過学習リスクが高い場合、ペナルティを適用
-    return overfittingRisk * 0.1;
-  }
-
-  // モデルの複雑さを取得
-  private getModelComplexity(modelName: string): number {
-    const complexityMap: Record<string, number> = {
-      'logistic_regression': 0.3,
-      'random_forest': 0.7,
-      'svm': 0.6,
-      'xgboost': 0.8,
-      'neural_network': 0.9
-    };
-    
-    return complexityMap[modelName] || 0.5;
-  }
-
-  // ハイパーパラメータの品質を評価
-  private evaluateHyperparameterQuality(hyperparameters: Record<string, any>, modelType: string): number {
-    let score = 0;
-    
-    // モデルタイプに応じた最適なハイパーパラメータ範囲を評価
-    switch (modelType) {
-      case 'logistic_regression':
-        if (hyperparameters.learningRate >= 0.001 && hyperparameters.learningRate <= 0.01) score += 0.5;
-        if (hyperparameters.regularization >= 0.001 && hyperparameters.regularization <= 0.1) score += 0.5;
-        break;
-      case 'random_forest':
-        if (hyperparameters.nEstimators >= 50 && hyperparameters.nEstimators <= 200) score += 0.5;
-        if (hyperparameters.maxDepth >= 5 && hyperparameters.maxDepth <= 15) score += 0.5;
-        break;
-      case 'svm':
-        if (hyperparameters.C >= 0.1 && hyperparameters.C <= 10) score += 0.5;
-        if (hyperparameters.gamma && hyperparameters.gamma !== 'auto') score += 0.5;
-        break;
-    }
-    
-    return score;
   }
 }
 
 // シングルトンインスタンス
 export const scoringSystem = new ScoringSystem();
+

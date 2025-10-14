@@ -770,3 +770,5 @@ export function PreprocessingPanel({ data, featureNames, featureTypes, onPreproc
     </div>
   );
 }
+
+

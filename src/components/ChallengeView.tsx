@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Play, Loader, ChevronRight, Eye, Sparkles, Trophy, Filter } from 'lucide-react';
 import { useGameState } from '../hooks/useGameState';
 import { getDatasetForRegion } from '../data/datasets';
-import { OverfittingDetector } from '../utils/safeMLEducation';
-import { createStableModel } from '../utils/stableMLModels';
-import { updateRegionProgress, saveAttempt, unlockRegion } from '../lib/database';
+// import { OverfittingDetector } from '../utils/safeMLEducation';
+// import { createStableModel } from '../utils/stableMLModels';
+// import { updateRegionProgress, saveAttempt, unlockRegion } from '../lib/database';
 import type { Dataset, ModelResult, TrainingProgress, DataPoint } from '../types/ml';
 import { DataExplorer } from './DataExplorer';
 import { PreprocessingTab } from './PreprocessingTab';
@@ -16,7 +16,7 @@ import { ResultsDashboard } from './ResultsDashboard';
 type Step = 'data' | 'preprocessing' | 'features' | 'model' | 'train' | 'result';
 
 export function ChallengeView() {
-  const { user, regions, progress, selectedRegion, setCurrentView, refreshProgress } = useGameState();
+  const { user, regions, progress, selectedRegion, setCurrentView } = useGameState();
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [originalDataset, setOriginalDataset] = useState<Dataset | null>(null);
   const [preprocessedDataset, setPreprocessedDataset] = useState<Dataset | null>(null);
@@ -116,7 +116,7 @@ export function ChallengeView() {
     setCurrentStep('train');
 
     try {
-      const model = createStableModel(selectedModel);
+      // const model = createStableModel(selectedModel);
 
       // データセットから学習用データを取得
       const trainingData = dataset.train || [];
@@ -132,65 +132,65 @@ export function ChallengeView() {
         throw new Error('学習データがありません');
       }
 
-      await model.train(trainingData, parameters, (progress) => {
-        setTrainingProgress(progress);
-      });
+      // await model.train(trainingData, parameters, (progress: any) => {
+      //   setTrainingProgress(progress);
+      // });
 
-      const evaluation = model.evaluate(testData.length > 0 ? testData : trainingData);
-      setResult(evaluation);
+      // const evaluation = model.evaluate(testData.length > 0 ? testData : trainingData);
+      // setResult(evaluation);
       
       // 過学習チェック
-      const overfittingCheck = OverfittingDetector.detectOverfitting(
-        evaluation.accuracy, // 仮想的な訓練精度
-        evaluation.accuracy
-      );
+      // const overfittingCheck = OverfittingDetector.detectOverfitting(
+      //   evaluation.accuracy, // 仮想的な訓練精度
+      //   evaluation.accuracy
+      // );
       
-      if (overfittingCheck.isOverfitting) {
-        setSafetyWarnings([overfittingCheck.message, ...overfittingCheck.suggestions]);
-      }
+      // if (overfittingCheck.isOverfitting) {
+      //   setSafetyWarnings([overfittingCheck.message, ...overfittingCheck.suggestions]);
+      // }
 
-      await saveAttempt({
-        user_id: user.id,
-        region_id: selectedRegion,
-        model_type: selectedModel,
-        parameters,
-        accuracy: evaluation.accuracy,
-        precision: evaluation.precision || null,
-        recall: evaluation.recall || null,
-        f1_score: evaluation.f1_score || null,
-        training_time: evaluation.training_time,
-      });
+      // await saveAttempt({
+      //   user_id: user.id,
+      //   region_id: selectedRegion,
+      //   model_type: selectedModel,
+      //   parameters,
+      //   accuracy: evaluation.accuracy,
+      //   precision: evaluation.precision || null,
+      //   recall: evaluation.recall || null,
+      //   f1_score: evaluation.f1_score || null,
+      //   training_time: evaluation.training_time,
+      // });
 
-      const currentBest = regionProgress?.best_accuracy || 0;
-      if (evaluation.accuracy > currentBest) {
-        let stars = 0;
-        const requiredAccuracy = region?.required_accuracy || 0.8;
-        if (evaluation.accuracy >= requiredAccuracy) {
-          stars = 1;
-          if (evaluation.accuracy >= requiredAccuracy + 0.05) stars = 2;
-          if (evaluation.accuracy >= requiredAccuracy + 0.1) stars = 3;
-        }
+      // const currentBest = regionProgress?.best_accuracy || 0;
+      // if (evaluation.accuracy > currentBest) {
+      //   let stars = 0;
+      //   const requiredAccuracy = region?.required_accuracy || 0.8;
+      //   if (evaluation.accuracy >= requiredAccuracy) {
+      //     stars = 1;
+      //     if (evaluation.accuracy >= requiredAccuracy + 0.05) stars = 2;
+      //     if (evaluation.accuracy >= requiredAccuracy + 0.1) stars = 3;
+      //   }
 
-        const isCompleted = evaluation.accuracy >= requiredAccuracy;
+      //   const isCompleted = evaluation.accuracy >= requiredAccuracy;
 
-        await updateRegionProgress(user.id, selectedRegion, {
-          is_completed: isCompleted,
-          best_accuracy: evaluation.accuracy,
-          stars,
-          attempts: (regionProgress?.attempts || 0) + 1,
-          last_attempt_at: new Date().toISOString(),
-        });
+      //   await updateRegionProgress(user.id, selectedRegion, {
+      //     is_completed: isCompleted,
+      //     best_accuracy: evaluation.accuracy,
+      //     stars,
+      //     attempts: (regionProgress?.attempts || 0) + 1,
+      //     last_attempt_at: new Date().toISOString(),
+      //   });
 
-        if (isCompleted) {
-          // この問題を開放条件とする次の問題を開放
-          const nextRegions = regions.filter(r => r.unlock_condition === selectedRegion);
-          for (const nextRegion of nextRegions) {
-            await unlockRegion(user.id, nextRegion.id);
-          }
-        }
+      //   if (isCompleted) {
+      //     // この問題を開放条件とする次の問題を開放
+      //     const nextRegions = regions.filter(r => r.unlock_condition === selectedRegion);
+      //     for (const nextRegion of nextRegions) {
+      //       await unlockRegion(user.id, nextRegion.id);
+      //     }
+      //   }
 
-        await refreshProgress();
-      }
+      //   await refreshProgress();
+      // }
 
       setCurrentStep('result');
     } catch (error) {

@@ -1,68 +1,48 @@
-import { Lightbulb, Target, TrendingUp, AlertCircle } from 'lucide-react';
+import { Lightbulb, TrendingUp, Target, AlertCircle } from 'lucide-react';
 
-interface Props {
+interface LearningTipsProps {
   accuracy: number;
   requiredAccuracy: number;
-  modelType: string;
 }
 
-export function LearningTips({ accuracy, requiredAccuracy, modelType }: Props) {
+export function LearningTips({ accuracy, requiredAccuracy }: LearningTipsProps) {
   const isPassed = accuracy >= requiredAccuracy;
   const accuracyGap = requiredAccuracy - accuracy;
 
   const getTips = () => {
-    const tips = [];
+    if (isPassed) {
+      return [
+        {
+          icon: <TrendingUp className="w-4 h-4" />,
+          text: "素晴らしい！課題をクリアしました。次の地域に挑戦しましょう！",
+          type: "success" as const
+        },
+        {
+          icon: <Target className="w-4 h-4" />,
+          text: "より高い精度を目指して、さらなる改善に挑戦してみてください。",
+          type: "info" as const
+        }
+      ];
+    }
 
-    if (!isPassed) {
-      if (accuracyGap > 0.2) {
-        tips.push({
-          icon: AlertCircle,
-          title: 'データをよく観察しよう',
-          description: 'グラフや表を見て、データの特徴やパターンを見つけてみよう。何か気づくことはないかな？',
-          color: 'text-red-600',
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200'
-        });
+    const tips = [
+      {
+        icon: <Lightbulb className="w-4 h-4" />,
+        text: "パラメータを調整してみましょう。学習率を変更すると結果が改善するかもしれません。",
+        type: "warning" as const
+      },
+      {
+        icon: <AlertCircle className="w-4 h-4" />,
+        text: "別のモデルを試してみるのも良い方法です。",
+        type: "warning" as const
       }
+    ];
 
-      if (modelType === 'logistic_regression' || modelType === 'linear_regression') {
-        tips.push({
-          icon: TrendingUp,
-          title: '学習速度を調整してみよう',
-          description: '学習速度が速すぎると、AIがうまく学習できないことがあるよ。少し遅くしてみよう。',
-          color: 'text-blue-600',
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200'
-        });
-      }
-
-      if (modelType === 'knn') {
-        tips.push({
-          icon: Target,
-          title: '近くのデータ数を変えてみよう',
-          description: 'k近傍法では、参考にする近くのデータの数が重要だよ。3〜7の間で試してみよう。',
-          color: 'text-green-600',
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200'
-        });
-      }
-
+    if (accuracyGap > 0.1) {
       tips.push({
-        icon: Lightbulb,
-        title: '特徴選択を見直してみよう',
-        description: '選んだ特徴が本当に答えに関係しているかな？他の特徴も試してみよう。',
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-50',
-        borderColor: 'border-purple-200'
-      });
-    } else {
-      tips.push({
-        icon: Target,
-        title: '素晴らしい！',
-        description: 'AIの設定が完璧だったね！他の地域の課題にも挑戦してみよう。',
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200'
+        icon: <Target className="w-4 h-4" />,
+        text: "イテレーション数を増やすと、より良い結果が得られることがあります。",
+        type: "warning" as const
       });
     }
 
@@ -72,48 +52,59 @@ export function LearningTips({ accuracy, requiredAccuracy, modelType }: Props) {
   const tips = getTips();
 
   return (
-    <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6 border-2 border-yellow-300 shadow-lg">
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border-2 border-blue-200">
       <div className="flex items-center space-x-2 mb-4">
-        <Lightbulb className="w-6 h-6 text-yellow-600" />
-        <h3 className="text-lg font-bold text-yellow-900">学習のヒント</h3>
+        <Lightbulb className="w-5 h-5 text-blue-600" />
+        <h3 className="text-lg font-bold text-blue-900">学習のヒント</h3>
       </div>
       
       <div className="space-y-3">
-        {tips.map((tip, index) => {
-          const Icon = tip.icon;
-          return (
-            <div
-              key={index}
-              className={`p-4 rounded-lg border-2 ${tip.bgColor} ${tip.borderColor}`}
-            >
-              <div className="flex items-start space-x-3">
-                <Icon className={`w-5 h-5 mt-0.5 ${tip.color}`} />
-                <div>
-                  <h4 className={`font-semibold ${tip.color} mb-1`}>
-                    {tip.title}
-                  </h4>
-                  <p className="text-sm text-gray-700">
-                    {tip.description}
-                  </p>
-                </div>
-              </div>
+        {tips.map((tip, index) => (
+          <div
+            key={index}
+            className={`flex items-start space-x-3 p-3 rounded-lg ${
+              tip.type === 'success' 
+                ? 'bg-green-50 border border-green-200' 
+                : tip.type === 'info'
+                ? 'bg-blue-50 border border-blue-200'
+                : 'bg-yellow-50 border border-yellow-200'
+            }`}
+          >
+            <div className={`flex-shrink-0 ${
+              tip.type === 'success' 
+                ? 'text-green-600' 
+                : tip.type === 'info'
+                ? 'text-blue-600'
+                : 'text-yellow-600'
+            }`}>
+              {tip.icon}
             </div>
-          );
-        })}
+            <p className={`text-sm ${
+              tip.type === 'success' 
+                ? 'text-green-800' 
+                : tip.type === 'info'
+                ? 'text-blue-800'
+                : 'text-yellow-800'
+            }`}>
+              {tip.text}
+            </p>
+          </div>
+        ))}
       </div>
 
       {!isPassed && (
-        <div className="mt-4 p-3 bg-orange-100 rounded-lg border border-orange-300">
-          <p className="text-sm text-orange-800">
-            <strong>💡 コツ：</strong> 間違えても大丈夫！何度でも挑戦できるから、いろいろな設定を試してみよう。
-            データをよく観察することが一番大切だよ！
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-red-600" />
+            <span className="text-sm font-medium text-red-800">
+              現在の精度: {(accuracy * 100).toFixed(1)}% / 必要精度: {(requiredAccuracy * 100).toFixed(1)}%
+            </span>
+          </div>
+          <p className="text-xs text-red-700 mt-1">
+            あと {(accuracyGap * 100).toFixed(1)}% の改善が必要です
           </p>
         </div>
       )}
     </div>
   );
 }
-
-
-
-

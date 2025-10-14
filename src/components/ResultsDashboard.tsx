@@ -215,7 +215,6 @@ export function ResultsDashboard({ result, dataset, requiredAccuracy, modelType 
       <LearningTips 
         accuracy={result.accuracy} 
         requiredAccuracy={requiredAccuracy} 
-        modelType={modelType || ''} 
       />
     </div>
   );

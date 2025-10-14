@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Sword, Trophy } from 'lucide-react';
 import { getRandomAdvancedProblemDataset, type AdvancedProblemDataset } from '../data/advancedProblemDatasets';
-import { type LeaderboardEntry } from '../utils/realtimeProblemSystem';
+// import { type LeaderboardEntry } from '../utils/realtimeProblemSystem';
 import { EDAPanel } from './EDAPanel';
 import { PreprocessingPanel } from './PreprocessingPanel';
 import { FeatureEngineeringPanel } from './FeatureEngineeringPanel';
@@ -25,7 +25,7 @@ export function EnhancedOnlineBattle({ onBack }: EnhancedOnlineBattleProps) {
   
   
   // リーダーボード関連
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   
   // リアルタイム関連
@@ -72,7 +72,7 @@ export function EnhancedOnlineBattle({ onBack }: EnhancedOnlineBattleProps) {
 
   const loadLeaderboard = async () => {
     try {
-      const leaderboardData: LeaderboardEntry[] = []; // リーダーボードデータ（必要に応じて実装）
+      const leaderboardData: any[] = []; // リーダーボードデータ（必要に応じて実装）
       setLeaderboard(leaderboardData);
       console.log('リーダーボード読み込み完了:', leaderboardData);
     } catch (err) {
@@ -882,3 +882,6 @@ export function EnhancedOnlineBattle({ onBack }: EnhancedOnlineBattleProps) {
     </div>
   );
 }
+
+
+

@@ -1,57 +1,282 @@
-// 環境変数の取得（HTML埋め込み優先、フォールバック付き）
-function getEnvVar(key: string, fallback: string): string {
-  console.log(`環境変数 ${key} の取得を開始...`);
-  
-  // 1. HTMLに埋め込まれた環境変数を優先
-  if (typeof window !== 'undefined' && (window as any).ENV) {
-    const htmlEnv = (window as any).ENV[key];
-    console.log(`HTML環境変数 ${key}:`, htmlEnv ? 'found' : 'not found');
-    if (htmlEnv) {
-      console.log(`環境変数 ${key} をHTMLから取得:`, htmlEnv);
-      return htmlEnv;
+// 環境設定管理
+export interface EnvironmentConfig {
+  isDevelopment: boolean;
+  isProduction: boolean;
+  apiUrl: string;
+  wsUrl: string;
+  supabaseUrl: string;
+  supabaseKey: string;
+  debugMode: boolean;
+  logLevel: 'debug' | 'info' | 'warn' | 'error';
+}
+
+class EnvironmentManager {
+  private config: EnvironmentConfig;
+
+  constructor() {
+    this.config = this.loadConfig();
+  }
+
+  private loadConfig(): EnvironmentConfig {
+    const isDevelopment = import.meta.env.DEV;
+    const isProduction = import.meta.env.PROD;
+    
+    return {
+      isDevelopment,
+      isProduction,
+      apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+      wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws',
+      supabaseUrl: import.meta.env.VITE_SUPABASE_URL || 'https://ovghanpxibparkuyxxdh.supabase.co',
+      supabaseKey: import.meta.env.VITE_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2hhbnB4aWJwYXJrdXl4eGRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ3MjksImV4cCI6MjA3NTQ4MDcyOX0.56Caf4btExzGvizmzJwZZA8KZIh81axQVcds8eXlq_Y',
+      debugMode: import.meta.env.VITE_DEBUG_MODE === 'true' || isDevelopment,
+      logLevel: (import.meta.env.VITE_LOG_LEVEL as any) || (isDevelopment ? 'debug' : 'info')
+    };
+  }
+
+  getConfig(): EnvironmentConfig {
+    return { ...this.config };
+  }
+
+  get(key: keyof EnvironmentConfig): any {
+    return this.config[key];
+  }
+
+  isDevelopment(): boolean {
+    return this.config.isDevelopment;
+  }
+
+  isProduction(): boolean {
+    return this.config.isProduction;
+  }
+
+  isDebugMode(): boolean {
+    return this.config.debugMode;
+  }
+
+  getApiUrl(): string {
+    return this.config.apiUrl;
+  }
+
+  getWsUrl(): string {
+    return this.config.wsUrl;
+  }
+
+  getSupabaseUrl(): string {
+    return this.config.supabaseUrl;
+  }
+
+  getSupabaseKey(): string {
+    return this.config.supabaseKey;
+  }
+
+  getLogLevel(): string {
+    return this.config.logLevel;
+  }
+
+  updateConfig(updates: Partial<EnvironmentConfig>): void {
+    this.config = { ...this.config, ...updates };
+  }
+
+  validateConfig(): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!this.config.apiUrl) {
+      errors.push('API URL is required');
     }
-  } else {
-    console.log('window.ENV not available');
+
+    if (!this.config.supabaseUrl) {
+      errors.push('Supabase URL is required');
+    }
+
+    if (!this.config.supabaseKey) {
+      errors.push('Supabase Key is required');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
-  
-  // 2. import.meta.envから取得
-  const viteEnv = import.meta.env[key];
-  console.log(`Vite環境変数 ${key}:`, viteEnv ? 'found' : 'not found');
-  if (viteEnv) {
-    console.log(`環境変数 ${key} をViteから取得:`, viteEnv);
-    return viteEnv;
-  }
-  
-  // 3. フォールバック値を使用
-  console.log(`環境変数 ${key} をフォールバックから取得:`, fallback);
-  return fallback;
 }
 
-// ベースパスの取得
-function getBasePath(): string {
-  if (typeof window !== 'undefined' && (window as any).ENV?.BASE_PATH) {
-    return (window as any).ENV.BASE_PATH;
-  }
-  
-  // 本番環境ではGitHub Pagesのパスを使用
-  if (import.meta.env.PROD) {
-    return '/samurai-ml-education-game/';
-  }
-  
-  // 開発環境ではルートパスを使用
-  return '/';
+// シングルトンインスタンス
+export const environment = new EnvironmentManager();
+
+// 便利な関数
+export function isDevelopment(): boolean {
+  return environment.isDevelopment();
 }
 
-// 環境設定（HTML埋め込み優先）
-export const environment = {
-  supabase: {
-    url: getEnvVar('VITE_SUPABASE_URL', 'https://ovghanpxibparkuyxxdh.supabase.co'),
-    anonKey: getEnvVar('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2hhbnB4aWJwYXJrdXl4eGRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ3MjksImV4cCI6MjA3NTQ4MDcyOX0.56Caf4btExzGvizmzJwZZA8KZIh81axQVcds8eXlq_Y')
-  },
-  basePath: getBasePath()
-};
-
-// シンプルな環境変数検証
-export function validateEnvironment() {
-  return true;
+export function isProduction(): boolean {
+  return environment.isProduction();
 }
+
+export function isDebugMode(): boolean {
+  return environment.isDebugMode();
+}
+
+export function getApiUrl(): string {
+  return environment.getApiUrl();
+}
+
+export function getWsUrl(): string {
+  return environment.getWsUrl();
+}
+
+export function getSupabaseUrl(): string {
+  return environment.getSupabaseUrl();
+}
+
+export function getSupabaseKey(): string {
+  return environment.getSupabaseKey();
+}
+
+export function getLogLevel(): string {
+  return environment.getLogLevel();
+}
+
+export function validateEnvironment(): { isValid: boolean; errors: string[] } {
+  return environment.validateConfig();
+}
+
+export interface EnvironmentConfig {
+  isDevelopment: boolean;
+  isProduction: boolean;
+  apiUrl: string;
+  wsUrl: string;
+  supabaseUrl: string;
+  supabaseKey: string;
+  debugMode: boolean;
+  logLevel: 'debug' | 'info' | 'warn' | 'error';
+}
+
+class EnvironmentManager {
+  private config: EnvironmentConfig;
+
+  constructor() {
+    this.config = this.loadConfig();
+  }
+
+  private loadConfig(): EnvironmentConfig {
+    const isDevelopment = import.meta.env.DEV;
+    const isProduction = import.meta.env.PROD;
+    
+    return {
+      isDevelopment,
+      isProduction,
+      apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+      wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws',
+      supabaseUrl: import.meta.env.VITE_SUPABASE_URL || 'https://ovghanpxibparkuyxxdh.supabase.co',
+      supabaseKey: import.meta.env.VITE_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2hhbnB4aWJwYXJrdXl4eGRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ3MjksImV4cCI6MjA3NTQ4MDcyOX0.56Caf4btExzGvizmzJwZZA8KZIh81axQVcds8eXlq_Y',
+      debugMode: import.meta.env.VITE_DEBUG_MODE === 'true' || isDevelopment,
+      logLevel: (import.meta.env.VITE_LOG_LEVEL as any) || (isDevelopment ? 'debug' : 'info')
+    };
+  }
+
+  getConfig(): EnvironmentConfig {
+    return { ...this.config };
+  }
+
+  get(key: keyof EnvironmentConfig): any {
+    return this.config[key];
+  }
+
+  isDevelopment(): boolean {
+    return this.config.isDevelopment;
+  }
+
+  isProduction(): boolean {
+    return this.config.isProduction;
+  }
+
+  isDebugMode(): boolean {
+    return this.config.debugMode;
+  }
+
+  getApiUrl(): string {
+    return this.config.apiUrl;
+  }
+
+  getWsUrl(): string {
+    return this.config.wsUrl;
+  }
+
+  getSupabaseUrl(): string {
+    return this.config.supabaseUrl;
+  }
+
+  getSupabaseKey(): string {
+    return this.config.supabaseKey;
+  }
+
+  getLogLevel(): string {
+    return this.config.logLevel;
+  }
+
+  updateConfig(updates: Partial<EnvironmentConfig>): void {
+    this.config = { ...this.config, ...updates };
+  }
+
+  validateConfig(): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!this.config.apiUrl) {
+      errors.push('API URL is required');
+    }
+
+    if (!this.config.supabaseUrl) {
+      errors.push('Supabase URL is required');
+    }
+
+    if (!this.config.supabaseKey) {
+      errors.push('Supabase Key is required');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+}
+
+// シングルトンインスタンス
+export const environment = new EnvironmentManager();
+
+// 便利な関数
+export function isDevelopment(): boolean {
+  return environment.isDevelopment();
+}
+
+export function isProduction(): boolean {
+  return environment.isProduction();
+}
+
+export function isDebugMode(): boolean {
+  return environment.isDebugMode();
+}
+
+export function getApiUrl(): string {
+  return environment.getApiUrl();
+}
+
+export function getWsUrl(): string {
+  return environment.getWsUrl();
+}
+
+export function getSupabaseUrl(): string {
+  return environment.getSupabaseUrl();
+}
+
+export function getSupabaseKey(): string {
+  return environment.getSupabaseKey();
+}
+
+export function getLogLevel(): string {
+  return environment.getLogLevel();
+}
+
+export function validateEnvironment(): { isValid: boolean; errors: string[] } {
+  return environment.validateConfig();
+}
+
+

@@ -1,483 +1,323 @@
-import type { 
-  BattleRoom, 
-  BattleParticipant, 
-  BattleProblem, 
-  BattleResult, 
-  BattleLeaderboard,
-  BattleChatMessage,
-  BattleAchievement,
-  BattleSettings,
-  BattleStatistics,
-  BattleRealTimeUpdate
-} from '../types/battle';
+// バトルシステムの管理
+export interface BattleRoom {
+  id: string;
+  name: string;
+  participants: string[];
+  maxParticipants: number;
+  status: 'waiting' | 'active' | 'finished';
+  problemId: string;
+  startTime?: number;
+  endTime?: number;
+  results: BattleResult[];
+}
 
-// バトルルーム管理システム
+export interface BattleResult {
+  userId: string;
+  username: string;
+  score: number;
+  accuracy: number;
+  modelName: string;
+  submittedAt: number;
+  rank: number;
+}
+
+export interface BattleProblem {
+  id: string;
+  title: string;
+  description: string;
+  datasetType: 'classification' | 'regression';
+  difficulty: 'easy' | 'medium' | 'hard';
+  timeLimit: number; // 分
+  maxSubmissions: number;
+}
+
 export class BattleRoomManager {
   private rooms: Map<string, BattleRoom> = new Map();
-  private participants: Map<string, string> = new Map(); // userId -> roomId
+  private listeners: Set<(rooms: BattleRoom[]) => void> = new Set();
 
-  createRoom(
-    hostId: string,
-    name: string,
-    maxParticipants: number = 4,
-    problemType: 'classification' | 'regression' = 'classification',
-    difficulty: 'beginner' | 'intermediate' | 'advanced' = 'beginner',
-    timeLimit: number = 300
-  ): BattleRoom {
-    const roomId = this.generateRoomId();
+  // ルームを作成
+  createRoom(name: string, maxParticipants: number = 4): BattleRoom {
     const room: BattleRoom = {
-      id: roomId,
+      id: `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name,
-      hostId,
       participants: [],
       maxParticipants,
       status: 'waiting',
-      problemType,
-      difficulty,
-      timeLimit,
-      createdAt: new Date().toISOString()
+      problemId: '',
+      results: []
     };
 
-    this.rooms.set(roomId, room);
-    this.participants.set(hostId, roomId);
-    
+    this.rooms.set(room.id, room);
+    this.notifyListeners();
     return room;
   }
 
-  joinRoom(roomId: string, userId: string, username: string): boolean {
+  // ルームに参加
+  joinRoom(roomId: string, userId: string): boolean {
     const room = this.rooms.get(roomId);
-    if (!room || room.status !== 'waiting') {
+    if (!room || room.status !== 'waiting' || room.participants.length >= room.maxParticipants) {
       return false;
     }
 
-    if (room.participants.length >= room.maxParticipants) {
-      return false;
+    if (!room.participants.includes(userId)) {
+      room.participants.push(userId);
+      this.notifyListeners();
     }
-
-    // 既に参加している場合は拒否
-    if (room.participants.some(p => p.userId === userId)) {
-      return false;
-    }
-
-    const participant: BattleParticipant = {
-      userId,
-      username,
-      isReady: false,
-      joinedAt: new Date().toISOString()
-    };
-
-    room.participants.push(participant);
-    this.participants.set(userId, roomId);
-
     return true;
   }
 
-  leaveRoom(userId: string): boolean {
-    const roomId = this.participants.get(userId);
-    if (!roomId) return false;
-
+  // ルームから退出
+  leaveRoom(roomId: string, userId: string): boolean {
     const room = this.rooms.get(roomId);
     if (!room) return false;
 
-    room.participants = room.participants.filter(p => p.userId !== userId);
-    this.participants.delete(userId);
-
-    // ホストが退出した場合、新しいホストを選ぶ
-    if (room.hostId === userId && room.participants.length > 0) {
-      room.hostId = room.participants[0].userId;
+    const index = room.participants.indexOf(userId);
+    if (index > -1) {
+      room.participants.splice(index, 1);
+      this.notifyListeners();
+      return true;
     }
-
-    // 参加者がいなくなった場合、ルームを削除
-    if (room.participants.length === 0) {
-      this.rooms.delete(roomId);
-    }
-
-    return true;
+    return false;
   }
 
-  startBattle(roomId: string, hostId: string): boolean {
+  // ルームを開始
+  startRoom(roomId: string, problemId: string): boolean {
     const room = this.rooms.get(roomId);
-    if (!room || room.hostId !== hostId) {
-      return false;
-    }
-
-    if (room.participants.length < 2) {
-      return false;
-    }
-
-    // 全員が準備完了しているかチェック
-    const allReady = room.participants.every(p => p.isReady);
-    if (!allReady) {
+    if (!room || room.status !== 'waiting' || room.participants.length < 2) {
       return false;
     }
 
     room.status = 'active';
-    room.startedAt = new Date().toISOString();
+    room.problemId = problemId;
+    room.startTime = Date.now();
+    room.endTime = room.startTime + 30 * 60 * 1000; // 30分
 
+    this.notifyListeners();
     return true;
   }
 
-  finishBattle(roomId: string, results: BattleResult[]): boolean {
+  // ルームを終了
+  finishRoom(roomId: string): boolean {
     const room = this.rooms.get(roomId);
-    if (!room || room.status !== 'active') {
-      return false;
-    }
+    if (!room || room.status !== 'active') return false;
 
     room.status = 'finished';
-    room.finishedAt = new Date().toISOString();
-
-    // 結果を参加者に反映
-    results.forEach(result => {
-      const participant = room.participants.find(p => p.userId === result.participantId);
-      if (participant) {
-        participant.score = result.finalScore;
-        participant.rank = result.rank;
-        participant.accuracy = result.accuracy;
-        participant.trainingTime = result.trainingTime;
-        participant.modelType = result.modelType;
-      }
-    });
-
+    this.notifyListeners();
     return true;
   }
 
+  // ルーム一覧を取得
+  getRooms(): BattleRoom[] {
+    return Array.from(this.rooms.values());
+  }
+
+  // 特定のルームを取得
   getRoom(roomId: string): BattleRoom | undefined {
     return this.rooms.get(roomId);
   }
 
-  getUserRoom(userId: string): BattleRoom | undefined {
-    const roomId = this.participants.get(userId);
-    return roomId ? this.rooms.get(roomId) : undefined;
+  // リスナーを追加
+  addListener(listener: (rooms: BattleRoom[]) => void) {
+    this.listeners.add(listener);
   }
 
-  getAvailableRooms(): BattleRoom[] {
-    return Array.from(this.rooms.values()).filter(room => room.status === 'waiting');
+  // リスナーを削除
+  removeListener(listener: (rooms: BattleRoom[]) => void) {
+    this.listeners.delete(listener);
   }
 
-  private generateRoomId(): string {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  // リスナーに通知
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.getRooms()));
   }
 }
 
-// バトル問題管理システム
 export class BattleProblemManager {
   private problems: Map<string, BattleProblem> = new Map();
 
   constructor() {
-    this.initializeDefaultProblems();
+    this.initializeProblems();
   }
 
-  private initializeDefaultProblems(): void {
-    // 分類問題
-    this.addProblem({
-      id: 'classification_beginner_1',
-      title: '現代株価予測チャレンジ',
-      description: '過去の株価データから将来の株価を予測し、投資戦略を提案する',
-      dataset: 'modern_stock_prediction',
-      problemType: 'classification',
-      difficulty: 'beginner',
-      timeLimit: 300,
-      evaluationMetrics: ['accuracy', 'precision', 'recall', 'f1'],
-      features: ['始値', '出来高', '時価総額', 'PER', '負債比率', '売上成長率', '利益率'],
-      sampleSize: 1000,
-      testSize: 200,
-      createdAt: new Date().toISOString()
-    });
+  // 問題を初期化
+  private initializeProblems() {
+    const problems: BattleProblem[] = [
+      {
+        id: 'battle_001',
+        title: '売上予測チャレンジ',
+        description: '店舗の売上を予測する回帰問題',
+        datasetType: 'regression',
+        difficulty: 'easy',
+        timeLimit: 30,
+        maxSubmissions: 5
+      },
+      {
+        id: 'battle_002',
+        title: '顧客分類チャレンジ',
+        description: '顧客を分類する分類問題',
+        datasetType: 'classification',
+        difficulty: 'medium',
+        timeLimit: 45,
+        maxSubmissions: 3
+      },
+      {
+        id: 'battle_003',
+        title: '不正検出チャレンジ',
+        description: '不正な取引を検出する分類問題',
+        datasetType: 'classification',
+        difficulty: 'hard',
+        timeLimit: 60,
+        maxSubmissions: 2
+      }
+    ];
 
-    this.addProblem({
-      id: 'classification_intermediate_1',
-      title: '感情分析マスター',
-      description: 'テキストデータから感情を分析し、ユーザーの満足度を予測する',
-      dataset: 'modern_sentiment_analysis',
-      problemType: 'classification',
-      difficulty: 'intermediate',
-      timeLimit: 600,
-      evaluationMetrics: ['accuracy', 'precision', 'recall', 'f1', 'auc'],
-      features: ['単語数', 'ポジティブ単語比率', 'ネガティブ単語比率', 'ニュートラル単語比率', '感嘆符比率', '疑問符比率', '大文字比率'],
-      sampleSize: 2000,
-      testSize: 400,
-      createdAt: new Date().toISOString()
-    });
-
-    // 回帰問題
-    this.addProblem({
-      id: 'regression_beginner_1',
-      title: '画像分類エキスパート',
-      description: '画像データを分類し、物体認識の精度を競う',
-      dataset: 'modern_image_classification',
-      problemType: 'regression',
-      difficulty: 'beginner',
-      timeLimit: 300,
-      evaluationMetrics: ['mse', 'rmse', 'mae', 'r2'],
-      features: ['ピクセル値', '色相', '彩度', '明度', 'エッジ密度', 'テクスチャ', '形状特徴'],
-      sampleSize: 800,
-      testSize: 200,
-      createdAt: new Date().toISOString()
-    });
-
-    this.addProblem({
-      id: 'regression_advanced_1',
-      title: '推薦システム最適化',
-      description: 'ユーザーの行動データから最適な推薦を提案する',
-      dataset: 'modern_recommendation',
-      problemType: 'regression',
-      difficulty: 'advanced',
-      timeLimit: 900,
-      evaluationMetrics: ['mse', 'rmse', 'mae', 'r2', 'adjusted_r2'],
-      features: ['ユーザー年齢', 'ユーザー収入', 'ユーザー活動度', 'アイテム価格', 'アイテム評価', 'アイテムカテゴリ', 'アイテム人気度'],
-      sampleSize: 5000,
-      testSize: 1000,
-      createdAt: new Date().toISOString()
+    problems.forEach(problem => {
+      this.problems.set(problem.id, problem);
     });
   }
 
-  addProblem(problem: BattleProblem): void {
-    this.problems.set(problem.id, problem);
+  // 問題一覧を取得
+  getProblems(): BattleProblem[] {
+    return Array.from(this.problems.values());
   }
 
+  // 特定の問題を取得
   getProblem(problemId: string): BattleProblem | undefined {
     return this.problems.get(problemId);
   }
 
-  getProblemsByDifficulty(difficulty: string): BattleProblem[] {
-    return Array.from(this.problems.values()).filter(p => p.difficulty === difficulty);
-  }
-
-  getProblemsByType(problemType: string): BattleProblem[] {
-    return Array.from(this.problems.values()).filter(p => p.problemType === problemType);
-  }
-
-  getRandomProblem(difficulty?: string, problemType?: string): BattleProblem | undefined {
-    let filteredProblems = Array.from(this.problems.values());
-    
-    if (difficulty) {
-      filteredProblems = filteredProblems.filter(p => p.difficulty === difficulty);
-    }
-    
-    if (problemType) {
-      filteredProblems = filteredProblems.filter(p => p.problemType === problemType);
-    }
-    
-    if (filteredProblems.length === 0) return undefined;
-    
-    const randomIndex = Math.floor(Math.random() * filteredProblems.length);
-    return filteredProblems[randomIndex];
+  // 難易度別の問題を取得
+  getProblemsByDifficulty(difficulty: 'easy' | 'medium' | 'hard'): BattleProblem[] {
+    return this.getProblems().filter(p => p.difficulty === difficulty);
   }
 }
 
-// バトル結果評価システム
 export class BattleResultEvaluator {
-  evaluateBattle(
-    problem: BattleProblem,
-    participantResults: Array<{
-      userId: string;
-      accuracy: number;
-      trainingTime: number;
-      modelType: string;
-      additionalMetrics?: Record<string, number>;
-    }>
-  ): BattleResult[] {
-    const results: BattleResult[] = [];
-    
-    // スコア計算
-    participantResults.forEach((result, index) => {
-      const baseScore = result.accuracy * 1000;
-      const timeBonus = Math.max(0, (problem.timeLimit - result.trainingTime) / 10);
-      const modelBonus = this.getModelBonus(result.modelType, problem.difficulty);
-      
-      const finalScore = baseScore + timeBonus + modelBonus;
-      
-      results.push({
-        battleId: '', // 実際の実装では適切なIDを設定
-        participantId: result.userId,
-        finalScore,
-        accuracy: result.accuracy,
-        precision: result.additionalMetrics?.precision,
-        recall: result.additionalMetrics?.recall,
-        f1Score: result.additionalMetrics?.f1Score,
-        mse: result.additionalMetrics?.mse,
-        rmse: result.additionalMetrics?.rmse,
-        r2: result.additionalMetrics?.r2,
-        trainingTime: result.trainingTime,
-        modelType: result.modelType,
-        rank: 0, // 後で設定
-        isWinner: false, // 後で設定
-        completedAt: new Date().toISOString()
-      });
-    });
-    
-    // ランキング
-    results.sort((a, b) => b.finalScore - a.finalScore);
-    results.forEach((result, index) => {
-      result.rank = index + 1;
-      result.isWinner = index === 0;
-    });
-    
-    return results;
-  }
+  // バトル結果を評価
+  evaluateResult(
+    userId: string,
+    username: string,
+    modelName: string,
+    predictions: number[],
+    actualValues: number[],
+    problemType: 'classification' | 'regression'
+  ): BattleResult {
+    let score: number;
+    let accuracy: number;
 
-  private getModelBonus(modelType: string, difficulty: string): number {
-    const modelBonuses: Record<string, Record<string, number>> = {
-      'beginner': {
-        'logistic_regression': 0,
-        'linear_regression': 0,
-        'knn': 10,
-        'neural_network': 20
-      },
-      'intermediate': {
-        'logistic_regression': 0,
-        'linear_regression': 0,
-        'knn': 5,
-        'neural_network': 10,
-        'ensemble': 15
-      },
-      'advanced': {
-        'logistic_regression': -10,
-        'linear_regression': -10,
-        'knn': 0,
-        'neural_network': 5,
-        'ensemble': 10,
-        'svm': 15
-      }
-    };
-    
-    return modelBonuses[difficulty]?.[modelType] || 0;
-  }
-}
-
-// リアルタイム更新システム
-export class BattleRealTimeManager {
-  private updates: Map<string, BattleRealTimeUpdate[]> = new Map();
-
-  addUpdate(battleId: string, update: BattleRealTimeUpdate): void {
-    if (!this.updates.has(battleId)) {
-      this.updates.set(battleId, []);
-    }
-    
-    const battleUpdates = this.updates.get(battleId)!;
-    battleUpdates.push(update);
-    
-    // 古い更新を削除（最新100件のみ保持）
-    if (battleUpdates.length > 100) {
-      battleUpdates.splice(0, battleUpdates.length - 100);
-    }
-  }
-
-  getUpdates(battleId: string, since?: string): BattleRealTimeUpdate[] {
-    const updates = this.updates.get(battleId) || [];
-    
-    if (since) {
-      return updates.filter(update => update.timestamp > since);
-    }
-    
-    return updates;
-  }
-
-  clearUpdates(battleId: string): void {
-    this.updates.delete(battleId);
-  }
-}
-
-// バトル統計管理システム
-export class BattleStatisticsManager {
-  private statistics: Map<string, BattleStatistics> = new Map();
-
-  updateStatistics(userId: string, result: BattleResult): void {
-    let stats = this.statistics.get(userId);
-    
-    if (!stats) {
-      stats = this.initializeStatistics(userId);
-    }
-    
-    // 基本統計の更新
-    stats.totalBattles++;
-    if (result.isWinner) {
-      stats.wins++;
-      stats.battleStreak++;
-      stats.longestStreak = Math.max(stats.longestStreak, stats.battleStreak);
+    if (problemType === 'classification') {
+      accuracy = this.calculateClassificationAccuracy(predictions, actualValues);
+      score = accuracy * 100;
     } else {
-      stats.losses++;
-      stats.battleStreak = 0;
+      const mse = this.calculateMSE(predictions, actualValues);
+      const r2 = this.calculateR2(predictions, actualValues);
+      accuracy = Math.max(0, r2);
+      score = Math.max(0, r2 * 100);
     }
-    
-    stats.winRate = stats.wins / stats.totalBattles;
-    stats.averageAccuracy = (stats.averageAccuracy * (stats.totalBattles - 1) + result.accuracy) / stats.totalBattles;
-    stats.bestAccuracy = Math.max(stats.bestAccuracy, result.accuracy);
-    stats.averageTrainingTime = (stats.averageTrainingTime * (stats.totalBattles - 1) + result.trainingTime) / stats.totalBattles;
-    stats.fastestTraining = Math.min(stats.fastestTraining, result.trainingTime);
-    stats.lastBattleAt = new Date().toISOString();
-    
-    // モデル使用統計
-    this.updateModelUsage(stats, result.modelType);
-    
-    this.statistics.set(userId, stats);
-  }
 
-  private initializeStatistics(userId: string): BattleStatistics {
     return {
       userId,
-      totalBattles: 0,
-      wins: 0,
-      losses: 0,
-      draws: 0,
-      winRate: 0,
-      averageAccuracy: 0,
-      bestAccuracy: 0,
-      averageTrainingTime: 0,
-      fastestTraining: Infinity,
-      favoriteModel: '',
-      mostUsedFeatures: [],
-      battleStreak: 0,
-      longestStreak: 0,
-      achievements: [],
-      rank: 0,
-      totalXP: 0,
-      level: 1,
-      lastBattleAt: '',
-      createdAt: new Date().toISOString()
+      username,
+      score,
+      accuracy,
+      modelName,
+      submittedAt: Date.now(),
+      rank: 0
     };
   }
 
-  private updateModelUsage(stats: BattleStatistics, modelType: string): void {
-    // モデル使用統計の更新（簡易版）
-    if (!stats.favoriteModel) {
-      stats.favoriteModel = modelType;
-    }
-  }
-
-  getStatistics(userId: string): BattleStatistics | undefined {
-    return this.statistics.get(userId);
-  }
-
-  getLeaderboard(limit: number = 10): BattleLeaderboard[] {
-    const allStats = Array.from(this.statistics.values());
+  // 分類精度を計算
+  private calculateClassificationAccuracy(predictions: number[], actualValues: number[]): number {
+    if (predictions.length !== actualValues.length) return 0;
     
-    return allStats
-      .sort((a, b) => b.totalXP - a.totalXP)
-      .slice(0, limit)
-      .map((stats, index) => ({
-        userId: stats.userId,
-        username: `Player${stats.userId.slice(-4)}`, // 簡易的なユーザー名
-        totalBattles: stats.totalBattles,
-        wins: stats.wins,
-        losses: stats.losses,
-        winRate: stats.winRate,
-        averageScore: stats.averageAccuracy * 1000,
-        bestScore: stats.bestAccuracy * 1000,
-        rank: index + 1,
-        streak: stats.battleStreak,
-        lastBattleAt: stats.lastBattleAt
-      }));
+    let correct = 0;
+    for (let i = 0; i < predictions.length; i++) {
+      if (Math.round(predictions[i]) === actualValues[i]) {
+        correct++;
+      }
+    }
+    
+    return correct / predictions.length;
+  }
+
+  // 平均二乗誤差を計算
+  private calculateMSE(predictions: number[], actualValues: number[]): number {
+    if (predictions.length !== actualValues.length) return Infinity;
+    
+    let sum = 0;
+    for (let i = 0; i < predictions.length; i++) {
+      const diff = predictions[i] - actualValues[i];
+      sum += diff * diff;
+    }
+    
+    return sum / predictions.length;
+  }
+
+  // R²スコアを計算
+  private calculateR2(predictions: number[], actualValues: number[]): number {
+    if (predictions.length !== actualValues.length) return 0;
+    
+    const actualMean = actualValues.reduce((sum, val) => sum + val, 0) / actualValues.length;
+    const ssRes = predictions.reduce((sum, pred, i) => {
+      const diff = pred - actualValues[i];
+      return sum + diff * diff;
+    }, 0);
+    const ssTot = actualValues.reduce((sum, val) => {
+      const diff = val - actualMean;
+      return sum + diff * diff;
+    }, 0);
+    
+    return 1 - (ssRes / ssTot);
   }
 }
 
-// バトルシステムのメインクラス
+export class BattleRealTimeManager {
+  private updateCallbacks: Set<() => void> = new Set();
+
+  // 更新コールバックを追加
+  addUpdateCallback(callback: () => void) {
+    this.updateCallbacks.add(callback);
+  }
+
+  // 更新コールバックを削除
+  removeUpdateCallback(callback: () => void) {
+    this.updateCallbacks.delete(callback);
+  }
+
+  // 更新を通知
+  notifyUpdate() {
+    this.updateCallbacks.forEach(callback => callback());
+  }
+}
+
+export class BattleStatisticsManager {
+  private statistics: Map<string, any> = new Map();
+
+  // 統計を更新
+  updateStatistics(roomId: string, stats: any) {
+    this.statistics.set(roomId, {
+      ...stats,
+      lastUpdated: Date.now()
+    });
+  }
+
+  // 統計を取得
+  getStatistics(roomId: string): any {
+    return this.statistics.get(roomId);
+  }
+
+  // 全統計を取得
+  getAllStatistics(): Map<string, any> {
+    return new Map(this.statistics);
+  }
+}
+
 export class BattleSystem {
-  public roomManager: BattleRoomManager;
-  public problemManager: BattleProblemManager;
-  public resultEvaluator: BattleResultEvaluator;
-  public realTimeManager: BattleRealTimeManager;
-  public statisticsManager: BattleStatisticsManager;
+  private roomManager: BattleRoomManager;
+  private problemManager: BattleProblemManager;
+  private resultEvaluator: BattleResultEvaluator;
+  private realTimeManager: BattleRealTimeManager;
+  private statisticsManager: BattleStatisticsManager;
 
   constructor() {
     this.roomManager = new BattleRoomManager();
@@ -487,89 +327,92 @@ export class BattleSystem {
     this.statisticsManager = new BattleStatisticsManager();
   }
 
-  // バトル開始の流れ
-  async startBattleFlow(roomId: string, hostId: string): Promise<{
-    success: boolean;
-    problem?: BattleProblem;
-    message?: string;
-  }> {
-    const room = this.roomManager.getRoom(roomId);
-    if (!room) {
-      return { success: false, message: 'ルームが見つかりません' };
-    }
-
-    if (room.hostId !== hostId) {
-      return { success: false, message: 'ホストのみが開始できます' };
-    }
-
-    if (room.participants.length < 2) {
-      return { success: false, message: '最低2人の参加者が必要です' };
-    }
-
-    const allReady = room.participants.every(p => p.isReady);
-    if (!allReady) {
-      return { success: false, message: '全員が準備完了していません' };
-    }
-
-    // 問題を選択
-    const problem = this.problemManager.getRandomProblem(room.difficulty, room.problemType);
-    if (!problem) {
-      return { success: false, message: '適切な問題が見つかりません' };
-    }
-
-    // バトル開始
-    const started = this.roomManager.startBattle(roomId, hostId);
-    if (!started) {
-      return { success: false, message: 'バトル開始に失敗しました' };
-    }
-
-    return { success: true, problem };
+  // ルーム管理
+  get roomManager() {
+    return this.roomManager;
   }
 
-  // バトル終了の流れ
-  async finishBattleFlow(
+  // 問題管理
+  get problemManager() {
+    return this.problemManager;
+  }
+
+  // 結果評価
+  get resultEvaluator() {
+    return this.resultEvaluator;
+  }
+
+  // リアルタイム管理
+  get realTimeManager() {
+    return this.realTimeManager;
+  }
+
+  // 統計管理
+  get statisticsManager() {
+    return this.statisticsManager;
+  }
+
+  // バトル結果を提出
+  submitResult(
     roomId: string,
-    participantResults: Array<{
-      userId: string;
-      accuracy: number;
-      trainingTime: number;
-      modelType: string;
-      additionalMetrics?: Record<string, number>;
-    }>
-  ): Promise<{
-    success: boolean;
-    results?: BattleResult[];
-    message?: string;
-  }> {
+    userId: string,
+    username: string,
+    modelName: string,
+    predictions: number[],
+    actualValues: number[],
+    problemType: 'classification' | 'regression'
+  ): BattleResult | null {
     const room = this.roomManager.getRoom(roomId);
-    if (!room) {
-      return { success: false, message: 'ルームが見つかりません' };
-    }
+    if (!room || room.status !== 'active') return null;
 
-    if (room.status !== 'active') {
-      return { success: false, message: 'アクティブなバトルではありません' };
-    }
+    const result = this.resultEvaluator.evaluateResult(
+      userId,
+      username,
+      modelName,
+      predictions,
+      actualValues,
+      problemType
+    );
 
-    // 問題を取得
-    const problem = this.problemManager.getRandomProblem(room.difficulty, room.problemType);
-    if (!problem) {
-      return { success: false, message: '問題が見つかりません' };
-    }
+    // 結果をルームに追加
+    room.results.push(result);
 
-    // 結果を評価
-    const results = this.resultEvaluator.evaluateBattle(problem, participantResults);
+    // ランキングを更新
+    this.updateRankings(room);
 
     // 統計を更新
-    results.forEach(result => {
-      this.statisticsManager.updateStatistics(result.participantId, result);
+    this.updateRoomStatistics(room);
+
+    // リアルタイム更新を通知
+    this.realTimeManager.notifyUpdate();
+
+    return result;
+  }
+
+  // ランキングを更新
+  private updateRankings(room: BattleRoom) {
+    room.results.sort((a, b) => b.score - a.score);
+    room.results.forEach((result, index) => {
+      result.rank = index + 1;
     });
+  }
 
-    // バトル終了
-    const finished = this.roomManager.finishBattle(roomId, results);
-    if (!finished) {
-      return { success: false, message: 'バトル終了に失敗しました' };
-    }
+  // ルーム統計を更新
+  private updateRoomStatistics(room: BattleRoom) {
+    const stats = {
+      totalSubmissions: room.results.length,
+      averageScore: room.results.length > 0 
+        ? room.results.reduce((sum, r) => sum + r.score, 0) / room.results.length 
+        : 0,
+      topScore: room.results.length > 0 ? Math.max(...room.results.map(r => r.score)) : 0,
+      participants: room.participants.length,
+      activeParticipants: room.results.length
+    };
 
-    return { success: true, results };
+    this.statisticsManager.updateStatistics(room.id, stats);
   }
 }
+
+// シングルトンインスタンス
+export const battleSystem = new BattleSystem();
+

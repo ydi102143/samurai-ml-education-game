@@ -1,512 +1,376 @@
 // 動的機械学習システム
-import { dataProcessingSystem } from './dataProcessingSystem';
-
-export interface ModelConfig {
-  id: string;
-  name: string;
-  type: 'classification' | 'regression';
-  description: string;
-  complexity: 'low' | 'medium' | 'high';
-  hyperparameters: Record<string, any>;
-  isSelected: boolean;
+export interface DynamicMLConfig {
+  enableAutoTuning: boolean;
+  enableEarlyStopping: boolean;
+  enableCrossValidation: boolean;
+  maxIterations: number;
+  patience: number;
+  minImprovement: number;
 }
 
 export interface TrainingProgress {
   epoch: number;
   totalEpochs: number;
+  accuracy: number;
   loss: number;
-  accuracy: number;
-  status: 'training' | 'completed' | 'failed';
-  startTime: Date;
-  endTime?: Date;
+  validationAccuracy?: number;
+  validationLoss?: number;
+  learningRate: number;
+  isEarlyStopped: boolean;
 }
 
-export interface ValidationResult {
-  accuracy: number;
-  precision: number;
-  recall: number;
-  f1Score: number;
-  confusionMatrix: number[][];
-  executionTime: number;
-}
-
-export interface SubmissionData {
-  modelId: string;
+export interface ModelPerformance {
   modelName: string;
-  hyperparameters: Record<string, any>;
+  accuracy: number;
+  loss: number;
+  trainingTime: number;
   validationAccuracy: number;
-  submissionTime: Date;
-  processingHistory: string[];
+  validationLoss: number;
+  hyperparameters: Record<string, any>;
+  isBest: boolean;
 }
 
 export class DynamicMLSystem {
-  private availableModels: ModelConfig[] = [];
-  private selectedModel: ModelConfig | null = null;
-  private trainingProgress: TrainingProgress | null = null;
-  private validationResult: ValidationResult | null = null;
-  private submissionHistory: SubmissionData[] = [];
+  private config: DynamicMLConfig;
+  private models: Map<string, any> = new Map();
+  private trainingHistory: TrainingProgress[] = [];
+  private performanceHistory: ModelPerformance[] = [];
+  private bestModel: string | null = null;
+  private trainingCallbacks: Set<(progress: TrainingProgress) => void> = new Set();
 
-  constructor() {
-    this.initializeModels();
+  constructor(config: DynamicMLConfig = {
+    enableAutoTuning: true,
+    enableEarlyStopping: true,
+    enableCrossValidation: true,
+    maxIterations: 1000,
+    patience: 10,
+    minImprovement: 0.001
+  }) {
+    this.config = config;
   }
 
-  private initializeModels() {
-    console.log('Initializing ML models...');
-    this.availableModels = [
-      // 分類モデル
-      {
-        id: 'logistic_regression',
-        name: 'ロジスティック回帰',
-        type: 'classification',
-        description: '線形分類器。シンプルで高速、解釈しやすい',
-        complexity: 'low',
-        hyperparameters: {
-          learning_rate: 0.01,
-          max_iter: 1000,
-          regularization: 'l2',
-          C: 1.0
-        },
-        isSelected: false
-      },
-      {
-        id: 'random_forest',
-        name: 'ランダムフォレスト',
-        type: 'classification',
-        description: 'アンサンブル学習。過学習に強く、特徴量重要度が分かる',
-        complexity: 'medium',
-        hyperparameters: {
-          n_estimators: 100,
-          max_depth: 10,
-          min_samples_split: 2,
-          min_samples_leaf: 1
-        },
-        isSelected: false
-      },
-      {
-        id: 'svm',
-        name: 'サポートベクターマシン',
-        type: 'classification',
-        description: '高次元データに強い。カーネル法で非線形分離可能',
-        complexity: 'high',
-        hyperparameters: {
-          kernel: 'rbf',
-          C: 1.0,
-          gamma: 'scale',
-          degree: 3
-        },
-        isSelected: false
-      },
-      {
-        id: 'neural_network',
-        name: 'ニューラルネットワーク',
-        type: 'classification',
-        description: '深層学習。複雑なパターンを学習可能',
-        complexity: 'high',
-        hyperparameters: {
-          hidden_layers: [64, 32],
-          activation: 'relu',
-          learning_rate: 0.001,
-          epochs: 100,
-          batch_size: 32
-        },
-        isSelected: false
-      },
-      // 回帰モデル
-      {
-        id: 'linear_regression',
-        name: '線形回帰',
-        type: 'regression',
-        description: '基本的な回帰モデル。シンプルで高速',
-        complexity: 'low',
-        hyperparameters: {
-          fit_intercept: true,
-          normalize: false
-        },
-        isSelected: false
-      },
-      {
-        id: 'ridge_regression',
-        name: 'リッジ回帰',
-        type: 'regression',
-        description: '正則化付き線形回帰。過学習を防ぐ',
-        complexity: 'low',
-        hyperparameters: {
-          alpha: 1.0,
-          fit_intercept: true
-        },
-        isSelected: false
-      },
-      {
-        id: 'gradient_boosting',
-        name: '勾配ブースティング',
-        type: 'regression',
-        description: 'アンサンブル学習。高い精度を期待できる',
-        complexity: 'high',
-        hyperparameters: {
-          n_estimators: 100,
-          learning_rate: 0.1,
-          max_depth: 6,
-          subsample: 1.0
-        },
-        isSelected: false
-      }
-    ];
-    console.log('ML models initialized:', this.availableModels.length, 'models');
-  }
-
-  // 利用可能なモデルを取得（問題タイプでフィルタ）
-  getAvailableModels(problemType: 'classification' | 'regression'): ModelConfig[] {
-    return this.availableModels.filter(model => model.type === problemType);
-  }
-
-  // モデルを選択
-  selectModel(modelId: string): boolean {
-    console.log('Selecting model:', modelId);
-    // 既存の選択を解除
-    this.availableModels.forEach(model => model.isSelected = false);
+  // モデルを訓練
+  async trainModel(
+    modelName: string,
+    features: number[][],
+    labels: number[],
+    hyperparameters: Record<string, any> = {}
+  ): Promise<ModelPerformance> {
+    const startTime = Date.now();
     
-    const model = this.availableModels.find(m => m.id === modelId);
-    if (model) {
-      model.isSelected = true;
-      this.selectedModel = model;
-      console.log('Model selected successfully:', model.name);
-      return true;
+    try {
+      // モデルを作成
+      const model = this.createModel(modelName, hyperparameters);
+      this.models.set(modelName, model);
+
+      // データを分割
+      const { trainFeatures, trainLabels, valFeatures, valLabels } = this.splitData(features, labels);
+
+      // 訓練を実行
+      const trainingResult = await this.performTraining(
+        model,
+        trainFeatures,
+        trainLabels,
+        valFeatures,
+        valLabels,
+        hyperparameters
+      );
+
+      // 性能を評価
+      const performance = this.evaluateModel(
+        model,
+        valFeatures,
+        valLabels,
+        modelName,
+        trainingResult,
+        Date.now() - startTime
+      );
+
+      // 履歴を更新
+      this.updatePerformanceHistory(performance);
+
+      return performance;
+    } catch (error) {
+      throw new Error(`Training failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    console.log('Model not found:', modelId);
-    return false;
   }
 
-  // 選択されたモデルを取得
-  getSelectedModel(): ModelConfig | null {
-    return this.selectedModel;
-  }
-
-  // ハイパーパラメータを更新
-  updateHyperparameters(modelId: string, hyperparameters: Record<string, any>): boolean {
-    const model = this.availableModels.find(m => m.id === modelId);
-    if (model) {
-      model.hyperparameters = { ...model.hyperparameters, ...hyperparameters };
-      if (this.selectedModel?.id === modelId) {
-        this.selectedModel.hyperparameters = model.hyperparameters;
-      }
-      return true;
-    }
-    return false;
-  }
-
-  // 学習を開始
-  async startTraining(): Promise<TrainingProgress> {
-    if (!this.selectedModel) {
-      throw new Error('モデルが選択されていません');
-    }
-
-    const currentDataset = dataProcessingSystem.getCurrentDataset();
-    if (!currentDataset) {
-      throw new Error('データセットが選択されていません');
-    }
-
-    this.trainingProgress = {
-      epoch: 0,
-      totalEpochs: this.selectedModel.hyperparameters.epochs || 100,
-      loss: 1.0,
-      accuracy: 0.0,
-      status: 'training',
-      startTime: new Date()
+  // モデルを作成
+  private createModel(modelName: string, hyperparameters: Record<string, any>): any {
+    // 簡略化されたモデル作成
+    return {
+      name: modelName,
+      weights: new Array(10).fill(0),
+      bias: 0,
+      hyperparameters,
+      isTrained: false
     };
-
-    // 学習をシミュレート
-    await this.simulateTraining();
-
-    return this.trainingProgress;
   }
 
-  // 学習を実行（現実的な実装）
-  private async simulateTraining(): Promise<void> {
-    if (!this.trainingProgress || !this.selectedModel) return;
-
-    const totalEpochs = this.trainingProgress.totalEpochs;
-    const modelType = this.selectedModel.id;
-    const hyperparameters = this.trainingProgress.hyperparameters;
-    
-    // モデルタイプに応じた学習曲線を計算
-    const learningCurve = this.calculateLearningCurve(modelType, hyperparameters, totalEpochs);
-
-    for (let epoch = 0; epoch < totalEpochs; epoch++) {
-      if (this.trainingProgress.status !== 'training') break;
-
-      // 進捗を更新
-      this.trainingProgress.epoch = epoch + 1;
-      
-      // 実際の学習曲線に基づいて損失と精度を計算
-      const progress = epoch / totalEpochs;
-      this.trainingProgress.loss = this.calculateLoss(learningCurve, progress, epoch);
-      this.trainingProgress.accuracy = this.calculateAccuracy(learningCurve, progress, epoch);
-      
-      // 損失と精度を0-1の範囲に制限
-      this.trainingProgress.loss = Math.max(0, Math.min(1, this.trainingProgress.loss));
-      this.trainingProgress.accuracy = Math.max(0, Math.min(1, this.trainingProgress.accuracy));
-
-      // 学習時間をシミュレート（モデルの複雑さに応じて）
-      const trainingDelay = this.calculateTrainingDelay(modelType, epoch);
-      await new Promise(resolve => setTimeout(resolve, trainingDelay));
-    }
-
-    // 学習完了
-    if (this.trainingProgress) {
-      this.trainingProgress.status = 'completed';
-      this.trainingProgress.endTime = new Date();
-    }
-  }
-
-  // 学習進捗を取得
-  getTrainingProgress(): TrainingProgress | null {
-    return this.trainingProgress;
-  }
-
-  // 学習曲線を計算
-  private calculateLearningCurve(modelType: string, hyperparameters: any, totalEpochs: number): any {
-    const learningRate = hyperparameters.learningRate || 0.01;
-    const regularization = hyperparameters.regularization || 0.01;
-    
-    // モデルタイプに応じた学習特性を設定
-    const modelCharacteristics = this.getModelCharacteristics(modelType);
+  // データを分割
+  private splitData(features: number[][], labels: number[]): {
+    trainFeatures: number[][];
+    trainLabels: number[];
+    valFeatures: number[][];
+    valLabels: number[];
+  } {
+    const splitIndex = Math.floor(features.length * 0.8);
     
     return {
-      modelType,
-      learningRate,
-      regularization,
-      totalEpochs,
-      characteristics: modelCharacteristics
+      trainFeatures: features.slice(0, splitIndex),
+      trainLabels: labels.slice(0, splitIndex),
+      valFeatures: features.slice(splitIndex),
+      valLabels: labels.slice(splitIndex)
     };
   }
 
-  // 損失を計算
-  private calculateLoss(learningCurve: any, progress: number, epoch: number): number {
-    const { characteristics } = learningCurve;
-    const { learningRate, regularization } = learningCurve;
-    
-    // 指数減衰による損失の減少
-    const baseLoss = characteristics.initialLoss;
-    const finalLoss = characteristics.finalLoss;
-    const decayRate = characteristics.decayRate;
-    
-    // 学習率と正則化の影響を考慮
-    const lrFactor = Math.min(1.0, learningRate * 10);
-    const regFactor = Math.min(1.0, regularization * 10);
-    
-    // 損失の計算
-    let loss = baseLoss * Math.exp(-decayRate * progress) + finalLoss;
-    
-    // 学習率が高い場合は収束が早い
-    loss *= (1 - lrFactor * 0.2);
-    
-    // 正則化が強い場合は最終損失が高い
-    loss += regFactor * 0.1;
-    
-    // エポックごとの微細な変動を追加
-    const noise = Math.sin(epoch * 0.1) * 0.02;
-    loss += noise;
-    
-    return Math.max(0, Math.min(1, loss));
-  }
+  // 訓練を実行
+  private async performTraining(
+    model: any,
+    trainFeatures: number[][],
+    trainLabels: number[],
+    valFeatures: number[][],
+    valLabels: number[],
+    hyperparameters: Record<string, any>
+  ): Promise<{ accuracy: number; loss: number; epochs: number }> {
+    const { learningRate = 0.01, epochs = 100 } = hyperparameters;
+    let bestValAccuracy = 0;
+    let patienceCounter = 0;
+    let bestWeights = [...model.weights];
+    let bestBias = model.bias;
 
-  // 精度を計算
-  private calculateAccuracy(learningCurve: any, progress: number, epoch: number): number {
-    const { characteristics } = learningCurve;
-    const { learningRate, regularization } = learningCurve;
-    
-    // シグモイド関数による精度の上昇
-    const baseAccuracy = characteristics.initialAccuracy;
-    const finalAccuracy = characteristics.finalAccuracy;
-    const steepness = characteristics.steepness;
-    
-    // 学習率と正則化の影響を考慮
-    const lrFactor = Math.min(1.0, learningRate * 10);
-    const regFactor = Math.min(1.0, regularization * 10);
-    
-    // 精度の計算
-    let accuracy = baseAccuracy + (finalAccuracy - baseAccuracy) / (1 + Math.exp(-steepness * (progress - 0.5)));
-    
-    // 学習率が高い場合は収束が早い
-    accuracy += lrFactor * 0.1 * progress;
-    
-    // 正則化が強い場合は最終精度が低い
-    accuracy -= regFactor * 0.05;
-    
-    // エポックごとの微細な変動を追加
-    const noise = Math.cos(epoch * 0.1) * 0.01;
-    accuracy += noise;
-    
-    return Math.max(0, Math.min(1, accuracy));
-  }
+    for (let epoch = 0; epoch < epochs; epoch++) {
+      // 訓練
+      const trainResult = this.trainEpoch(model, trainFeatures, trainLabels, learningRate);
+      
+      // 検証
+      const valResult = this.evaluateModel(model, valFeatures, valLabels, '', { accuracy: 0, loss: 0, epochs: 0 }, 0);
 
-  // 学習時間を計算
-  private calculateTrainingDelay(modelType: string, epoch: number): number {
-    const baseDelay = 50; // 基本遅延（ms）
-    
-    // モデルの複雑さに応じた遅延
-    const complexityDelays: Record<string, number> = {
-      'logistic_regression': 1,
-      'random_forest': 3,
-      'svm': 2,
-      'xgboost': 4,
-      'neural_network': 5
-    };
-    
-    const complexityFactor = complexityDelays[modelType] || 1;
-    
-    // エポックが進むにつれて遅延が増加（より複雑な計算）
-    const epochFactor = 1 + (epoch / 100);
-    
-    return baseDelay * complexityFactor * epochFactor;
-  }
+      // 進捗を記録
+      const progress: TrainingProgress = {
+        epoch: epoch + 1,
+        totalEpochs: epochs,
+        accuracy: trainResult.accuracy,
+        loss: trainResult.loss,
+        validationAccuracy: valResult.validationAccuracy,
+        validationLoss: valResult.validationLoss,
+        learningRate,
+        isEarlyStopped: false
+      };
 
-  // モデルの特性を取得
-  private getModelCharacteristics(modelType: string): any {
-    const characteristics: Record<string, any> = {
-      'logistic_regression': {
-        initialLoss: 0.8,
-        finalLoss: 0.1,
-        initialAccuracy: 0.5,
-        finalAccuracy: 0.85,
-        decayRate: 3.0,
-        steepness: 8.0
-      },
-      'random_forest': {
-        initialLoss: 0.6,
-        finalLoss: 0.05,
-        initialAccuracy: 0.6,
-        finalAccuracy: 0.90,
-        decayRate: 2.5,
-        steepness: 6.0
-      },
-      'svm': {
-        initialLoss: 0.7,
-        finalLoss: 0.08,
-        initialAccuracy: 0.55,
-        finalAccuracy: 0.88,
-        decayRate: 2.8,
-        steepness: 7.0
-      },
-      'xgboost': {
-        initialLoss: 0.5,
-        finalLoss: 0.03,
-        initialAccuracy: 0.65,
-        finalAccuracy: 0.92,
-        decayRate: 3.5,
-        steepness: 9.0
-      },
-      'neural_network': {
-        initialLoss: 0.9,
-        finalLoss: 0.06,
-        initialAccuracy: 0.45,
-        finalAccuracy: 0.89,
-        decayRate: 2.0,
-        steepness: 5.0
+      this.trainingHistory.push(progress);
+      this.notifyTrainingProgress(progress);
+
+      // 最良の結果を保存
+      if (valResult.validationAccuracy > bestValAccuracy) {
+        bestValAccuracy = valResult.validationAccuracy;
+        bestWeights = [...model.weights];
+        bestBias = model.bias;
+        patienceCounter = 0;
+      } else {
+        patienceCounter++;
       }
+
+      // 早期停止
+      if (this.config.enableEarlyStopping && patienceCounter >= this.config.patience) {
+        progress.isEarlyStopped = true;
+        break;
+      }
+    }
+
+    // 最良の重みを復元
+    model.weights = bestWeights;
+    model.bias = bestBias;
+    model.isTrained = true;
+
+    return {
+      accuracy: bestValAccuracy,
+      loss: this.trainingHistory[this.trainingHistory.length - 1]?.loss || 0,
+      epochs: this.trainingHistory.length
     };
-    
-    return characteristics[modelType] || characteristics['logistic_regression'];
   }
 
-  // 学習を停止
-  stopTraining(): void {
-    if (this.trainingProgress) {
-      this.trainingProgress.status = 'failed';
-      this.trainingProgress.endTime = new Date();
+  // エポックを訓練
+  private trainEpoch(model: any, features: number[][], labels: number[], learningRate: number): { accuracy: number; loss: number } {
+    let correct = 0;
+    let totalLoss = 0;
+
+    for (let i = 0; i < features.length; i++) {
+      const prediction = this.predict(model, features[i]);
+      const actual = labels[i];
+      const error = prediction - actual;
+
+      // 勾配を計算
+      const gradient = error;
+      const weightGradient = features[i].map(f => f * gradient);
+      const biasGradient = gradient;
+
+      // 重みを更新
+      for (let j = 0; j < model.weights.length; j++) {
+        model.weights[j] -= learningRate * weightGradient[j];
+      }
+      model.bias -= learningRate * biasGradient;
+
+      // 精度を計算
+      if ((prediction > 0.5 && actual === 1) || (prediction <= 0.5 && actual === 0)) {
+        correct++;
+      }
+
+      // 損失を計算
+      const loss = error * error;
+      totalLoss += loss;
     }
+
+    return {
+      accuracy: correct / features.length,
+      loss: totalLoss / features.length
+    };
   }
 
-  // 検証を実行
-  async executeValidation(): Promise<ValidationResult> {
-    if (!this.selectedModel) {
-      throw new Error('モデルが選択されていません');
+  // 予測を実行
+  private predict(model: any, features: number[]): number {
+    let sum = model.bias;
+    for (let i = 0; i < features.length; i++) {
+      sum += model.weights[i] * features[i];
+    }
+    return 1 / (1 + Math.exp(-sum)); // シグモイド関数
+  }
+
+  // モデルを評価
+  private evaluateModel(
+    model: any,
+    features: number[][],
+    labels: number[],
+    modelName: string,
+    trainingResult: any,
+    trainingTime: number
+  ): ModelPerformance {
+    let correct = 0;
+    let totalLoss = 0;
+
+    for (let i = 0; i < features.length; i++) {
+      const prediction = this.predict(model, features[i]);
+      const actual = labels[i];
+
+      if ((prediction > 0.5 && actual === 1) || (prediction <= 0.5 && actual === 0)) {
+        correct++;
+      }
+
+      const error = prediction - actual;
+      totalLoss += error * error;
     }
 
-    const startTime = new Date();
-    
-    // 検証をシミュレート
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const accuracy = correct / features.length;
+    const loss = totalLoss / features.length;
 
-    const endTime = new Date();
-    const executionTime = endTime.getTime() - startTime.getTime();
-
-    // ランダムな検証結果を生成
-    const accuracy = 0.85 + Math.random() * 0.1;
-    const precision = accuracy + (Math.random() - 0.5) * 0.05;
-    const recall = accuracy + (Math.random() - 0.5) * 0.05;
-    const f1Score = 2 * (precision * recall) / (precision + recall);
-
-    this.validationResult = {
+    return {
+      modelName,
       accuracy,
-      precision,
-      recall,
-      f1Score,
-      confusionMatrix: this.generateConfusionMatrix(accuracy),
-      executionTime
+      loss,
+      trainingTime,
+      validationAccuracy: accuracy,
+      validationLoss: loss,
+      hyperparameters: model.hyperparameters,
+      isBest: false
     };
-
-    return this.validationResult;
   }
 
-  // 混同行列を生成
-  private generateConfusionMatrix(accuracy: number): number[][] {
-    const total = 100;
-    const correct = Math.floor(total * accuracy);
-    const incorrect = total - correct;
+  // 性能履歴を更新
+  private updatePerformanceHistory(performance: ModelPerformance): void {
+    // 既存の同じモデルの履歴を削除
+    this.performanceHistory = this.performanceHistory.filter(p => p.modelName !== performance.modelName);
     
-    const tp = Math.floor(correct * 0.7);
-    const tn = correct - tp;
-    const fp = Math.floor(incorrect * 0.3);
-    const fn = incorrect - fp;
+    // 新しい性能を追加
+    this.performanceHistory.push(performance);
 
-    return [
-      [tp, fp],
-      [fn, tn]
-    ];
+    // 最良のモデルを更新
+    const bestPerformance = this.performanceHistory.reduce((best, current) => 
+      current.validationAccuracy > best.validationAccuracy ? current : best
+    );
+
+    this.bestModel = bestPerformance.modelName;
+    bestPerformance.isBest = true;
   }
 
-  // 検証結果を取得
-  getValidationResult(): ValidationResult | null {
-    return this.validationResult;
+  // 訓練進捗を通知
+  private notifyTrainingProgress(progress: TrainingProgress): void {
+    this.trainingCallbacks.forEach(callback => {
+      try {
+        callback(progress);
+      } catch (error) {
+        console.error('Training callback error:', error);
+      }
+    });
   }
 
-  // 提出を実行
-  async submitModel(submissionName: string, comment: string): Promise<SubmissionData> {
-    if (!this.selectedModel || !this.validationResult) {
-      throw new Error('モデルまたは検証結果がありません');
-    }
+  // 訓練進捗コールバックを追加
+  addTrainingCallback(callback: (progress: TrainingProgress) => void): void {
+    this.trainingCallbacks.add(callback);
+  }
 
-    const submission: SubmissionData = {
-      modelId: this.selectedModel.id,
-      modelName: submissionName,
-      hyperparameters: this.selectedModel.hyperparameters,
-      validationAccuracy: this.validationResult.accuracy,
-      submissionTime: new Date(),
-      processingHistory: [
-        'データ分割: 訓練70%, 検証30%',
-        '前処理: 標準化, ラベルエンコーディング',
-        '特徴量エンジニアリング: 多項式特徴量, 集約特徴量',
-        `モデル: ${this.selectedModel.name}`,
-        `ハイパーパラメータ: ${JSON.stringify(this.selectedModel.hyperparameters)}`
-      ]
+  // 訓練進捗コールバックを削除
+  removeTrainingCallback(callback: (progress: TrainingProgress) => void): void {
+    this.trainingCallbacks.delete(callback);
+  }
+
+  // 最良のモデルを取得
+  getBestModel(): string | null {
+    return this.bestModel;
+  }
+
+  // 性能履歴を取得
+  getPerformanceHistory(): ModelPerformance[] {
+    return [...this.performanceHistory];
+  }
+
+  // 訓練履歴を取得
+  getTrainingHistory(): TrainingProgress[] {
+    return [...this.trainingHistory];
+  }
+
+  // 統計情報を取得
+  getStats(): {
+    totalModels: number;
+    bestAccuracy: number;
+    averageAccuracy: number;
+    totalTrainingTime: number;
+    earlyStoppedCount: number;
+  } {
+    const totalModels = this.performanceHistory.length;
+    const bestAccuracy = totalModels > 0 
+      ? Math.max(...this.performanceHistory.map(p => p.validationAccuracy))
+      : 0;
+    const averageAccuracy = totalModels > 0
+      ? this.performanceHistory.reduce((sum, p) => sum + p.validationAccuracy, 0) / totalModels
+      : 0;
+    const totalTrainingTime = this.performanceHistory.reduce((sum, p) => sum + p.trainingTime, 0);
+    const earlyStoppedCount = this.trainingHistory.filter(p => p.isEarlyStopped).length;
+
+    return {
+      totalModels,
+      bestAccuracy: Math.round(bestAccuracy * 1000) / 1000,
+      averageAccuracy: Math.round(averageAccuracy * 1000) / 1000,
+      totalTrainingTime,
+      earlyStoppedCount
     };
-
-    this.submissionHistory.push(submission);
-    return submission;
   }
 
-  // 提出履歴を取得
-  getSubmissionHistory(): SubmissionData[] {
-    return this.submissionHistory;
+  // 設定を更新
+  updateConfig(newConfig: Partial<DynamicMLConfig>): void {
+    this.config = { ...this.config, ...newConfig };
   }
 
-  // システムをリセット
-  reset(): void {
-    this.selectedModel = null;
-    this.trainingProgress = null;
-    this.validationResult = null;
-    this.availableModels.forEach(model => model.isSelected = false);
+  // 設定を取得
+  getConfig(): DynamicMLConfig {
+    return { ...this.config };
+  }
+
+  // データをクリア
+  clear(): void {
+    this.models.clear();
+    this.trainingHistory = [];
+    this.performanceHistory = [];
+    this.bestModel = null;
   }
 }
 

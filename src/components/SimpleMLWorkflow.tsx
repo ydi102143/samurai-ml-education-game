@@ -5,7 +5,7 @@ import { Play, BarChart3, Settings, Upload, ArrowLeft, RefreshCw, Trophy, CheckS
 import { EDAPanel } from './EDAPanel';
 import { simpleDataManager, type SimpleDataset, type ProcessedDataset } from '../utils/simpleDataManager';
 import { simpleMLManager, type SimpleModel, type TrainingResult, type ValidationResult } from '../utils/simpleMLManager';
-import { realtimeSystem, type LeaderboardEntry, type ChatMessage, type Participant, type WeeklyProblem } from '../utils/realtimeSystem';
+import { realtimeSystem, type LeaderboardEntry, type ChatMessage, type Participant } from '../utils/realtimeSystem';
 import { weeklyProblemSystem, type WeeklyProblem as WeeklyProblemType } from '../utils/weeklyProblemSystem';
 import { scoringSystem } from '../utils/scoringSystem';
 
@@ -93,7 +93,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [, setParticipants] = useState<Participant[]>([]);
-  const [, setCurrentProblem] = useState<WeeklyProblem | null>(null);
+  const [, setCurrentProblem] = useState<WeeklyProblemType | null>(null);
   const [weeklyProblem, setWeeklyProblem] = useState<WeeklyProblemType | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -195,12 +195,13 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     
     loadAvailableModels();
     loadRealtimeData();
-    updateParticipantStatus('online');
+    updateParticipantStatus();
     
     // リアルタイム更新の登録
-    const unsubscribe = realtimeSystem.onUpdate(() => {
+    const updateCallback = () => {
       loadRealtimeData();
-    });
+    };
+    realtimeSystem.addUpdateCallback(updateCallback);
 
     // 週次問題更新を購読
     weeklyProblemSystem.onProblemUpdate((problem) => {
@@ -218,9 +219,9 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     });
 
     // スコアリングシステム更新を購読
-    scoringSystem.onLeaderboardUpdate((leaderboard) => {
+    const leaderboardCallback = (leaderboard: any) => {
       // scoringSystemのLeaderboardEntryをrealtimeSystemの形式に変換
-      const convertedLeaderboard = leaderboard.map((entry) => ({
+      const convertedLeaderboard = leaderboard.map((entry: any) => ({
         id: entry.userId,
         username: entry.teamName,
         score: entry.publicScore,
@@ -230,7 +231,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         rank: entry.rank
       }));
       setLeaderboard(convertedLeaderboard);
-    });
+    };
+    scoringSystem.addListener(leaderboardCallback);
 
     // タイマーを開始
     const timer = setInterval(() => {
@@ -238,7 +240,8 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     }, 1000);
     
     return () => {
-      unsubscribe();
+      realtimeSystem.removeUpdateCallback(updateCallback);
+      scoringSystem.removeListener(leaderboardCallback);
       clearInterval(timer);
     };
   }, []);
@@ -345,7 +348,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       setCurrentDataset(dataset);
       simpleDataManager.setCurrentDataset(dataset);
       setCurrentStep('eda');
-      updateParticipantStatus('online');
+      updateParticipantStatus();
       
       // データセットが読み込まれたら、適切なモデルを読み込み
       loadAvailableModels();
@@ -582,7 +585,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
     
     // 新しいランダムデータセットを読み込み
     loadRandomDataset();
-    updateParticipantStatus('online');
+    updateParticipantStatus();
   };
 
   // 特徴エンジニアリングを実行
@@ -670,15 +673,15 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       // データ型を変換
       const convertedSplit = {
         train: {
-          data: split.train.data.map(row => row.map(val => typeof val === 'string' ? 0 : val)),
+          data: split.train.data.map((row: any[]) => row.map((val: any) => typeof val === 'string' ? 0 : val)),
           targets: split.train.targets
         },
         validation: {
-          data: split.validation.data.map(row => row.map(val => typeof val === 'string' ? 0 : val)),
+          data: split.validation.data.map((row: any[]) => row.map((val: any) => typeof val === 'string' ? 0 : val)),
           targets: split.validation.targets
         },
         test: {
-          data: split.test.data.map(row => row.map(val => typeof val === 'string' ? 0 : val)),
+          data: split.test.data.map((row: any[]) => row.map((val: any) => typeof val === 'string' ? 0 : val)),
           targets: split.test.targets
         }
       };
@@ -721,7 +724,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
 
     setIsTraining(true);
     setError(null);
-    updateParticipantStatus('training');
+    updateParticipantStatus();
 
     try {
       // モデルを選択
@@ -737,7 +740,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       const result = await simpleMLManager.train();
       setTrainingResult(result);
       setCurrentStep('validation');
-      updateParticipantStatus('online');
+      updateParticipantStatus();
     } catch (err) {
       setError('学習に失敗しました');
       console.error('Training error:', err);
@@ -755,7 +758,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
 
     setIsValidating(true);
     setError(null);
-    updateParticipantStatus('validating');
+    updateParticipantStatus();
 
     try {
       // 検証結果をクリアしてから新しい検証を実行
@@ -763,7 +766,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
       const result = await simpleMLManager.validate();
       setValidationResult(result);
       setCurrentStep('submission');
-      updateParticipantStatus('online');
+      updateParticipantStatus();
     } catch (err) {
       setError('検証に失敗しました');
       console.error('Validation error:', err);
@@ -782,7 +785,7 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
 
     setIsEvaluating(true);
     setError(null);
-    updateParticipantStatus('validating');
+    updateParticipantStatus();
 
     try {
       // テストデータで自動評価を実行
@@ -813,10 +816,10 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
         
         // リアルタイムシステムにも追加（テストスコアを使用）
         const score = testResult.accuracy * 100;
-        realtimeSystem.addScore(username, score, testResult.accuracy, selectedModel.name);
+        realtimeSystem.addScore(score, testResult.accuracy, selectedModel.name);
         
         // 参加者ステータスを更新
-        realtimeSystem.updateParticipantStatus(username, 'online', 'submission');
+        realtimeSystem.updateParticipantStatus();
         
         alert(result.message);
       } else {
@@ -833,14 +836,14 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
   // チャットメッセージ送信
   const sendMessage = () => {
     if (newMessage.trim()) {
-      realtimeSystem.sendMessage(username, newMessage.trim());
+      realtimeSystem.sendMessage(newMessage.trim());
       setNewMessage('');
     }
   };
 
   // 参加者ステータス更新
-  const updateParticipantStatus = (status: Participant['status']) => {
-    realtimeSystem.updateParticipantStatus(username, status, currentStep);
+  const updateParticipantStatus = () => {
+    realtimeSystem.updateParticipantStatus();
   };
 
   // ステップのナビゲーション
@@ -2243,3 +2246,22 @@ export function SimpleMLWorkflow({ onBack }: SimpleMLWorkflowProps) {
 }
 
 export default SimpleMLWorkflow;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

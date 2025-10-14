@@ -1,276 +1,345 @@
 // 動的問題生成システム
-import type { Dataset } from '../types/ml';
-
-export interface ProblemConfig {
-  type: 'binary_classification' | 'multiclass_classification' | 'regression';
-  name: string;
+export interface ProblemTemplate {
+  id: string;
+  title: string;
   description: string;
+  type: 'classification' | 'regression';
   difficulty: 'easy' | 'medium' | 'hard';
+  datasetType: string;
   features: number;
   samples: number;
-  noiseLevel: number;
-  complexity: number;
+  evaluationMetric: string;
+  timeLimit: number; // ミリ秒
+}
+
+export interface GeneratedProblem {
+  id: string;
+  title: string;
+  description: string;
+  type: 'classification' | 'regression';
+  difficulty: 'easy' | 'medium' | 'hard';
+  dataset: {
+    type: string;
+    size: number;
+    features: number;
+  };
+  evaluation: {
+    metric: string;
+    threshold: number;
+  };
+  timeLimit: number;
+  createdAt: number;
+}
+
+export interface GenerationConfig {
+  enableAutoGeneration: boolean;
+  generationInterval: number; // ミリ秒
+  maxActiveProblems: number;
+  difficultyDistribution: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
 }
 
 export class DynamicProblemGenerator {
-  private static generateBinaryClassification(config: ProblemConfig): Dataset {
-    const { samples, features, noiseLevel, complexity } = config;
-    const data: any[] = [];
-    
-    // 2つのクラスを分離する決定境界を作成
-    for (let i = 0; i < samples; i++) {
-      const point: number[] = [];
-      let decisionValue = 0;
-      
-      for (let j = 0; j < features; j++) {
-        const value = Math.random() * 4 - 2; // -2 to 2
-        point.push(value);
-        
-        // 複雑な決定境界を作成
-        if (complexity === 1) {
-          // 線形分離可能
-          decisionValue += value * (j + 1);
-        } else if (complexity === 2) {
-          // 非線形分離可能
-          decisionValue += Math.sin(value) * (j + 1) + value * value * 0.1;
-        } else {
-          // 非常に複雑
-          decisionValue += Math.sin(value * 2) * Math.cos(value) * (j + 1) + 
-                          value * value * 0.2 + Math.random() * 0.5;
-        }
-      }
-      
-      // ノイズを追加
-      const noise = (Math.random() - 0.5) * noiseLevel;
-      const label = decisionValue + noise > 0 ? 1 : 0;
-      
-      data.push({
-        features: point,
-        label: label
-      });
+  private templates: Map<string, ProblemTemplate> = new Map();
+  private generatedProblems: Map<string, GeneratedProblem> = new Map();
+  private config: GenerationConfig;
+  private generator: NodeJS.Timeout | null = null;
+  private listeners: Set<(problem: GeneratedProblem) => void> = new Set();
+
+  constructor(config: GenerationConfig = {
+    enableAutoGeneration: true,
+    generationInterval: 24 * 60 * 60 * 1000, // 24時間
+    maxActiveProblems: 3,
+    difficultyDistribution: {
+      easy: 0.4,
+      medium: 0.4,
+      hard: 0.2
     }
-    
-    // データをシャッフル
-    for (let i = data.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [data[i], data[j]] = [data[j], data[i]];
-    }
-    
-    // 学習・テスト分割
-    const trainSize = Math.floor(samples * 0.7);
-    const train = data.slice(0, trainSize);
-    const test = data.slice(trainSize);
-    
-    return {
-      train,
-      test,
-      featureNames: Array.from({ length: features }, (_, i) => `特徴量${i + 1}`),
-      labelName: 'クラス',
-      classes: ['クラス0', 'クラス1']
-    };
+  }) {
+    this.config = config;
+    this.initializeTemplates();
+    this.startGenerator();
   }
-  
-  private static generateMulticlassClassification(config: ProblemConfig): Dataset {
-    const { samples, features, noiseLevel, complexity } = config;
-    const numClasses = Math.min(5, Math.max(3, Math.floor(complexity * 2) + 2));
-    const data: any[] = [];
-    
-    for (let i = 0; i < samples; i++) {
-      const point: number[] = [];
-      const classScores: number[] = new Array(numClasses).fill(0);
-      
-      for (let j = 0; j < features; j++) {
-        const value = Math.random() * 4 - 2;
-        point.push(value);
-        
-        // 各クラスに対するスコアを計算
-        for (let c = 0; c < numClasses; c++) {
-          if (complexity === 1) {
-            classScores[c] += value * Math.cos(c * Math.PI / numClasses) * (j + 1);
-          } else if (complexity === 2) {
-            classScores[c] += Math.sin(value + c) * (j + 1) + value * value * 0.1;
-          } else {
-            classScores[c] += Math.sin(value * (c + 1)) * Math.cos(value + c) * (j + 1) + 
-                             value * value * 0.2 + Math.random() * 0.3;
-          }
-        }
+
+  // テンプレートを初期化
+  private initializeTemplates(): void {
+    const templates: ProblemTemplate[] = [
+      {
+        id: 'template_001',
+        title: '売上予測チャレンジ',
+        description: '店舗の売上を予測する回帰問題',
+        type: 'regression',
+        difficulty: 'easy',
+        datasetType: 'sales',
+        features: 8,
+        samples: 1000,
+        evaluationMetric: 'RMSE',
+        timeLimit: 7 * 24 * 60 * 60 * 1000 // 7日
+      },
+      {
+        id: 'template_002',
+        title: '顧客分類チャレンジ',
+        description: '顧客を分類する分類問題',
+        type: 'classification',
+        difficulty: 'medium',
+        datasetType: 'customer',
+        features: 6,
+        samples: 800,
+        evaluationMetric: 'Accuracy',
+        timeLimit: 7 * 24 * 60 * 60 * 1000
+      },
+      {
+        id: 'template_003',
+        title: '不正検出チャレンジ',
+        description: '不正な取引を検出する分類問題',
+        type: 'classification',
+        difficulty: 'hard',
+        datasetType: 'fraud',
+        features: 12,
+        samples: 1500,
+        evaluationMetric: 'F1-Score',
+        timeLimit: 7 * 24 * 60 * 60 * 1000
+      },
+      {
+        id: 'template_004',
+        title: '価格予測チャレンジ',
+        description: '商品の価格を予測する回帰問題',
+        type: 'regression',
+        difficulty: 'medium',
+        datasetType: 'pricing',
+        features: 10,
+        samples: 1200,
+        evaluationMetric: 'MAE',
+        timeLimit: 7 * 24 * 60 * 60 * 1000
+      },
+      {
+        id: 'template_005',
+        title: '医療診断チャレンジ',
+        description: '病気を診断する分類問題',
+        type: 'classification',
+        difficulty: 'hard',
+        datasetType: 'medical',
+        features: 15,
+        samples: 2000,
+        evaluationMetric: 'Precision',
+        timeLimit: 7 * 24 * 60 * 60 * 1000
       }
-      
-      // ノイズを追加
-      for (let c = 0; c < numClasses; c++) {
-        classScores[c] += (Math.random() - 0.5) * noiseLevel;
-      }
-      
-      // 最も高いスコアのクラスを選択
-      const label = classScores.indexOf(Math.max(...classScores));
-      
-      data.push({
-        features: point,
-        label: label
-      });
-    }
-    
-    // データをシャッフル
-    for (let i = data.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [data[i], data[j]] = [data[j], data[i]];
-    }
-    
-    // 学習・テスト分割
-    const trainSize = Math.floor(samples * 0.7);
-    const train = data.slice(0, trainSize);
-    const test = data.slice(trainSize);
-    
-    return {
-      train,
-      test,
-      featureNames: Array.from({ length: features }, (_, i) => `特徴量${i + 1}`),
-      labelName: 'クラス',
-      classes: Array.from({ length: numClasses }, (_, i) => `クラス${i}`)
-    };
+    ];
+
+    templates.forEach(template => {
+      this.templates.set(template.id, template);
+    });
   }
-  
-  private static generateRegression(config: ProblemConfig): Dataset {
-    const { samples, features, noiseLevel, complexity } = config;
-    const data: any[] = [];
-    
-    for (let i = 0; i < samples; i++) {
-      const point: number[] = [];
-      let targetValue = 0;
-      
-      for (let j = 0; j < features; j++) {
-        const value = Math.random() * 4 - 2;
-        point.push(value);
-        
-        // 複雑な回帰関数を作成
-        if (complexity === 1) {
-          // 線形回帰
-          targetValue += value * (j + 1) * 2;
-        } else if (complexity === 2) {
-          // 非線形回帰
-          targetValue += Math.sin(value) * (j + 1) * 3 + value * value * 0.5;
-        } else {
-          // 非常に複雑な回帰
-          targetValue += Math.sin(value * 2) * Math.cos(value) * (j + 1) * 2 + 
-                        value * value * 0.8 + Math.exp(value * 0.1) * 0.5;
-        }
-      }
-      
-      // ノイズを追加
-      const noise = (Math.random() - 0.5) * noiseLevel * 2;
-      const label = targetValue + noise;
-      
-      data.push({
-        features: point,
-        label: label
-      });
-    }
-    
-    // データをシャッフル
-    for (let i = data.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [data[i], data[j]] = [data[j], data[i]];
-    }
-    
-    // 学習・テスト分割
-    const trainSize = Math.floor(samples * 0.7);
-    const train = data.slice(0, trainSize);
-    const test = data.slice(trainSize);
-    
-    return {
-      train,
-      test,
-      featureNames: Array.from({ length: features }, (_, i) => `特徴量${i + 1}`),
-      labelName: 'ターゲット値',
-      classes: []
-    };
+
+  // ジェネレーターを開始
+  private startGenerator(): void {
+    if (!this.config.enableAutoGeneration) return;
+
+    this.generator = setInterval(() => {
+      this.generateProblem();
+    }, this.config.generationInterval);
   }
-  
-  static generateProblem(config: ProblemConfig): Dataset {
-    switch (config.type) {
-      case 'binary_classification':
-        return this.generateBinaryClassification(config);
-      case 'multiclass_classification':
-        return this.generateMulticlassClassification(config);
-      case 'regression':
-        return this.generateRegression(config);
+
+  // 問題を生成
+  generateProblem(): GeneratedProblem | null {
+    if (this.generatedProblems.size >= this.config.maxActiveProblems) {
+      console.log('Maximum active problems reached');
+      return null;
+    }
+
+    const template = this.selectTemplate();
+    if (!template) return null;
+
+    const problem: GeneratedProblem = {
+      id: `problem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title: template.title,
+      description: template.description,
+      type: template.type,
+      difficulty: template.difficulty,
+      dataset: {
+        type: template.datasetType,
+        size: template.samples,
+        features: template.features
+      },
+      evaluation: {
+        metric: template.evaluationMetric,
+        threshold: this.calculateThreshold(template)
+      },
+      timeLimit: template.timeLimit,
+      createdAt: Date.now()
+    };
+
+    this.generatedProblems.set(problem.id, problem);
+    this.notifyListeners(problem);
+    return problem;
+  }
+
+  // テンプレートを選択
+  private selectTemplate(): ProblemTemplate | null {
+    const availableTemplates = Array.from(this.templates.values());
+    if (availableTemplates.length === 0) return null;
+
+    // 難易度分布に基づいて選択
+    const random = Math.random();
+    let difficulty: 'easy' | 'medium' | 'hard';
+    
+    if (random < this.config.difficultyDistribution.easy) {
+      difficulty = 'easy';
+    } else if (random < this.config.difficultyDistribution.easy + this.config.difficultyDistribution.medium) {
+      difficulty = 'medium';
+    } else {
+      difficulty = 'hard';
+    }
+
+    const filteredTemplates = availableTemplates.filter(t => t.difficulty === difficulty);
+    if (filteredTemplates.length === 0) {
+      // 該当する難易度のテンプレートがない場合はランダム選択
+      return availableTemplates[Math.floor(Math.random() * availableTemplates.length)];
+    }
+
+    return filteredTemplates[Math.floor(Math.random() * filteredTemplates.length)];
+  }
+
+  // 閾値を計算
+  private calculateThreshold(template: ProblemTemplate): number {
+    switch (template.evaluationMetric) {
+      case 'Accuracy':
+        return 0.8 + Math.random() * 0.15; // 0.8-0.95
+      case 'Precision':
+        return 0.75 + Math.random() * 0.2; // 0.75-0.95
+      case 'Recall':
+        return 0.75 + Math.random() * 0.2; // 0.75-0.95
+      case 'F1-Score':
+        return 0.8 + Math.random() * 0.15; // 0.8-0.95
+      case 'RMSE':
+        return 0.1 + Math.random() * 0.2; // 0.1-0.3
+      case 'MAE':
+        return 0.05 + Math.random() * 0.15; // 0.05-0.2
+      case 'R²':
+        return 0.7 + Math.random() * 0.25; // 0.7-0.95
       default:
-        throw new Error(`未知の問題タイプ: ${config.type}`);
+        return 0.8;
     }
   }
-  
-  static generateRandomProblem(): { config: ProblemConfig; dataset: Dataset } {
-    const types: ProblemConfig['type'][] = ['binary_classification', 'multiclass_classification', 'regression'];
-    const difficulties: ProblemConfig['difficulty'][] = ['easy', 'medium', 'hard'];
-    
-    // ランダムシードを設定
-    const seed = Date.now();
-    Math.random = () => {
-      const x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
-    };
-    
-    const type = types[Math.floor(Math.random() * types.length)];
-    const difficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
-    
-    const config: ProblemConfig = {
-      type,
-      name: this.generateProblemName(type, difficulty),
-      description: this.generateProblemDescription(type, difficulty),
-      difficulty,
-      features: difficulty === 'easy' ? 3 + Math.floor(Math.random() * 3) : 
-                difficulty === 'medium' ? 6 + Math.floor(Math.random() * 4) : 
-                10 + Math.floor(Math.random() * 6),
-      samples: difficulty === 'easy' ? 200 + Math.floor(Math.random() * 300) :
-               difficulty === 'medium' ? 500 + Math.floor(Math.random() * 500) :
-               1000 + Math.floor(Math.random() * 1000),
-      noiseLevel: difficulty === 'easy' ? 0.1 + Math.random() * 0.2 :
-                  difficulty === 'medium' ? 0.3 + Math.random() * 0.3 :
-                  0.5 + Math.random() * 0.4,
-      complexity: difficulty === 'easy' ? 1 :
-                  difficulty === 'medium' ? 2 : 3
-    };
-    
-    const dataset = this.generateProblem(config);
-    
-    return { config, dataset };
+
+  // 問題を取得
+  getProblem(problemId: string): GeneratedProblem | undefined {
+    return this.generatedProblems.get(problemId);
   }
-  
-  private static generateProblemName(type: ProblemConfig['type'], difficulty: ProblemConfig['difficulty']): string {
-    const typeNames = {
-      'binary_classification': '2値分類',
-      'multiclass_classification': '多値分類',
-      'regression': '回帰'
-    };
-    
-    const difficultyNames = {
-      'easy': '初級',
-      'medium': '中級',
-      'hard': '上級'
-    };
-    
-    return `${typeNames[type]}問題 - ${difficultyNames[difficulty]}`;
+
+  // 全問題を取得
+  getAllProblems(): GeneratedProblem[] {
+    return Array.from(this.generatedProblems.values());
   }
-  
-  private static generateProblemDescription(type: ProblemConfig['type'], difficulty: ProblemConfig['difficulty']): string {
-    const descriptions = {
-      'binary_classification': {
-        'easy': '2つのクラスを分離する線形分離可能な問題です。基本的な機械学習アルゴリズムで解決できます。',
-        'medium': '2つのクラスを分離する非線形な決定境界を持つ問題です。より高度な手法が必要です。',
-        'hard': '2つのクラスを分離する非常に複雑な決定境界を持つ問題です。高度な特徴量エンジニアリングとモデル選択が重要です。'
-      },
-      'multiclass_classification': {
-        'easy': '複数のクラスを分類する線形分離可能な問題です。基本的な多クラス分類手法で解決できます。',
-        'medium': '複数のクラスを分類する非線形な決定境界を持つ問題です。より高度な手法が必要です。',
-        'hard': '複数のクラスを分類する非常に複雑な決定境界を持つ問題です。高度な特徴量エンジニアリングとモデル選択が重要です。'
-      },
-      'regression': {
-        'easy': '連続値を予測する線形関係を持つ問題です。基本的な回帰手法で解決できます。',
-        'medium': '連続値を予測する非線形な関係を持つ問題です。より高度な手法が必要です。',
-        'hard': '連続値を予測する非常に複雑な関係を持つ問題です。高度な特徴量エンジニアリングとモデル選択が重要です。'
+
+  // アクティブな問題を取得
+  getActiveProblems(): GeneratedProblem[] {
+    const now = Date.now();
+    return this.getAllProblems().filter(problem => 
+      now - problem.createdAt < problem.timeLimit
+    );
+  }
+
+  // 問題を削除
+  removeProblem(problemId: string): boolean {
+    const removed = this.generatedProblems.delete(problemId);
+    if (removed) {
+      console.log(`Problem ${problemId} removed`);
+    }
+    return removed;
+  }
+
+  // テンプレートを追加
+  addTemplate(template: ProblemTemplate): void {
+    this.templates.set(template.id, template);
+  }
+
+  // テンプレートを削除
+  removeTemplate(templateId: string): boolean {
+    return this.templates.delete(templateId);
+  }
+
+  // 統計情報を取得
+  getStats(): {
+    totalTemplates: number;
+    totalProblems: number;
+    activeProblems: number;
+    problemsByDifficulty: Record<string, number>;
+    problemsByType: Record<string, number>;
+  } {
+    const allProblems = this.getAllProblems();
+    const activeProblems = this.getActiveProblems();
+    
+    const problemsByDifficulty: Record<string, number> = {};
+    const problemsByType: Record<string, number> = {};
+
+    allProblems.forEach(problem => {
+      problemsByDifficulty[problem.difficulty] = (problemsByDifficulty[problem.difficulty] || 0) + 1;
+      problemsByType[problem.type] = (problemsByType[problem.type] || 0) + 1;
+    });
+
+    return {
+      totalTemplates: this.templates.size,
+      totalProblems: allProblems.length,
+      activeProblems: activeProblems.length,
+      problemsByDifficulty,
+      problemsByType
+    };
+  }
+
+  // リスナーを追加
+  addListener(listener: (problem: GeneratedProblem) => void): void {
+    this.listeners.add(listener);
+  }
+
+  // リスナーを削除
+  removeListener(listener: (problem: GeneratedProblem) => void): void {
+    this.listeners.delete(listener);
+  }
+
+  // リスナーに通知
+  private notifyListeners(problem: GeneratedProblem): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(problem);
+      } catch (error) {
+        console.error('Problem generator listener error:', error);
       }
-    };
+    });
+  }
+
+  // 設定を更新
+  updateConfig(newConfig: Partial<GenerationConfig>): void {
+    this.config = { ...this.config, ...newConfig };
     
-    return descriptions[type][difficulty];
+    if (newConfig.enableAutoGeneration !== undefined) {
+      if (newConfig.enableAutoGeneration && !this.generator) {
+        this.startGenerator();
+      } else if (!newConfig.enableAutoGeneration && this.generator) {
+        clearInterval(this.generator);
+        this.generator = null;
+      }
+    }
+  }
+
+  // 設定を取得
+  getConfig(): GenerationConfig {
+    return { ...this.config };
+  }
+
+  // 破棄
+  destroy(): void {
+    if (this.generator) {
+      clearInterval(this.generator);
+      this.generator = null;
+    }
+    this.listeners.clear();
   }
 }
+
+// シングルトンインスタンス
+export const dynamicProblemGenerator = new DynamicProblemGenerator();
+

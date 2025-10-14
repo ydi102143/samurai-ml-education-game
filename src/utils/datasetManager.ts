@@ -1,591 +1,379 @@
 // データセット管理システム
-export interface DatasetVersion {
+export interface Dataset {
   id: string;
   name: string;
-  description: string;
-  data: any[];
+  type: 'classification' | 'regression';
+  features: number[][];
+  labels: number[];
   featureNames: string[];
-  featureTypes: ('numerical' | 'categorical')[];
-  targetColumn: string;
-  problemType: 'classification' | 'regression';
+  labelName: string;
+  size: number;
   createdAt: Date;
-  parentVersionId?: string;
-  operations: DataOperation[];
-}
-
-export interface DataOperation {
-  id: string;
-  type: 'preprocessing' | 'feature_engineering' | 'data_split' | 'feature_selection';
-  name: string;
-  parameters: Record<string, any>;
-  appliedAt: Date;
-  description: string;
-}
-
-export interface DataSplit {
-  trainData: any[];
-  validationData: any[];
-  testData: any[];
-  trainIndices: number[];
-  validationIndices: number[];
-  testIndices: number[];
-  splitRatio: {
-    train: number;
-    validation: number;
-    test: number;
+  metadata: {
+    description: string;
+    source: string;
+    version: string;
+    difficulty: 'easy' | 'medium' | 'hard';
   };
-  randomSeed: number;
 }
 
-export interface PublicPrivateData {
-  publicData: any[];
-  privateData: any[];
-  publicIndices: number[];
-  privateIndices: number[];
+export interface DatasetConfig {
+  name: string;
+  type: 'classification' | 'regression';
+  size: number;
+  features: number;
+  noiseLevel: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export interface DatasetStats {
+  totalDatasets: number;
+  datasetsByType: Record<string, number>;
+  datasetsByDifficulty: Record<string, number>;
+  totalSamples: number;
+  averageFeatures: number;
 }
 
 export class DatasetManager {
-  private versions: Map<string, DatasetVersion> = new Map();
-  private currentVersionId: string | null = null;
-  private dataSplits: Map<string, DataSplit> = new Map();
-  private publicPrivateData: Map<string, PublicPrivateData> = new Map();
-  private listeners: Set<(dataset: DatasetVersion | null) => void> = new Set();
+  private datasets: Map<string, Dataset> = new Map();
+  private configs: Map<string, DatasetConfig> = new Map();
+  private listeners: Set<(datasets: Dataset[]) => void> = new Set();
 
   constructor() {
-    this.loadFromStorage();
-    this.initializeDefaultDatasets();
+    this.initializeDefaultConfigs();
   }
 
-  // ストレージからデータを読み込み
-  private loadFromStorage() {
-    try {
-      const stored = localStorage.getItem('ml_dataset_manager');
-      if (stored) {
-        const data = JSON.parse(stored);
-        this.currentVersionId = data.currentVersionId;
-        
-        if (data.versions) {
-          this.versions = new Map();
-          Object.entries(data.versions).forEach(([key, value]: [string, any]) => {
-            this.versions.set(key, {
-              ...value,
-              createdAt: new Date(value.createdAt),
-              operations: value.operations.map((op: any) => ({
-                ...op,
-                appliedAt: new Date(op.appliedAt)
-              }))
-            });
-          });
-        }
+  // デフォルト設定を初期化
+  private initializeDefaultConfigs(): void {
+    const defaultConfigs: DatasetConfig[] = [
+      {
+        name: '売上予測データセット',
+        type: 'regression',
+        size: 1000,
+        features: 8,
+        noiseLevel: 0.1,
+        difficulty: 'easy'
+      },
+      {
+        name: '顧客分類データセット',
+        type: 'classification',
+        size: 800,
+        features: 6,
+        noiseLevel: 0.15,
+        difficulty: 'medium'
+      },
+      {
+        name: '住宅価格データセット',
+        type: 'regression',
+        size: 1200,
+        features: 10,
+        noiseLevel: 0.2,
+        difficulty: 'medium'
+      },
+      {
+        name: '不正検出データセット',
+        type: 'classification',
+        size: 1500,
+        features: 12,
+        noiseLevel: 0.05,
+        difficulty: 'hard'
       }
-    } catch (error) {
-      console.warn('Failed to load dataset manager from storage:', error);
+    ];
+
+    defaultConfigs.forEach(config => {
+      this.configs.set(config.name, config);
+    });
+  }
+
+  // データセットを生成
+  generateDataset(configName: string): Dataset | null {
+    const config = this.configs.get(configName);
+    if (!config) return null;
+
+    const dataset = this.createDataset(config);
+    this.datasets.set(dataset.id, dataset);
+    this.notifyListeners();
+    return dataset;
+  }
+
+  // データセットを作成
+  private createDataset(config: DatasetConfig): Dataset {
+    const features: number[][] = [];
+    const labels: number[] = [];
+    const featureNames = this.generateFeatureNames(config.features);
+    const labelName = 'target';
+
+    for (let i = 0; i < config.size; i++) {
+      const featureRow = this.generateFeatureRow(config);
+      const label = this.generateLabel(featureRow, config);
+      
+      features.push(featureRow);
+      labels.push(label);
+    }
+
+    return {
+      id: `dataset_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: config.name,
+      type: config.type,
+      features,
+      labels,
+      featureNames,
+      labelName,
+      size: config.size,
+      createdAt: new Date(),
+      metadata: {
+        description: this.generateDescription(config),
+        source: 'Generated',
+        version: '1.0.0',
+        difficulty: config.difficulty
+      }
+    };
+  }
+
+  // 特徴量名を生成
+  private generateFeatureNames(count: number): string[] {
+    const names = [
+      'feature_1', 'feature_2', 'feature_3', 'feature_4', 'feature_5',
+      'feature_6', 'feature_7', 'feature_8', 'feature_9', 'feature_10',
+      'feature_11', 'feature_12', 'feature_13', 'feature_14', 'feature_15'
+    ];
+    
+    return names.slice(0, count);
+  }
+
+  // 特徴量行を生成
+  private generateFeatureRow(config: DatasetConfig): number[] {
+    const row: number[] = [];
+    
+    for (let i = 0; i < config.features; i++) {
+      let value: number;
+      
+      switch (i % 4) {
+        case 0:
+          value = this.generateNormal(0, 1);
+          break;
+        case 1:
+          value = this.generateLogNormal(0, 0.5);
+          break;
+        case 2:
+          value = this.generateBeta(2, 5);
+          break;
+        case 3:
+          value = this.generateGamma(2, 1);
+          break;
+        default:
+          value = Math.random();
+      }
+      
+      const noise = (Math.random() - 0.5) * config.noiseLevel;
+      value += noise;
+      
+      row.push(value);
+    }
+    
+    return row;
+  }
+
+  // ラベルを生成
+  private generateLabel(features: number[], config: DatasetConfig): number {
+    if (config.type === 'classification') {
+      return this.generateClassificationLabel(features, config);
+    } else {
+      return this.generateRegressionLabel(features, config);
     }
   }
 
-  // ストレージにデータを保存
-  private saveToStorage() {
-    try {
-      const data = {
-        currentVersionId: this.currentVersionId,
-        versions: Object.fromEntries(this.versions)
-      };
-      localStorage.setItem('ml_dataset_manager', JSON.stringify(data));
-    } catch (error) {
-      console.warn('Failed to save dataset manager to storage:', error);
+  // 分類ラベルを生成
+  private generateClassificationLabel(features: number[], config: DatasetConfig): number {
+    let score = 0;
+    for (let i = 0; i < features.length; i++) {
+      score += features[i] * (i + 1) * 0.1;
     }
+    
+    const probability = 1 / (1 + Math.exp(-score));
+    const noise = (Math.random() - 0.5) * config.noiseLevel;
+    const finalProbability = Math.max(0, Math.min(1, probability + noise));
+    
+    return finalProbability > 0.5 ? 1 : 0;
+  }
+
+  // 回帰ラベルを生成
+  private generateRegressionLabel(features: number[], config: DatasetConfig): number {
+    let score = 0;
+    for (let i = 0; i < features.length; i++) {
+      score += features[i] * (i + 1) * 0.5;
+    }
+    
+    score = Math.pow(score, 1.5) * 0.1;
+    const noise = (Math.random() - 0.5) * config.noiseLevel * 10;
+    score += noise;
+    
+    return Math.max(0, score);
+  }
+
+  // 正規分布を生成
+  private generateNormal(mean: number, std: number): number {
+    const u1 = Math.random();
+    const u2 = Math.random();
+    const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    return mean + std * z0;
+  }
+
+  // 対数正規分布を生成
+  private generateLogNormal(mu: number, sigma: number): number {
+    const normal = this.generateNormal(mu, sigma);
+    return Math.exp(normal);
+  }
+
+  // ベータ分布を生成
+  private generateBeta(alpha: number, beta: number): number {
+    const gamma1 = this.generateGamma(alpha, 1);
+    const gamma2 = this.generateGamma(beta, 1);
+    return gamma1 / (gamma1 + gamma2);
+  }
+
+  // ガンマ分布を生成
+  private generateGamma(shape: number, scale: number): number {
+    if (shape < 1) {
+      return Math.pow(Math.random(), 1 / shape) * this.generateGamma(shape + 1, scale);
+    }
+    
+    const d = shape - 1 / 3;
+    const c = 1 / Math.sqrt(9 * d);
+    
+    while (true) {
+      const x = this.generateNormal(0, 1);
+      const v = 1 + c * x;
+      
+      if (v <= 0) continue;
+      
+      const v3 = v * v * v;
+      const u = Math.random();
+      
+      if (u < 1 - 0.0331 * (x * x) * (x * x)) {
+        return d * v3 * scale;
+      }
+      
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v3 + Math.log(v3))) {
+        return d * v3 * scale;
+      }
+    }
+  }
+
+  // 説明を生成
+  private generateDescription(config: DatasetConfig): string {
+    const typeText = config.type === 'classification' ? '分類' : '回帰';
+    const difficultyText = {
+      'easy': '簡単',
+      'medium': '中程度',
+      'hard': '困難'
+    }[config.difficulty];
+    
+    return `${config.name} - ${typeText}問題 (${difficultyText})`;
+  }
+
+  // データセットを取得
+  getDataset(id: string): Dataset | undefined {
+    return this.datasets.get(id);
+  }
+
+  // 全データセットを取得
+  getAllDatasets(): Dataset[] {
+    return Array.from(this.datasets.values());
+  }
+
+  // 設定を取得
+  getConfig(name: string): DatasetConfig | undefined {
+    return this.configs.get(name);
+  }
+
+  // 全設定を取得
+  getAllConfigs(): DatasetConfig[] {
+    return Array.from(this.configs.values());
+  }
+
+  // データセットを削除
+  removeDataset(id: string): boolean {
+    const removed = this.datasets.delete(id);
+    if (removed) {
+      this.notifyListeners();
+    }
+    return removed;
+  }
+
+  // 統計情報を取得
+  getStats(): DatasetStats {
+    const allDatasets = this.getAllDatasets();
+    const datasetsByType: Record<string, number> = {};
+    const datasetsByDifficulty: Record<string, number> = {};
+    let totalSamples = 0;
+    let totalFeatures = 0;
+
+    allDatasets.forEach(dataset => {
+      datasetsByType[dataset.type] = (datasetsByType[dataset.type] || 0) + 1;
+      datasetsByDifficulty[dataset.metadata.difficulty] = (datasetsByDifficulty[dataset.metadata.difficulty] || 0) + 1;
+      totalSamples += dataset.size;
+      totalFeatures += dataset.features[0]?.length || 0;
+    });
+
+    return {
+      totalDatasets: allDatasets.length,
+      datasetsByType,
+      datasetsByDifficulty,
+      totalSamples,
+      averageFeatures: allDatasets.length > 0 ? totalFeatures / allDatasets.length : 0
+    };
   }
 
   // リスナーを追加
-  addListener(listener: (dataset: DatasetVersion | null) => void) {
+  addListener(listener: (datasets: Dataset[]) => void): void {
     this.listeners.add(listener);
   }
 
   // リスナーを削除
-  removeListener(listener: (dataset: DatasetVersion | null) => void) {
+  removeListener(listener: (datasets: Dataset[]) => void): void {
     this.listeners.delete(listener);
   }
 
   // リスナーに通知
-  private notifyListeners() {
-    const currentDataset = this.getCurrentDataset();
-    this.listeners.forEach(listener => listener(currentDataset));
-  }
-
-  private initializeDefaultDatasets() {
-    // 医療診断データセット
-    const medicalData = this.generateMedicalDataset();
-    const medicalVersion: DatasetVersion = {
-      id: 'medical-v1',
-      name: '医療診断データセット',
-      description: '患者の症状と診断結果のデータセット',
-      data: medicalData.data,
-      featureNames: medicalData.featureNames,
-      featureTypes: medicalData.featureTypes,
-      targetColumn: 'diagnosis',
-      problemType: 'classification',
-      createdAt: new Date(),
-      operations: []
-    };
-    this.versions.set(medicalVersion.id, medicalVersion);
-
-    // 住宅価格データセット
-    const housingData = this.generateHousingDataset();
-    const housingVersion: DatasetVersion = {
-      id: 'housing-v1',
-      name: '住宅価格データセット',
-      description: '住宅の特徴と価格のデータセット',
-      data: housingData.data,
-      featureNames: housingData.featureNames,
-      featureTypes: housingData.featureTypes,
-      targetColumn: 'price',
-      problemType: 'regression',
-      createdAt: new Date(),
-      operations: []
-    };
-    this.versions.set(housingVersion.id, housingVersion);
-
-    // 不正検知データセット
-    const fraudData = this.generateFraudDataset();
-    const fraudVersion: DatasetVersion = {
-      id: 'fraud-v1',
-      name: '不正検知データセット',
-      description: '取引データと不正検知のデータセット',
-      data: fraudData.data,
-      featureNames: fraudData.featureNames,
-      featureTypes: fraudData.featureTypes,
-      targetColumn: 'is_fraud',
-      problemType: 'classification',
-      createdAt: new Date(),
-      operations: []
-    };
-    this.versions.set(fraudVersion.id, fraudVersion);
-
-    this.currentVersionId = medicalVersion.id;
-  }
-
-  private generateMedicalDataset() {
-    const featureNames = [
-      'age', 'gender', 'blood_pressure', 'cholesterol', 'glucose',
-      'bmi', 'smoking', 'exercise', 'family_history', 'symptoms',
-      'medication', 'previous_diagnosis', 'stress_level', 'sleep_hours'
-    ];
-    
-    const featureTypes: ('numerical' | 'categorical')[] = [
-      'numerical', 'categorical', 'numerical', 'numerical', 'numerical',
-      'numerical', 'categorical', 'categorical', 'categorical', 'categorical',
-      'categorical', 'categorical', 'numerical', 'numerical'
-    ];
-
-    const data = [];
-    for (let i = 0; i < 1000; i++) {
-      const age = Math.floor(Math.random() * 60) + 20;
-      const gender = Math.random() > 0.5 ? 'Male' : 'Female';
-      const bloodPressure = Math.floor(Math.random() * 40) + 90;
-      const cholesterol = Math.floor(Math.random() * 100) + 150;
-      const glucose = Math.floor(Math.random() * 50) + 70;
-      const bmi = Math.random() * 15 + 18;
-      const smoking = Math.random() > 0.7 ? 'Yes' : 'No';
-      const exercise = Math.random() > 0.6 ? 'Regular' : 'Irregular';
-      const familyHistory = Math.random() > 0.8 ? 'Yes' : 'No';
-      const symptoms = ['None', 'Mild', 'Moderate', 'Severe'][Math.floor(Math.random() * 4)];
-      const medication = Math.random() > 0.5 ? 'Yes' : 'No';
-      const previousDiagnosis = Math.random() > 0.9 ? 'Yes' : 'No';
-      const stressLevel = Math.random() * 10;
-      const sleepHours = Math.random() * 4 + 6;
-
-      // 診断結果の生成（現実的な確率で）
-      let diagnosis = 'Healthy';
-      if (age > 50 && (bloodPressure > 120 || cholesterol > 200)) {
-        diagnosis = Math.random() > 0.3 ? 'Cardiovascular' : 'Healthy';
-      } else if (glucose > 100 && bmi > 25) {
-        diagnosis = Math.random() > 0.4 ? 'Diabetes' : 'Healthy';
-      } else if (stressLevel > 7 && sleepHours < 7) {
-        diagnosis = Math.random() > 0.5 ? 'Mental Health' : 'Healthy';
-      }
-
-      data.push({
-        age,
-        gender,
-        blood_pressure: bloodPressure,
-        cholesterol,
-        glucose,
-        bmi: Math.round(bmi * 10) / 10,
-        smoking,
-        exercise,
-        family_history: familyHistory,
-        symptoms,
-        medication,
-        previous_diagnosis: previousDiagnosis,
-        stress_level: Math.round(stressLevel * 10) / 10,
-        sleep_hours: Math.round(sleepHours * 10) / 10,
-        diagnosis
-      });
-    }
-
-    return { data, featureNames, featureTypes };
-  }
-
-  private generateHousingDataset() {
-    const featureNames = [
-      'size', 'bedrooms', 'bathrooms', 'age', 'location',
-      'floor', 'elevator', 'parking', 'balcony', 'garden',
-      'near_station', 'near_school', 'crime_rate', 'population_density'
-    ];
-    
-    const featureTypes: ('numerical' | 'categorical')[] = [
-      'numerical', 'numerical', 'numerical', 'numerical', 'categorical',
-      'numerical', 'categorical', 'categorical', 'categorical', 'categorical',
-      'categorical', 'categorical', 'numerical', 'numerical'
-    ];
-
-    const data = [];
-    for (let i = 0; i < 1000; i++) {
-      const size = Math.floor(Math.random() * 200) + 30;
-      const bedrooms = Math.floor(Math.random() * 4) + 1;
-      const bathrooms = Math.floor(Math.random() * 3) + 1;
-      const age = Math.floor(Math.random() * 50);
-      const location = ['Urban', 'Suburban', 'Rural'][Math.floor(Math.random() * 3)];
-      const floor = Math.floor(Math.random() * 20) + 1;
-      const elevator = Math.random() > 0.3 ? 'Yes' : 'No';
-      const parking = Math.random() > 0.4 ? 'Yes' : 'No';
-      const balcony = Math.random() > 0.5 ? 'Yes' : 'No';
-      const garden = Math.random() > 0.7 ? 'Yes' : 'No';
-      const nearStation = Math.random() > 0.6 ? 'Yes' : 'No';
-      const nearSchool = Math.random() > 0.5 ? 'Yes' : 'No';
-      const crimeRate = Math.random() * 10;
-      const populationDensity = Math.floor(Math.random() * 5000) + 500;
-
-      // 価格の計算（現実的な式）
-      let price = size * 50; // 基本価格
-      price += bedrooms * 10000;
-      price += bathrooms * 15000;
-      price -= age * 500;
-      if (location === 'Urban') price *= 1.5;
-      else if (location === 'Suburban') price *= 1.2;
-      if (elevator === 'Yes') price *= 1.1;
-      if (parking === 'Yes') price *= 1.05;
-      if (nearStation === 'Yes') price *= 1.15;
-      if (nearSchool === 'Yes') price *= 1.08;
-      price -= crimeRate * 1000;
-      price += Math.random() * 50000 - 25000; // ノイズ
-
-      data.push({
-        size,
-        bedrooms,
-        bathrooms,
-        age,
-        location,
-        floor,
-        elevator,
-        parking,
-        balcony,
-        garden,
-        near_station: nearStation,
-        near_school: nearSchool,
-        crime_rate: Math.round(crimeRate * 10) / 10,
-        population_density: populationDensity,
-        price: Math.round(price)
-      });
-    }
-
-    return { data, featureNames, featureTypes };
-  }
-
-  private generateFraudDataset() {
-    const featureNames = [
-      'amount', 'time', 'merchant_category', 'card_type', 'user_age',
-      'user_income', 'transaction_frequency', 'location', 'device_type',
-      'ip_address', 'previous_fraud', 'account_age', 'credit_score'
-    ];
-    
-    const featureTypes: ('numerical' | 'categorical')[] = [
-      'numerical', 'numerical', 'categorical', 'categorical', 'numerical',
-      'numerical', 'numerical', 'categorical', 'categorical',
-      'categorical', 'categorical', 'numerical', 'numerical'
-    ];
-
-    const data = [];
-    for (let i = 0; i < 1000; i++) {
-      const amount = Math.random() * 10000;
-      const time = Math.random() * 24;
-      const merchantCategory = ['Retail', 'Gas', 'Restaurant', 'Online', 'ATM'][Math.floor(Math.random() * 5)];
-      const cardType = ['Credit', 'Debit', 'Prepaid'][Math.floor(Math.random() * 3)];
-      const userAge = Math.floor(Math.random() * 50) + 18;
-      const userIncome = Math.floor(Math.random() * 100000) + 20000;
-      const transactionFrequency = Math.floor(Math.random() * 30) + 1;
-      const location = ['Domestic', 'International'][Math.floor(Math.random() * 2)];
-      const deviceType = ['Mobile', 'Desktop', 'ATM'][Math.floor(Math.random() * 3)];
-      const ipAddress = `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
-      const previousFraud = Math.random() > 0.9 ? 'Yes' : 'No';
-      const accountAge = Math.floor(Math.random() * 20) + 1;
-      const creditScore = Math.floor(Math.random() * 400) + 300;
-
-      // 不正検知の生成（現実的な確率で）
-      let isFraud = 'No';
-      if (amount > 5000 && time > 22) {
-        isFraud = Math.random() > 0.7 ? 'Yes' : 'No';
-      } else if (location === 'International' && amount > 2000) {
-        isFraud = Math.random() > 0.6 ? 'Yes' : 'No';
-      } else if (previousFraud === 'Yes') {
-        isFraud = Math.random() > 0.4 ? 'Yes' : 'No';
-      } else if (creditScore < 400 && amount > 3000) {
-        isFraud = Math.random() > 0.5 ? 'Yes' : 'No';
-      }
-
-      data.push({
-        amount: Math.round(amount * 100) / 100,
-        time: Math.round(time * 10) / 10,
-        merchant_category: merchantCategory,
-        card_type: cardType,
-        user_age: userAge,
-        user_income: userIncome,
-        transaction_frequency: transactionFrequency,
-        location,
-        device_type: deviceType,
-        ip_address: ipAddress,
-        previous_fraud: previousFraud,
-        account_age: accountAge,
-        credit_score: creditScore,
-        is_fraud: isFraud
-      });
-    }
-
-    return { data, featureNames, featureTypes };
-  }
-
-  // 現在のデータセットを取得
-  getCurrentDataset(): DatasetVersion | null {
-    if (!this.currentVersionId) {
-      return null;
-    }
-    return this.versions.get(this.currentVersionId) || null;
-  }
-
-  // データセットを切り替え
-  switchDataset(versionId: string): boolean {
-    if (this.versions.has(versionId)) {
-      this.currentVersionId = versionId;
-      this.saveToStorage();
-      this.notifyListeners();
-      return true;
-    }
-    return false;
-  }
-
-  // 新しいバージョンを作成（操作を適用後）
-  createVersion(operation: DataOperation): DatasetVersion | null {
-    const current = this.getCurrentDataset();
-    if (!current) return null;
-
-    const newVersion: DatasetVersion = {
-      id: `${current.id}-${Date.now()}`,
-      name: `${current.name} (${operation.name}適用後)`,
-      description: `${current.description} - ${operation.description}`,
-      data: [...current.data], // コピー
-      featureNames: [...current.featureNames],
-      featureTypes: [...current.featureTypes],
-      targetColumn: current.targetColumn,
-      problemType: current.problemType,
-      createdAt: new Date(),
-      parentVersionId: current.id,
-      operations: [...current.operations, operation]
-    };
-
-    this.versions.set(newVersion.id, newVersion);
-    this.currentVersionId = newVersion.id;
-    this.saveToStorage();
-    this.notifyListeners();
-    return newVersion;
-  }
-
-  // データセットを直接更新（既存のバージョンを更新）
-  updateCurrentDataset(updates: Partial<Pick<DatasetVersion, 'data' | 'featureNames' | 'featureTypes'>>): boolean {
-    const current = this.getCurrentDataset();
-    if (!current) return false;
-
-    if (updates.data) current.data = updates.data;
-    if (updates.featureNames) current.featureNames = updates.featureNames;
-    if (updates.featureTypes) current.featureTypes = updates.featureTypes;
-
-    this.saveToStorage();
-    this.notifyListeners();
-    return true;
-  }
-
-  // データセットを初期化（問題データから）
-  initializeFromProblem(problemData: {
-    name: string;
-    description: string;
-    data: any[];
-    featureNames: string[];
-    featureTypes: ('numerical' | 'categorical')[];
-    targetColumn: string;
-    problemType: 'classification' | 'regression';
-  }): string {
-    const versionId = `problem-${Date.now()}`;
-    const version: DatasetVersion = {
-      id: versionId,
-      name: problemData.name,
-      description: problemData.description,
-      data: problemData.data,
-      featureNames: problemData.featureNames,
-      featureTypes: problemData.featureTypes,
-      targetColumn: problemData.targetColumn,
-      problemType: problemData.problemType,
-      createdAt: new Date(),
-      operations: []
-    };
-
-    this.versions.set(versionId, version);
-    this.currentVersionId = versionId;
-    this.saveToStorage();
-    this.notifyListeners();
-    return versionId;
-  }
-
-  // データ分割を実行
-  splitData(versionId: string, trainRatio: number, validationRatio: number, randomSeed: number): DataSplit | null {
-    const version = this.versions.get(versionId);
-    if (!version) return null;
-
-    const data = version.data;
-    const indices = Array.from({ length: data.length }, (_, i) => i);
-    
-    // シードを設定してシャッフル
-    const seededRandom = this.createSeededRandom(randomSeed);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(seededRandom() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-
-    const trainCount = Math.floor(data.length * trainRatio / 100);
-    const validationCount = Math.floor(data.length * validationRatio / 100);
-
-    const trainIndices = indices.slice(0, trainCount);
-    const validationIndices = indices.slice(trainCount, trainCount + validationCount);
-    const testIndices = indices.slice(trainCount + validationCount);
-
-    const split: DataSplit = {
-      trainData: trainIndices.map(i => data[i]),
-      validationData: validationIndices.map(i => data[i]),
-      testData: testIndices.map(i => data[i]),
-      trainIndices,
-      validationIndices,
-      testIndices,
-      splitRatio: {
-        train: trainRatio,
-        validation: validationRatio,
-        test: 100 - trainRatio - validationRatio
-      },
-      randomSeed
-    };
-
-    this.dataSplits.set(versionId, split);
-    return split;
-  }
-
-  // Public/Privateデータを生成
-  generatePublicPrivateData(versionId: string, publicRatio: number = 0.7): PublicPrivateData | null {
-    const version = this.versions.get(versionId);
-    if (!version) return null;
-
-    const data = version.data;
-    const indices = Array.from({ length: data.length }, (_, i) => i);
-    
-    // ランダムにシャッフル
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-
-    const publicCount = Math.floor(data.length * publicRatio);
-    const publicIndices = indices.slice(0, publicCount);
-    const privateIndices = indices.slice(publicCount);
-
-    const publicPrivateData: PublicPrivateData = {
-      publicData: publicIndices.map(i => data[i]),
-      privateData: privateIndices.map(i => data[i]),
-      publicIndices,
-      privateIndices
-    };
-
-    this.publicPrivateData.set(versionId, publicPrivateData);
-    return publicPrivateData;
-  }
-
-  // データ分割を取得
-  getDataSplit(versionId: string): DataSplit | null {
-    return this.dataSplits.get(versionId) || null;
-  }
-
-  // Public/Privateデータを取得
-  getPublicPrivateData(versionId: string): PublicPrivateData | null {
-    return this.publicPrivateData.get(versionId) || null;
-  }
-
-  // 利用可能なデータセット一覧を取得
-  getAvailableDatasets(): DatasetVersion[] {
-    return Array.from(this.versions.values());
-  }
-
-  // シード付きランダム関数
-  private createSeededRandom(seed: number) {
-    let currentSeed = seed;
-    return () => {
-      currentSeed = (currentSeed * 9301 + 49297) % 233280;
-      return currentSeed / 233280;
-    };
-  }
-
-  // データの統計情報を取得
-  getDataStatistics(versionId: string): any {
-    const version = this.versions.get(versionId);
-    if (!version) return null;
-
-    const stats: any = {
-      totalSamples: version.data.length,
-      features: version.featureNames.length,
-      numericalFeatures: version.featureTypes.filter(t => t === 'numerical').length,
-      categoricalFeatures: version.featureTypes.filter(t => t === 'categorical').length,
-      missingValues: {},
-      featureStats: {}
-    };
-
-    // 各特徴量の統計
-    version.featureNames.forEach((feature, index) => {
-      const values = version.data.map(row => row[feature]).filter(val => val !== null && val !== undefined);
-      const missingCount = version.data.length - values.length;
-      
-      stats.missingValues[feature] = missingCount;
-
-      if (version.featureTypes[index] === 'numerical') {
-        const numValues = values.map(v => Number(v)).filter(v => !isNaN(v));
-        if (numValues.length > 0) {
-          stats.featureStats[feature] = {
-            type: 'numerical',
-            mean: numValues.reduce((a, b) => a + b, 0) / numValues.length,
-            min: Math.min(...numValues),
-            max: Math.max(...numValues),
-            std: Math.sqrt(numValues.reduce((sq, n) => sq + Math.pow(n - (numValues.reduce((a, b) => a + b, 0) / numValues.length), 2), 0) / numValues.length)
-          };
-        }
-      } else {
-        const uniqueValues = [...new Set(values)];
-        stats.featureStats[feature] = {
-          type: 'categorical',
-          uniqueCount: uniqueValues.length,
-          mostCommon: uniqueValues.reduce((a, b) => 
-            values.filter(v => v === a).length > values.filter(v => v === b).length ? a : b
-          )
-        };
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(this.getAllDatasets());
+      } catch (error) {
+        console.error('Dataset listener error:', error);
       }
     });
-
-    return stats;
   }
 
+  // 全データセットをクリア
+  clear(): void {
+    this.datasets.clear();
+    this.notifyListeners();
+  }
+
+  // データセットをエクスポート
+  exportDataset(id: string): string | null {
+    const dataset = this.datasets.get(id);
+    if (!dataset) return null;
+    
+    return JSON.stringify(dataset);
+  }
+
+  // データセットをインポート
+  importDataset(data: string): boolean {
+    try {
+      const dataset = JSON.parse(data) as Dataset;
+      this.datasets.set(dataset.id, dataset);
+      this.notifyListeners();
+      return true;
+    } catch (error) {
+      console.error('Failed to import dataset:', error);
+      return false;
+    }
+  }
 }
 
 // シングルトンインスタンス
 export const datasetManager = new DatasetManager();
+

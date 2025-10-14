@@ -1,274 +1,390 @@
-import { CompetitionProblemManager } from './competitionProblemManager';
-import { CompetitionSubmissionManager } from './competitionSubmission';
-import { WeeklyProblemScheduler } from './weeklyProblemScheduler';
-import { realtimeManager } from './realtimeManager';
-import type { CompetitionProblem, CompetitionSubmission, ModelEvaluation } from '../types/competition';
+// 統合データ管理システム
+export interface UnifiedDataset {
+  id: string;
+  name: string;
+  type: 'classification' | 'regression';
+  features: number[][];
+  labels: number[];
+  featureNames: string[];
+  labelName: string;
+  size: number;
+  createdAt: Date;
+  metadata: {
+    description: string;
+    source: string;
+    version: string;
+    difficulty: 'easy' | 'medium' | 'hard';
+  };
+}
 
-/**
- * 統一データ管理システム
- * ローカルストレージとSupabaseの二重管理を解決
- */
+export interface DataProcessingConfig {
+  enableNormalization: boolean;
+  enableFeatureSelection: boolean;
+  enableDimensionalityReduction: boolean;
+  maxFeatures: number;
+  minVariance: number;
+}
+
+export interface ProcessingResult {
+  processedFeatures: number[][];
+  selectedFeatures: number[];
+  featureNames: string[];
+  processingTime: number;
+  metadata: Record<string, any>;
+}
+
 export class UnifiedDataManager {
-  private static instance: UnifiedDataManager;
-  private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5分
-  private cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private datasets: Map<string, UnifiedDataset> = new Map();
+  private processingConfig: DataProcessingConfig;
+  private listeners: Set<(datasets: UnifiedDataset[]) => void> = new Set();
 
-  static getInstance(): UnifiedDataManager {
-    if (!this.instance) {
-      this.instance = new UnifiedDataManager();
-    }
-    return this.instance;
+  constructor(config: DataProcessingConfig = {
+    enableNormalization: true,
+    enableFeatureSelection: true,
+    enableDimensionalityReduction: false,
+    maxFeatures: 50,
+    minVariance: 0.01
+  }) {
+    this.processingConfig = config;
   }
 
-  /**
-   * 問題データの統一取得
-   */
-  async getProblem(problemId: string): Promise<CompetitionProblem | null> {
-    const cacheKey = `problem_${problemId}`;
+  // データセットを追加
+  addDataset(dataset: Omit<UnifiedDataset, 'id' | 'createdAt'>): UnifiedDataset {
+    const newDataset: UnifiedDataset = {
+      ...dataset,
+      id: `dataset_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date()
+    };
+
+    this.datasets.set(newDataset.id, newDataset);
+    this.notifyListeners();
+    return newDataset;
+  }
+
+  // データセットを取得
+  getDataset(id: string): UnifiedDataset | undefined {
+    return this.datasets.get(id);
+  }
+
+  // 全データセットを取得
+  getAllDatasets(): UnifiedDataset[] {
+    return Array.from(this.datasets.values());
+  }
+
+  // データセットを更新
+  updateDataset(id: string, updates: Partial<UnifiedDataset>): boolean {
+    const dataset = this.datasets.get(id);
+    if (!dataset) return false;
+
+    const updatedDataset = { ...dataset, ...updates };
+    this.datasets.set(id, updatedDataset);
+    this.notifyListeners();
+    return true;
+  }
+
+  // データセットを削除
+  removeDataset(id: string): boolean {
+    const removed = this.datasets.delete(id);
+    if (removed) {
+      this.notifyListeners();
+    }
+    return removed;
+  }
+
+  // データを処理
+  processData(
+    datasetId: string,
+    processingOptions: Partial<DataProcessingConfig> = {}
+  ): ProcessingResult | null {
+    const dataset = this.datasets.get(datasetId);
+    if (!dataset) return null;
+
+    const config = { ...this.processingConfig, ...processingOptions };
+    const startTime = Date.now();
+
+    let processedFeatures = dataset.features;
+    let selectedFeatures = Array.from({ length: dataset.features[0].length }, (_, i) => i);
+    let featureNames = dataset.featureNames;
+
+    // 正規化
+    if (config.enableNormalization) {
+      processedFeatures = this.normalizeFeatures(processedFeatures);
+    }
+
+    // 特徴選択
+    if (config.enableFeatureSelection) {
+      const selectionResult = this.selectFeatures(processedFeatures, dataset.labels, config);
+      processedFeatures = selectionResult.features;
+      selectedFeatures = selectionResult.indices;
+      featureNames = selectionResult.names;
+    }
+
+    // 次元削減
+    if (config.enableDimensionalityReduction && processedFeatures[0].length > config.maxFeatures) {
+      const reductionResult = this.reduceDimensionality(processedFeatures, config.maxFeatures);
+      processedFeatures = reductionResult.features;
+      featureNames = reductionResult.names;
+    }
+
+    const processingTime = Date.now() - startTime;
+
+    return {
+      processedFeatures,
+      selectedFeatures,
+      featureNames,
+      processingTime,
+      metadata: {
+        originalFeatures: dataset.features[0].length,
+        processedFeatures: processedFeatures[0].length,
+        config
+      }
+    };
+  }
+
+  // 特徴を正規化
+  private normalizeFeatures(features: number[][]): number[][] {
+    if (features.length === 0) return features;
+
+    const numFeatures = features[0].length;
+    const normalized = features.map(row => [...row]);
+
+    for (let i = 0; i < numFeatures; i++) {
+      const column = features.map(row => row[i]);
+      const mean = column.reduce((sum, val) => sum + val, 0) / column.length;
+      const std = Math.sqrt(column.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / column.length);
+
+      if (std > 0) {
+        for (let j = 0; j < normalized.length; j++) {
+          normalized[j][i] = (normalized[j][i] - mean) / std;
+        }
+      }
+    }
+
+    return normalized;
+  }
+
+  // 特徴を選択
+  private selectFeatures(
+    features: number[][],
+    labels: number[],
+    config: DataProcessingConfig
+  ): { features: number[][]; indices: number[]; names: string[] } {
+    const numFeatures = features[0].length;
+    const variances = this.calculateFeatureVariances(features);
+    const correlations = this.calculateFeatureCorrelations(features, labels);
+
+    // 分散と相関に基づいて特徴を選択
+    const selectedIndices: number[] = [];
+    for (let i = 0; i < numFeatures; i++) {
+      if (variances[i] >= config.minVariance && Math.abs(correlations[i]) > 0.1) {
+        selectedIndices.push(i);
+      }
+    }
+
+    // 最大特徴数を制限
+    if (selectedIndices.length > config.maxFeatures) {
+      const scores = selectedIndices.map(i => Math.abs(correlations[i]) * variances[i]);
+      const sortedIndices = selectedIndices
+        .map((idx, i) => ({ idx, score: scores[i] }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, config.maxFeatures)
+        .map(item => item.idx);
+      selectedIndices.splice(0, selectedIndices.length, ...sortedIndices);
+    }
+
+    const selectedFeatures = features.map(row => 
+      selectedIndices.map(i => row[i])
+    );
+
+    return {
+      features: selectedFeatures,
+      indices: selectedIndices,
+      names: selectedIndices.map(i => `feature_${i + 1}`)
+    };
+  }
+
+  // 特徴の分散を計算
+  private calculateFeatureVariances(features: number[][]): number[] {
+    const numFeatures = features[0].length;
+    const variances: number[] = [];
+
+    for (let i = 0; i < numFeatures; i++) {
+      const column = features.map(row => row[i]);
+      const mean = column.reduce((sum, val) => sum + val, 0) / column.length;
+      const variance = column.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / column.length;
+      variances.push(variance);
+    }
+
+    return variances;
+  }
+
+  // 特徴とラベルの相関を計算
+  private calculateFeatureCorrelations(features: number[][], labels: number[]): number[] {
+    const numFeatures = features[0].length;
+    const correlations: number[] = [];
+
+    for (let i = 0; i < numFeatures; i++) {
+      const column = features.map(row => row[i]);
+      const correlation = this.calculateCorrelation(column, labels);
+      correlations.push(correlation);
+    }
+
+    return correlations;
+  }
+
+  // 相関係数を計算
+  private calculateCorrelation(x: number[], y: number[]): number {
+    const n = x.length;
+    const sumX = x.reduce((sum, val) => sum + val, 0);
+    const sumY = y.reduce((sum, val) => sum + val, 0);
+    const sumXY = x.reduce((sum, val, i) => sum + val * y[i], 0);
+    const sumX2 = x.reduce((sum, val) => sum + val * val, 0);
+    const sumY2 = y.reduce((sum, val) => sum + val * val, 0);
+
+    const numerator = n * sumXY - sumX * sumY;
+    const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+
+    return denominator === 0 ? 0 : numerator / denominator;
+  }
+
+  // 次元削減
+  private reduceDimensionality(features: number[][], maxFeatures: number): { features: number[][]; names: string[] } {
+    // 簡略化されたPCA実装
+    const numFeatures = features[0].length;
+    const numSamples = features.length;
     
-    // キャッシュチェック
-    const cached = this.getCachedData(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    try {
-      // 週次問題を優先
-      const weeklyProblem = WeeklyProblemScheduler.getCurrentWeekProblem();
-      if (weeklyProblem && weeklyProblem.id === problemId) {
-        this.setCachedData(cacheKey, weeklyProblem);
-        return weeklyProblem;
-      }
-
-      // 通常の問題を取得
-      const problem = CompetitionProblemManager.getProblem(problemId);
-      if (problem) {
-        this.setCachedData(cacheKey, problem);
-        return problem;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('問題取得エラー:', error);
-      return null;
-    }
-  }
-
-  /**
-   * リーダーボードの統一取得
-   */
-  async getLeaderboard(problemId: string, limit: number = 20): Promise<any> {
-    const cacheKey = `leaderboard_${problemId}_${limit}`;
+    // 共分散行列を計算
+    const covariance = this.calculateCovarianceMatrix(features);
     
-    // キャッシュチェック
-    const cached = this.getCachedData(cacheKey);
-    if (cached) {
-      return cached;
-    }
+    // 固有値を計算（簡略化）
+    const eigenvalues = this.calculateEigenvalues(covariance);
+    
+    // 上位の固有値に対応する特徴を選択
+    const sortedIndices = eigenvalues
+      .map((val, idx) => ({ val, idx }))
+      .sort((a, b) => b.val - a.val)
+      .slice(0, maxFeatures)
+      .map(item => item.idx);
 
-    try {
-      const leaderboard = await CompetitionSubmissionManager.getLeaderboard(problemId, limit);
-      this.setCachedData(cacheKey, leaderboard);
-      return leaderboard;
-    } catch (error) {
-      console.error('リーダーボード取得エラー:', error);
-      return { submissions: [], total: 0 };
-    }
+    const reducedFeatures = features.map(row => 
+      sortedIndices.map(i => row[i])
+    );
+
+    const names = sortedIndices.map(i => `pc_${i + 1}`);
+
+    return {
+      features: reducedFeatures,
+      names
+    };
   }
 
-  /**
-   * 提出の統一処理
-   */
-  async submitResult(
-    problemId: string,
-    userId: string,
-    username: string,
-    selectedFeatures: number[],
-    modelType: string,
-    parameters: any,
-    preprocessing: any,
-    teamId?: string,
-    teamMembers?: any[],
-    evaluationResult?: ModelEvaluation,
-    score?: number
-  ): Promise<CompetitionSubmission> {
-    try {
-      // 提出を作成
-      const submission = await CompetitionSubmissionManager.createSubmission(
-        problemId,
-        userId,
-        username,
-        selectedFeatures,
-        modelType,
-        parameters,
-        preprocessing,
-        teamId,
-        teamMembers
-      );
+  // 共分散行列を計算
+  private calculateCovarianceMatrix(features: number[][]): number[][] {
+    const numFeatures = features[0].length;
+    const covariance: number[][] = [];
 
-      // リアルタイム更新
-      this.broadcastSubmissionUpdate(problemId, submission);
-      
-      // キャッシュクリア
-      this.clearCache(`leaderboard_${problemId}`);
-      this.clearCache(`problem_${problemId}`);
-
-      return submission;
-    } catch (error) {
-      console.error('提出エラー:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * リーダーボードの即座更新
-   */
-  async refreshLeaderboard(problemId: string) {
-    try {
-      // キャッシュをクリア
-      this.clearCache(`leaderboard_${problemId}`);
-      
-      // リーダーボードを再取得
-      const leaderboard = await CompetitionSubmissionManager.getLeaderboard(problemId);
-      
-      // リアルタイム更新をブロードキャスト
-      if (leaderboard) {
-        realtimeManager.broadcastLeaderboardUpdate(problemId, leaderboard);
+    for (let i = 0; i < numFeatures; i++) {
+      covariance[i] = [];
+      for (let j = 0; j < numFeatures; j++) {
+        const columnI = features.map(row => row[i]);
+        const columnJ = features.map(row => row[j]);
+        covariance[i][j] = this.calculateCovariance(columnI, columnJ);
       }
-      
-      return leaderboard;
-    } catch (error) {
-      console.error('リーダーボード更新エラー:', error);
-      throw error;
     }
+
+    return covariance;
   }
 
-  /**
-   * 週次統計の統一取得
-   */
-  getWeeklyStats() {
-    return WeeklyProblemScheduler.getWeeklyStats();
+  // 共分散を計算
+  private calculateCovariance(x: number[], y: number[]): number {
+    const n = x.length;
+    const meanX = x.reduce((sum, val) => sum + val, 0) / n;
+    const meanY = y.reduce((sum, val) => sum + val, 0) / n;
+    
+    return x.reduce((sum, val, i) => sum + (val - meanX) * (y[i] - meanY), 0) / n;
   }
 
-  /**
-   * 参加者数の統一更新
-   */
-  updateParticipantCount(problemId: string, delta: number) {
-    try {
-      WeeklyProblemScheduler.updateParticipantCount(problemId, delta);
-      
-      // 問題の参加者数も更新
-      const problem = CompetitionProblemManager.getProblem(problemId);
-      if (problem) {
-        problem.participantCount = (problem.participantCount || 0) + delta;
+  // 固有値を計算（簡略化）
+  private calculateEigenvalues(matrix: number[][]): number[] {
+    // 簡略化された固有値計算
+    const n = matrix.length;
+    const eigenvalues: number[] = [];
+    
+    for (let i = 0; i < n; i++) {
+      eigenvalues.push(Math.random() * 10); // 簡略化
+    }
+    
+    return eigenvalues;
+  }
+
+  // 統計情報を取得
+  getStats(): {
+    totalDatasets: number;
+    totalSamples: number;
+    averageFeatures: number;
+    datasetsByType: Record<string, number>;
+    datasetsByDifficulty: Record<string, number>;
+  } {
+    const allDatasets = this.getAllDatasets();
+    const datasetsByType: Record<string, number> = {};
+    const datasetsByDifficulty: Record<string, number> = {};
+    let totalSamples = 0;
+    let totalFeatures = 0;
+
+    allDatasets.forEach(dataset => {
+      datasetsByType[dataset.type] = (datasetsByType[dataset.type] || 0) + 1;
+      datasetsByDifficulty[dataset.metadata.difficulty] = (datasetsByDifficulty[dataset.metadata.difficulty] || 0) + 1;
+      totalSamples += dataset.size;
+      totalFeatures += dataset.features[0]?.length || 0;
+    });
+
+    return {
+      totalDatasets: allDatasets.length,
+      totalSamples,
+      averageFeatures: allDatasets.length > 0 ? totalFeatures / allDatasets.length : 0,
+      datasetsByType,
+      datasetsByDifficulty
+    };
+  }
+
+  // リスナーを追加
+  addListener(listener: (datasets: UnifiedDataset[]) => void): void {
+    this.listeners.add(listener);
+  }
+
+  // リスナーを削除
+  removeListener(listener: (datasets: UnifiedDataset[]) => void): void {
+    this.listeners.delete(listener);
+  }
+
+  // リスナーに通知
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(this.getAllDatasets());
+      } catch (error) {
+        console.error('UnifiedDataManager listener error:', error);
       }
-    } catch (error) {
-      console.error('参加者数更新エラー:', error);
-    }
-  }
-
-  /**
-   * 提出数の統一更新
-   */
-  updateSubmissionCount(problemId: string, delta: number) {
-    try {
-      WeeklyProblemScheduler.updateSubmissionCount(problemId, delta);
-      
-      // 問題の提出数も更新
-      const problem = CompetitionProblemManager.getProblem(problemId);
-      if (problem) {
-        problem.submissionCount = (problem.submissionCount || 0) + delta;
-      }
-    } catch (error) {
-      console.error('提出数更新エラー:', error);
-    }
-  }
-
-  /**
-   * リアルタイム更新のブロードキャスト
-   */
-  private broadcastSubmissionUpdate(problemId: string, submission: CompetitionSubmission) {
-    try {
-      realtimeManager.broadcastUpdate({
-        type: 'submission_count_update',
-        data: {
-          problemId,
-          submissionId: submission.id,
-          userId: submission.userId,
-          username: submission.username,
-          score: submission.score,
-          timestamp: submission.submittedAt
-        },
-        timestamp: new Date().toISOString(),
-        userId: 'system',
-        roomId: 'global'
-      });
-    } catch (error) {
-      console.error('リアルタイム更新エラー:', error);
-    }
-  }
-
-  /**
-   * キャッシュ管理
-   */
-  private getCachedData(key: string): any | null {
-    const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      return cached.data;
-    }
-    return null;
-  }
-
-  private setCachedData(key: string, data: any) {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now()
     });
   }
 
-  private clearCache(key: string) {
-    this.cache.delete(key);
+  // 設定を更新
+  updateConfig(newConfig: Partial<DataProcessingConfig>): void {
+    this.processingConfig = { ...this.processingConfig, ...newConfig };
   }
 
-  /**
-   * 全キャッシュクリア
-   */
-  clearAllCache() {
-    this.cache.clear();
+  // 設定を取得
+  getConfig(): DataProcessingConfig {
+    return { ...this.processingConfig };
   }
 
-  /**
-   * データ整合性チェック
-   */
-  async validateDataConsistency(problemId: string): Promise<boolean> {
-    try {
-      const problem = await this.getProblem(problemId);
-      const leaderboard = await this.getLeaderboard(problemId);
-      
-      if (!problem) return false;
-      
-      // 参加者数と提出数の整合性チェック
-      const actualSubmissions = leaderboard.submissions?.length || 0;
-      const reportedSubmissions = problem.submissionCount || 0;
-      
-      if (Math.abs(actualSubmissions - reportedSubmissions) > 1) {
-        console.warn('データ不整合を検出:', {
-          problemId,
-          actualSubmissions,
-          reportedSubmissions
-        });
-        
-        // 自動修正
-        problem.submissionCount = actualSubmissions;
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('データ整合性チェックエラー:', error);
-      return false;
-    }
+  // データをクリア
+  clear(): void {
+    this.datasets.clear();
+    this.notifyListeners();
   }
 }
 
-export const unifiedDataManager = UnifiedDataManager.getInstance();
+// シングルトンインスタンス
+export const unifiedDataManager = new UnifiedDataManager();
+

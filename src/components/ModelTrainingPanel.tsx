@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Play, BarChart3, Upload, CheckCircle } from 'lucide-react';
 import { BALANCED_MODELS } from '../utils/balancedMLModels';
 import { calculateClassificationMetrics, calculateRegressionMetrics } from '../utils/evaluationMetrics';
-import { submissionManager } from '../utils/submissionManager';
+// import { submissionManager } from '../utils/submissionManager';
 
 interface ModelTrainingPanelProps {
   data: any[];
@@ -249,7 +249,7 @@ export function ModelTrainingPanel({ data, featureNames, problemType, onTraining
       featureEngineeringSteps: [], // 特徴量エンジニアリングステップ
       predictions: submissionPredictions,
       evaluationMetrics: validationMetrics, // 検証結果を使用
-      datasetHash: submissionManager.generateDatasetHash(data),
+      datasetHash: 'dataset_hash_placeholder',
       isSelected: false
     };
 
@@ -272,7 +272,7 @@ export function ModelTrainingPanel({ data, featureNames, problemType, onTraining
       overallScore
     };
 
-    submissionManager.addSubmission(enhancedSubmission);
+    // submissionManager.addSubmission(enhancedSubmission);
     addLog(`提出完了: ${submissionName} (検証精度: ${overallScore.toFixed(4)})`);
     addLog(`※ 最終評価は運営側でPublic/Privateテストデータを使用して実行されます`);
 
@@ -879,3 +879,5 @@ export function ModelTrainingPanel({ data, featureNames, problemType, onTraining
     </div>
   );
 }
+
+

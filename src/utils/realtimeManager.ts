@@ -1,265 +1,211 @@
-// リアルタイム管理システム（日本標準時）
-
-export interface RealtimeData {
-  timestamp: string; // ISO形式の日本時間
+// リアルタイム管理システム
+export interface RealtimeEvent {
+  id: string;
+  type: 'submission' | 'leaderboard_update' | 'user_join' | 'user_leave' | 'problem_change';
   data: any;
-  type: 'problem' | 'leaderboard' | 'submission' | 'user' | 'participant_update' | 'chat_message' | 'battle_start' | 'battle_end';
+  timestamp: number;
+  userId?: string;
 }
 
-export interface ParticipantUpdate {
-  userId: string;
-  username: string;
-  progress: number;
-  currentStep: string;
-  lastUpdate: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  userId: string;
-  username: string;
-  message: string;
-  timestamp: string;
-  roomId: string;
-}
-
-export interface ProblemStatus {
-  id: string;
-  isActive: boolean;
-  startTime: string;
-  endTime: string;
-  timeRemaining: number; // 秒
-  participants: number;
-  submissions: number;
+export interface RealtimeConfig {
+  enableWebSocket: boolean;
+  enablePolling: boolean;
+  pollingInterval: number;
+  maxRetries: number;
+  retryDelay: number;
 }
 
 export class RealtimeManager {
-  private static instance: RealtimeManager;
-  private callbacks: Map<string, ((data: RealtimeData) => void)[]> = new Map();
-  private intervalId: NodeJS.Timeout | null = null;
-  private currentProblem: ProblemStatus | null = null;
+  private events: RealtimeEvent[] = [];
+  private listeners: Map<string, Set<(event: RealtimeEvent) => void>> = new Map();
+  private config: RealtimeConfig;
+  private pollingInterval: NodeJS.Timeout | null = null;
+  private isConnected: boolean = false;
 
-  private constructor() {
-    this.startRealtimeUpdates();
-  }
-
-  static getInstance(): RealtimeManager {
-    if (!RealtimeManager.instance) {
-      RealtimeManager.instance = new RealtimeManager();
-    }
-    return RealtimeManager.instance;
-  }
-
-  // 日本標準時を取得
-  private getJSTTime(): Date {
-    const now = new Date();
-    const jstOffset = 9 * 60; // UTC+9
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    return new Date(utc + (jstOffset * 60000));
-  }
-
-  // 日本時間をISO形式で取得
-  private getJSTISOString(): string {
-    return this.getJSTTime().toISOString();
-  }
-
-  // リアルタイム更新を開始
-  private startRealtimeUpdates(): void {
-    this.intervalId = setInterval(() => {
-      this.updateProblemStatus();
-      this.broadcastUpdate('problem', this.currentProblem);
-    }, 1000); // 1秒ごとに更新
-  }
-
-  // 問題の状態を更新
-  private updateProblemStatus(): void {
-    if (!this.currentProblem) {
-      // デフォルトの問題を作成（1週間の期間）
-      const now = this.getJSTTime();
-      const startTime = new Date(now);
-      const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7日後
-
-      this.currentProblem = {
-        id: 'weekly_problem_' + now.getFullYear() + '_' + (now.getMonth() + 1) + '_' + now.getDate(),
-        isActive: true,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        timeRemaining: Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / 1000)),
-        participants: 0,
-        submissions: 0
-      };
-    } else {
-      // 時間を更新
-      const now = this.getJSTTime();
-      const endTime = new Date(this.currentProblem.endTime);
-      this.currentProblem.timeRemaining = Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / 1000));
-      this.currentProblem.isActive = this.currentProblem.timeRemaining > 0;
+  constructor(config: RealtimeConfig = {
+    enableWebSocket: false,
+    enablePolling: true,
+    pollingInterval: 5000,
+    maxRetries: 3,
+    retryDelay: 1000
+  }) {
+    this.config = config;
+    
+    if (this.config.enablePolling) {
+      this.startPolling();
     }
   }
 
-  // 時間の残りをフォーマット
-  formatTimeRemaining(seconds: number): string {
-    const days = Math.floor(seconds / (24 * 60 * 60));
-    const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
-    const minutes = Math.floor((seconds % (60 * 60)) / 60);
-    const secs = seconds % 60;
+  // イベントを発行
+  emitEvent(type: string, data: any, userId?: string): void {
+    const event: RealtimeEvent = {
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: type as any,
+      data,
+      timestamp: Date.now(),
+      userId
+    };
 
-    if (days > 0) {
-      return `${days}日 ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    } else {
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    this.events.push(event);
+    
+    // 古いイベントを削除（最新1000件のみ保持）
+    if (this.events.length > 1000) {
+      this.events = this.events.slice(-1000);
+    }
+
+    // リスナーに通知
+    this.notifyListeners(type, event);
+  }
+
+  // イベントリスナーを追加
+  addEventListener(type: string, listener: (event: RealtimeEvent) => void): void {
+    if (!this.listeners.has(type)) {
+      this.listeners.set(type, new Set());
+    }
+    this.listeners.get(type)!.add(listener);
+  }
+
+  // イベントリスナーを削除
+  removeEventListener(type: string, listener: (event: RealtimeEvent) => void): void {
+    const listeners = this.listeners.get(type);
+    if (listeners) {
+      listeners.delete(listener);
     }
   }
 
-  // 現在の問題状態を取得
-  getCurrentProblem(): ProblemStatus | null {
-    return this.currentProblem;
-  }
-
-  // 参加者数を更新
-  updateParticipants(count: number): void {
-    if (this.currentProblem) {
-      this.currentProblem.participants = count;
-      this.broadcastUpdate('problem', this.currentProblem);
-    }
-  }
-
-  // 提出数を更新
-  updateSubmissions(count: number): void {
-    if (this.currentProblem) {
-      this.currentProblem.submissions = count;
-      this.broadcastUpdate('problem', this.currentProblem);
-    }
-  }
-
-  // コールバックを登録
-  subscribe(type: string, callback: (data: RealtimeData) => void): () => void {
-    if (!this.callbacks.has(type)) {
-      this.callbacks.set(type, []);
-    }
-    this.callbacks.get(type)!.push(callback);
-
-    // アンサブスクライブ関数を返す
-    return () => {
-      const callbacks = this.callbacks.get(type);
-      if (callbacks) {
-        const index = callbacks.indexOf(callback);
-        if (index > -1) {
-          callbacks.splice(index, 1);
+  // リスナーに通知
+  private notifyListeners(type: string, event: RealtimeEvent): void {
+    const listeners = this.listeners.get(type);
+    if (listeners) {
+      listeners.forEach(listener => {
+        try {
+          listener(event);
+        } catch (error) {
+          console.error('Event listener error:', error);
         }
-      }
+      });
+    }
+  }
+
+  // ポーリングを開始
+  private startPolling(): void {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+
+    this.pollingInterval = setInterval(() => {
+      this.performPolling();
+    }, this.config.pollingInterval);
+  }
+
+  // ポーリングを実行
+  private performPolling(): void {
+    // 実際の実装では、サーバーからデータを取得
+    // ここではシミュレーション
+    this.simulateRealtimeUpdates();
+  }
+
+  // リアルタイム更新をシミュレート
+  private simulateRealtimeUpdates(): void {
+    // ランダムなイベントを生成
+    const eventTypes = ['submission', 'leaderboard_update', 'user_join', 'user_leave'];
+    const randomType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+    
+    if (Math.random() < 0.1) { // 10%の確率でイベントを生成
+      this.emitEvent(randomType, {
+        message: `Simulated ${randomType} event`,
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  // 接続状態を取得
+  getConnectionStatus(): boolean {
+    return this.isConnected;
+  }
+
+  // 接続を開始
+  connect(): void {
+    this.isConnected = true;
+    this.emitEvent('connection', { status: 'connected' });
+  }
+
+  // 接続を切断
+  disconnect(): void {
+    this.isConnected = false;
+    this.emitEvent('connection', { status: 'disconnected' });
+  }
+
+  // イベント履歴を取得
+  getEventHistory(type?: string): RealtimeEvent[] {
+    if (type) {
+      return this.events.filter(event => event.type === type);
+    }
+    return [...this.events];
+  }
+
+  // 最新のイベントを取得
+  getLatestEvents(count: number = 10): RealtimeEvent[] {
+    return this.events.slice(-count);
+  }
+
+  // 統計情報を取得
+  getStats(): {
+    totalEvents: number;
+    eventsByType: Record<string, number>;
+    isConnected: boolean;
+    listenersCount: number;
+  } {
+    const eventsByType: Record<string, number> = {};
+    this.events.forEach(event => {
+      eventsByType[event.type] = (eventsByType[event.type] || 0) + 1;
+    });
+
+    const listenersCount = Array.from(this.listeners.values())
+      .reduce((sum, listeners) => sum + listeners.size, 0);
+
+    return {
+      totalEvents: this.events.length,
+      eventsByType,
+      isConnected: this.isConnected,
+      listenersCount
     };
   }
 
-  // 更新をブロードキャスト
-  private broadcastUpdate(type: string, data: any): void {
-    const callbacks = this.callbacks.get(type);
-    if (callbacks) {
-      const realtimeData: RealtimeData = {
-        timestamp: this.getJSTISOString(),
-        data,
-        type: type as any
-      };
-      callbacks.forEach(callback => callback(realtimeData));
+  // 設定を更新
+  updateConfig(newConfig: Partial<RealtimeConfig>): void {
+    this.config = { ...this.config, ...newConfig };
+    
+    if (this.config.enablePolling) {
+      this.startPolling();
+    } else if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
     }
   }
 
-  // 手動で更新をブロードキャスト
-  broadcast(type: string, data: any): void {
-    this.broadcastUpdate(type, data);
+  // 設定を取得
+  getConfig(): RealtimeConfig {
+    return { ...this.config };
   }
 
-  // イベントリスナー管理
-  on(event: string, callback: (data: any) => void): void {
-    if (!this.callbacks.has(event)) {
-      this.callbacks.set(event, []);
-    }
-    this.callbacks.get(event)!.push(callback);
+  // データをクリア
+  clear(): void {
+    this.events = [];
+    this.listeners.clear();
   }
 
-  off(event: string, callback: (data: any) => void): void {
-    const callbacks = this.callbacks.get(event);
-    if (callbacks) {
-      const index = callbacks.indexOf(callback);
-      if (index > -1) {
-        callbacks.splice(index, 1);
-      }
-    }
-  }
-
-  // 接続管理
-  connect(userId: string, roomId: string): void {
-    console.log('リアルタイム接続開始:', { userId, roomId });
-    // シミュレートされた接続
-    setTimeout(() => {
-      this.broadcastUpdate('connected', { userId, roomId });
-    }, 100);
-  }
-
-  disconnect(): void {
-    console.log('リアルタイム接続切断');
-    this.broadcastUpdate('disconnected', {});
-  }
-
-  // ルーム管理
-  joinRoom(roomId: string, userId: string, username: string): void {
-    console.log('ルーム参加:', { roomId, userId, username });
-    this.broadcastUpdate('participant_update', {
-      userId,
-      username,
-      progress: 0,
-      currentStep: 'data',
-      lastUpdate: this.getJSTISOString()
-    });
-  }
-
-  leaveRoom(): void {
-    console.log('ルーム退出');
-  }
-
-  // 進捗送信
-  sendProgress(progress: number, currentStep: string): void {
-    this.broadcastUpdate('participant_update', {
-      userId: 'current_user',
-      username: 'Current User',
-      progress,
-      currentStep,
-      lastUpdate: this.getJSTISOString()
-    });
-  }
-
-  // チャットメッセージ送信
-  sendMessage(message: string): void {
-    this.broadcastUpdate('chat_message', {
-      id: `msg_${Date.now()}`,
-      userId: 'current_user',
-      username: 'Current User',
-      message,
-      timestamp: this.getJSTISOString(),
-      roomId: 'current_room'
-    });
-  }
-
-  // バトル管理
-  startBattle(roomId: string): void {
-    console.log('バトル開始:', roomId);
-    this.broadcastUpdate('battle_start', { roomId });
-  }
-
-  endBattle(roomId: string, result: any): void {
-    console.log('バトル終了:', { roomId, result });
-    this.broadcastUpdate('battle_end', { roomId, result });
-  }
-
-  // リソースをクリーンアップ
+  // 破棄
   destroy(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
     }
-    this.callbacks.clear();
+    this.listeners.clear();
+    this.events = [];
   }
 }
 
-// シングルトンインスタンスをエクスポート
-export const realtimeManager = RealtimeManager.getInstance();
+// シングルトンインスタンス
+export const realtimeManager = new RealtimeManager();
+

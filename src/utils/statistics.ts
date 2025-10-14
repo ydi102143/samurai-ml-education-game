@@ -46,8 +46,7 @@ export function calculateFeatureStats(dataset: Dataset): FeatureStats[] {
   const stats: FeatureStats[] = [];
 
   for (let i = 0; i < dataset.featureNames.length; i++) {
-    // 生データがあればそちらを優先
-    const values = (dataset.raw?.train?.map(d => d.features[i]) ?? dataset.train.map(d => d.features[i])) as number[];
+    const values = dataset.train.map(d => d.features[i]);
 
     stats.push({
       name: dataset.featureNames[i],
@@ -91,10 +90,10 @@ export function calculateCorrelationMatrix(dataset: Dataset): number[][] {
 
   for (let i = 0; i < numFeatures; i++) {
     matrix[i] = [];
-    const featuresI = (dataset.raw?.train?.map(d => d.features[i]) ?? dataset.train.map(d => d.features[i])) as number[];
+    const featuresI = dataset.train.map(d => d.features[i]);
 
     for (let j = 0; j < numFeatures; j++) {
-      const featuresJ = (dataset.raw?.train?.map(d => d.features[j]) ?? dataset.train.map(d => d.features[j])) as number[];
+      const featuresJ = dataset.train.map(d => d.features[j]);
       matrix[i][j] = calculateCorrelation(featuresI, featuresJ);
     }
   }

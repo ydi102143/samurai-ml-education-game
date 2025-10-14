@@ -633,3 +633,5 @@ export class RealDataProcessor {
 
 // シングルトンインスタンス
 export const realDataProcessor = new RealDataProcessor();
+
+

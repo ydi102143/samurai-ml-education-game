@@ -1,445 +1,322 @@
-// 実際のデータセット生成システム
-export interface RealDataset {
-  id: string;
+// リアルなデータセット生成システム
+export interface DatasetConfig {
   name: string;
   type: 'classification' | 'regression';
-  description: string;
-  data: Array<{
-    features: (number | string)[];
-    label: number;
-  }>;
-  featureNames: string[];
-  featureTypes: ('numerical' | 'categorical')[];
-  targetName: string;
-  targetValues: string[];
-  problemDescription: string;
+  size: number;
+  features: number;
+  noiseLevel: number;
   difficulty: 'easy' | 'medium' | 'hard';
-  sampleCount: number;
-  featureCount: number;
-  missingValueRate: number;
+}
+
+export interface GeneratedDataset {
+  features: number[][];
+  labels: number[];
+  featureNames: string[];
+  labelName: string;
+  config: DatasetConfig;
+  metadata: {
+    generatedAt: Date;
+    version: string;
+    description: string;
+  };
 }
 
 export class RealDatasetGenerator {
-  private randomSeed: number = 42;
+  private datasets: Map<string, GeneratedDataset> = new Map();
+  private configs: Map<string, DatasetConfig> = new Map();
 
-  constructor(seed?: number) {
-    if (seed !== undefined) {
-      this.randomSeed = seed;
+  constructor() {
+    this.initializeDefaultConfigs();
+  }
+
+  // デフォルト設定を初期化
+  private initializeDefaultConfigs(): void {
+    const defaultConfigs: DatasetConfig[] = [
+      {
+        name: '売上予測データセット',
+        type: 'regression',
+        size: 1000,
+        features: 8,
+        noiseLevel: 0.1,
+        difficulty: 'easy'
+      },
+      {
+        name: '顧客分類データセット',
+        type: 'classification',
+        size: 800,
+        features: 6,
+        noiseLevel: 0.15,
+        difficulty: 'medium'
+      },
+      {
+        name: '住宅価格データセット',
+        type: 'regression',
+        size: 1200,
+        features: 10,
+        noiseLevel: 0.2,
+        difficulty: 'medium'
+      },
+      {
+        name: '不正検出データセット',
+        type: 'classification',
+        size: 1500,
+        features: 12,
+        noiseLevel: 0.05,
+        difficulty: 'hard'
+      }
+    ];
+
+    defaultConfigs.forEach(config => {
+      this.configs.set(config.name, config);
+    });
+  }
+
+  // データセットを生成
+  generateDataset(configName: string): GeneratedDataset | null {
+    const config = this.configs.get(configName);
+    if (!config) return null;
+
+    const dataset = this.createDataset(config);
+    this.datasets.set(configName, dataset);
+    return dataset;
+  }
+
+  // データセットを作成
+  private createDataset(config: DatasetConfig): GeneratedDataset {
+    const features: number[][] = [];
+    const labels: number[] = [];
+    const featureNames = this.generateFeatureNames(config.features);
+    const labelName = config.type === 'classification' ? 'target' : 'target';
+
+    for (let i = 0; i < config.size; i++) {
+      const featureRow = this.generateFeatureRow(config);
+      const label = this.generateLabel(featureRow, config);
+      
+      features.push(featureRow);
+      labels.push(label);
+    }
+
+    return {
+      features,
+      labels,
+      featureNames,
+      labelName,
+      config,
+      metadata: {
+        generatedAt: new Date(),
+        version: '1.0.0',
+        description: this.generateDescription(config)
+      }
+    };
+  }
+
+  // 特徴量名を生成
+  private generateFeatureNames(count: number): string[] {
+    const names = [
+      'feature_1', 'feature_2', 'feature_3', 'feature_4', 'feature_5',
+      'feature_6', 'feature_7', 'feature_8', 'feature_9', 'feature_10',
+      'feature_11', 'feature_12', 'feature_13', 'feature_14', 'feature_15'
+    ];
+    
+    return names.slice(0, count);
+  }
+
+  // 特徴量行を生成
+  private generateFeatureRow(config: DatasetConfig): number[] {
+    const row: number[] = [];
+    
+    for (let i = 0; i < config.features; i++) {
+      // 異なる分布を使用してより現実的なデータを生成
+      let value: number;
+      
+      switch (i % 4) {
+        case 0:
+          // 正規分布
+          value = this.generateNormal(0, 1);
+          break;
+        case 1:
+          // 対数正規分布
+          value = this.generateLogNormal(0, 0.5);
+          break;
+        case 2:
+          // ベータ分布
+          value = this.generateBeta(2, 5);
+          break;
+        case 3:
+          // ガンマ分布
+          value = this.generateGamma(2, 1);
+          break;
+        default:
+          value = Math.random();
+      }
+      
+      // ノイズを追加
+      const noise = (Math.random() - 0.5) * config.noiseLevel;
+      value += noise;
+      
+      row.push(value);
+    }
+    
+    return row;
+  }
+
+  // ラベルを生成
+  private generateLabel(features: number[], config: DatasetConfig): number {
+    if (config.type === 'classification') {
+      return this.generateClassificationLabel(features, config);
+    } else {
+      return this.generateRegressionLabel(features, config);
     }
   }
 
-  // シードを設定
-  setSeed(seed: number): void {
-    this.randomSeed = seed;
+  // 分類ラベルを生成
+  private generateClassificationLabel(features: number[], config: DatasetConfig): number {
+    // 特徴量の重み付き合計を計算
+    let score = 0;
+    for (let i = 0; i < features.length; i++) {
+      score += features[i] * (i + 1) * 0.1;
+    }
+    
+    // シグモイド関数を適用して確率に変換
+    const probability = 1 / (1 + Math.exp(-score));
+    
+    // ノイズを追加
+    const noise = (Math.random() - 0.5) * config.noiseLevel;
+    const finalProbability = Math.max(0, Math.min(1, probability + noise));
+    
+    return finalProbability > 0.5 ? 1 : 0;
   }
 
-  // 線形合同法による疑似乱数生成
-  private random(): number {
-    this.randomSeed = (this.randomSeed * 1664525 + 1013904223) % Math.pow(2, 32);
-    return this.randomSeed / Math.pow(2, 32);
+  // 回帰ラベルを生成
+  private generateRegressionLabel(features: number[], config: DatasetConfig): number {
+    // 特徴量の重み付き合計を計算
+    let score = 0;
+    for (let i = 0; i < features.length; i++) {
+      score += features[i] * (i + 1) * 0.5;
+    }
+    
+    // 非線形変換を追加
+    score = Math.pow(score, 1.5) * 0.1;
+    
+    // ノイズを追加
+    const noise = (Math.random() - 0.5) * config.noiseLevel * 10;
+    score += noise;
+    
+    return Math.max(0, score);
   }
 
-  // 正規分布の乱数生成（Box-Muller法）
-  private normalRandom(mean: number = 0, std: number = 1): number {
-    const u1 = this.random();
-    const u2 = this.random();
+  // 正規分布を生成
+  private generateNormal(mean: number, std: number): number {
+    const u1 = Math.random();
+    const u2 = Math.random();
     const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-    return z0 * std + mean;
+    return mean + std * z0;
   }
 
-  // 医療診断データセットを生成
-  generateMedicalDiagnosisDataset(): RealDataset {
-    const sampleCount = 1000;
-    const data: Array<{ features: number[], label: number }> = [];
-    
-    // 特徴量名とタイプ
-    const featureNames = [
-      'age', 'gender', 'blood_pressure', 'cholesterol', 'bmi', 'glucose',
-      'smoking', 'exercise', 'family_history', 'stress_level'
-    ];
-    const featureTypes: ('numerical' | 'categorical')[] = [
-      'numerical', 'categorical', 'numerical', 'numerical', 'numerical', 'numerical',
-      'categorical', 'categorical', 'categorical', 'categorical'
-    ];
-
-    for (let i = 0; i < sampleCount; i++) {
-      // 年齢（20-80歳）
-      const age = Math.floor(this.random() * 61) + 20;
-      
-      // 性別（カテゴリカル変数として文字列で保存）
-      const gender = this.random() < 0.5 ? 'female' : 'male';
-      
-      // 血圧（正常範囲に偏りを持たせる）
-      const bloodPressure = this.normalRandom(120, 15);
-      
-      // コレステロール（年齢と性別に依存）
-      const cholesterol = this.normalRandom(200 + age * 0.5 + gender * 10, 30);
-      
-      // BMI（年齢と性別に依存）
-      const bmi = this.normalRandom(22 + age * 0.1 + gender * 1, 3);
-      
-      // 血糖値（BMIに依存）
-      const glucose = this.normalRandom(90 + bmi * 2, 15);
-      
-      // 喫煙（年齢と性別に依存）
-      const smoking = (age > 30 && this.random() < 0.3) ? 'yes' : 'no';
-      
-      // 運動（年齢に依存）
-      const exercise = (age < 50 && this.random() < 0.6) ? 'regular' : 'irregular';
-      
-      // 家族歴（ランダム）
-      const familyHistory = this.random() < 0.2 ? 'yes' : 'no';
-      
-      // ストレスレベル（低, 中, 高）
-      const stressLevel = this.random() < 0.3 ? 'low' : (this.random() < 0.7 ? 'medium' : 'high');
-      
-      // 疾患リスクを計算（実際の医学的知識に基づく）
-      let diseaseRisk = 0;
-      diseaseRisk += age > 60 ? 0.3 : (age > 40 ? 0.1 : 0);
-      diseaseRisk += gender === 'male' ? 0.1 : 0;
-      diseaseRisk += bloodPressure > 140 ? 0.2 : 0;
-      diseaseRisk += cholesterol > 240 ? 0.2 : 0;
-      diseaseRisk += bmi > 30 ? 0.15 : 0;
-      diseaseRisk += glucose > 126 ? 0.2 : 0;
-      diseaseRisk += smoking === 'yes' ? 0.25 : 0;
-      diseaseRisk += exercise === 'irregular' ? 0.1 : 0;
-      diseaseRisk += familyHistory === 'yes' ? 0.2 : 0;
-      diseaseRisk += stressLevel === 'high' ? 0.1 : 0;
-      
-      // ノイズを追加
-      diseaseRisk += this.normalRandom(0, 0.1);
-      
-      // ラベルを決定（0: 健康, 1: 疾患リスク）
-      const label = diseaseRisk > 0.5 ? 1 : 0;
-      
-      // 欠損値を追加（5%の確率で）
-      const features: (number | string)[] = [age, gender, bloodPressure, cholesterol, bmi, glucose, smoking, exercise, familyHistory, stressLevel];
-      for (let j = 0; j < features.length; j++) {
-        if (this.random() < 0.05) {
-          features[j] = NaN;
-        }
-      }
-      
-      data.push({
-        features,
-        label
-      });
-    }
-
-    return {
-      id: 'medical_diagnosis',
-      name: '医療診断データセット',
-      type: 'classification',
-      description: '患者の基本情報から疾患リスクを予測する分類問題',
-      data,
-      featureNames,
-      featureTypes,
-      targetName: 'disease_risk',
-      targetValues: ['健康', '疾患リスク'],
-      problemDescription: '患者の年齢、性別、血圧、コレステロール、BMI、血糖値、生活習慣などの情報から、将来的な疾患リスクを予測します。',
-      difficulty: 'medium',
-      sampleCount: data.length,
-      featureCount: featureNames.length,
-      missingValueRate: 0.05
-    };
+  // 対数正規分布を生成
+  private generateLogNormal(mu: number, sigma: number): number {
+    const normal = this.generateNormal(mu, sigma);
+    return Math.exp(normal);
   }
 
-  // 住宅価格予測データセットを生成
-  generateHousingPriceDataset(): RealDataset {
-    const sampleCount = 800;
-    const data: Array<{ features: number[], label: number }> = [];
-    
-    // 特徴量名とタイプ
-    const featureNames = [
-      'size', 'bedrooms', 'bathrooms', 'age', 'location', 'condition',
-      'garage', 'garden', 'pool', 'school_rating'
-    ];
-    const featureTypes: ('numerical' | 'categorical')[] = [
-      'numerical', 'numerical', 'numerical', 'numerical', 'categorical', 'categorical',
-      'categorical', 'categorical', 'categorical', 'numerical'
-    ];
-
-    for (let i = 0; i < sampleCount; i++) {
-      // 住宅面積（50-300平米）
-      const size = Math.floor(this.random() * 251) + 50;
-      
-      // 寝室数（1-5室）
-      const bedrooms = Math.floor(this.random() * 5) + 1;
-      
-      // 浴室数（1-3室）
-      const bathrooms = Math.floor(this.random() * 3) + 1;
-      
-      // 築年数（0-50年）
-      const age = Math.floor(this.random() * 51);
-      
-      // 立地（郊外, 住宅街, 都心）
-      const location = this.random() < 0.3 ? 'suburban' : (this.random() < 0.7 ? 'residential' : 'downtown');
-      
-      // 状態（悪い, 普通, 良い）
-      const condition = this.random() < 0.2 ? 'poor' : (this.random() < 0.7 ? 'average' : 'excellent');
-      
-      // ガレージ（なし, あり）
-      const garage = this.random() < 0.6 ? 'yes' : 'no';
-      
-      // 庭（なし, あり）
-      const garden = this.random() < 0.4 ? 'yes' : 'no';
-      
-      // プール（なし, あり）
-      const pool = this.random() < 0.1 ? 'yes' : 'no';
-      
-      // 学校評価（1-10点）
-      const schoolRating = Math.floor(this.random() * 10) + 1;
-      
-      // 価格を計算（実際の不動産価格に基づく）
-      let price = size * 50; // 基本価格（平米単価50万円）
-      price += bedrooms * 500; // 寝室1室あたり50万円
-      price += bathrooms * 300; // 浴室1室あたり30万円
-      price -= age * 20; // 築年数1年あたり20万円減価
-      
-      // カテゴリカル変数の価格への影響
-      if (location === 'downtown') price += 2000;
-      else if (location === 'residential') price += 1000;
-      
-      if (condition === 'excellent') price += 400;
-      else if (condition === 'average') price += 200;
-      
-      if (garage === 'yes') price += 300;
-      if (garden === 'yes') price += 200;
-      if (pool === 'yes') price += 500;
-      
-      price += schoolRating * 50; // 学校評価
-      
-      // ノイズを追加
-      price += this.normalRandom(0, price * 0.1);
-      
-      // 価格を万円単位に変換
-      const label = Math.max(0, Math.floor(price));
-      
-      // 欠損値を追加（3%の確率で）
-      const features: (number | string)[] = [size, bedrooms, bathrooms, age, location, condition, garage, garden, pool, schoolRating];
-      for (let j = 0; j < features.length; j++) {
-        if (this.random() < 0.03) {
-          features[j] = NaN;
-        }
-      }
-      
-      data.push({
-        features,
-        label
-      });
-    }
-
-    return {
-      id: 'housing_price',
-      name: '住宅価格予測データセット',
-      type: 'regression',
-      description: '住宅の特徴から価格を予測する回帰問題',
-      data,
-      featureNames,
-      featureTypes,
-      targetName: 'price',
-      targetValues: [],
-      problemDescription: '住宅の面積、寝室数、浴室数、築年数、立地、状態、設備などの情報から、適正な価格を予測します。',
-      difficulty: 'medium',
-      sampleCount: data.length,
-      featureCount: featureNames.length,
-      missingValueRate: 0.03
-    };
+  // ベータ分布を生成
+  private generateBeta(alpha: number, beta: number): number {
+    const gamma1 = this.generateGamma(alpha, 1);
+    const gamma2 = this.generateGamma(beta, 1);
+    return gamma1 / (gamma1 + gamma2);
   }
 
-  // 不正検出データセットを生成
-  generateFraudDetectionDataset(): RealDataset {
-    const sampleCount = 1200;
-    const data: Array<{ features: number[], label: number }> = [];
+  // ガンマ分布を生成
+  private generateGamma(shape: number, scale: number): number {
+    if (shape < 1) {
+      return Math.pow(Math.random(), 1 / shape) * this.generateGamma(shape + 1, scale);
+    }
     
-    // 特徴量名とタイプ
-    const featureNames = [
-      'amount', 'time', 'merchant_type', 'card_type', 'location',
-      'previous_fraud', 'transaction_frequency', 'amount_variance'
-    ];
-    const featureTypes: ('numerical' | 'categorical')[] = [
-      'numerical', 'numerical', 'categorical', 'categorical', 'categorical',
-      'categorical', 'numerical', 'numerical'
-    ];
-
-    for (let i = 0; i < sampleCount; i++) {
-      // 取引金額（0-100万円）
-      const amount = this.random() * 1000000;
+    const d = shape - 1 / 3;
+    const c = 1 / Math.sqrt(9 * d);
+    
+    while (true) {
+      const x = this.generateNormal(0, 1);
+      const v = 1 + c * x;
       
-      // 取引時間（0-24時間）
-      const time = this.random() * 24;
+      if (v <= 0) continue;
       
-      // 店舗タイプ（小売, 飲食, ガソリンスタンド, オンライン）
-      const merchantTypes = ['retail', 'restaurant', 'gas_station', 'online'];
-      const merchantType = merchantTypes[Math.floor(this.random() * 4)];
+      const v3 = v * v * v;
+      const u = Math.random();
       
-      // カードタイプ（デビット, クレジット, プリペイド）
-      const cardTypes = ['debit', 'credit', 'prepaid'];
-      const cardType = cardTypes[Math.floor(this.random() * 3)];
-      
-      // 場所（国内, 海外）
-      const location = this.random() < 0.1 ? 'overseas' : 'domestic';
-      
-      // 過去の不正履歴（なし, あり）
-      const previousFraud = this.random() < 0.05 ? 'yes' : 'no';
-      
-      // 取引頻度（1日あたりの取引回数）
-      const transactionFrequency = this.normalRandom(2, 1);
-      
-      // 取引金額の分散
-      const amountVariance = this.normalRandom(100000, 50000);
-      
-      // 不正確率を計算
-      let fraudProbability = 0;
-      fraudProbability += amount > 500000 ? 0.3 : 0; // 高額取引
-      fraudProbability += time < 6 || time > 22 ? 0.2 : 0; // 深夜・早朝
-      fraudProbability += merchantType === 'online' ? 0.1 : 0; // オンライン取引
-      fraudProbability += location === 'overseas' ? 0.2 : 0; // 海外取引
-      fraudProbability += previousFraud === 'yes' ? 0.4 : 0; // 過去の不正履歴
-      fraudProbability += transactionFrequency > 5 ? 0.1 : 0; // 高頻度取引
-      fraudProbability += amountVariance > 200000 ? 0.15 : 0; // 金額のばらつき
-      
-      // ノイズを追加
-      fraudProbability += this.normalRandom(0, 0.05);
-      
-      // ラベルを決定（0: 正常, 1: 不正）
-      const label = fraudProbability > 0.3 ? 1 : 0;
-      
-      // 欠損値を追加（2%の確率で）
-      const features: (number | string)[] = [amount, time, merchantType, cardType, location, previousFraud, transactionFrequency, amountVariance];
-      for (let j = 0; j < features.length; j++) {
-        if (this.random() < 0.02) {
-          features[j] = NaN;
-        }
+      if (u < 1 - 0.0331 * (x * x) * (x * x)) {
+        return d * v3 * scale;
       }
       
-      data.push({
-        features,
-        label
-      });
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v3 + Math.log(v3))) {
+        return d * v3 * scale;
+      }
     }
-
-    return {
-      id: 'fraud_detection',
-      name: '不正検出データセット',
-      type: 'classification',
-      description: 'クレジットカード取引から不正を検出する分類問題',
-      data,
-      featureNames,
-      featureTypes,
-      targetName: 'fraud',
-      targetValues: ['正常', '不正'],
-      problemDescription: 'クレジットカードの取引金額、時間、店舗タイプ、カードタイプ、場所、過去の履歴などの情報から、不正な取引を検出します。',
-      difficulty: 'hard',
-      sampleCount: data.length,
-      featureCount: featureNames.length,
-      missingValueRate: 0.02
-    };
   }
 
-  // 顧客離反予測データセットを生成
-  generateCustomerChurnDataset(): RealDataset {
-    const sampleCount = 900;
-    const data: Array<{ features: number[], label: number }> = [];
+  // 説明を生成
+  private generateDescription(config: DatasetConfig): string {
+    const typeText = config.type === 'classification' ? '分類' : '回帰';
+    const difficultyText = {
+      'easy': '簡単',
+      'medium': '中程度',
+      'hard': '困難'
+    }[config.difficulty];
     
-    // 特徴量名とタイプ
-    const featureNames = [
-      'tenure', 'monthly_charges', 'total_charges', 'contract_type',
-      'internet_service', 'online_security', 'tech_support', 'satisfaction_score'
-    ];
-    const featureTypes: ('numerical' | 'categorical')[] = [
-      'numerical', 'numerical', 'numerical', 'categorical',
-      'categorical', 'categorical', 'categorical', 'numerical'
-    ];
+    return `${config.name} - ${typeText}問題 (${difficultyText})`;
+  }
 
-    for (let i = 0; i < sampleCount; i++) {
-      // 契約期間（0-72ヶ月）
-      const tenure = Math.floor(this.random() * 73);
-      
-      // 月額料金（20-120ドル）
-      const monthlyCharges = this.normalRandom(70, 20);
-      
-      // 総料金（契約期間 × 月額料金 + ノイズ）
-      const totalCharges = tenure * monthlyCharges + this.normalRandom(0, 100);
-      
-      // 契約タイプ（0: 月契約, 1: 年契約, 2: 2年契約）
-      const contractType = this.random() < 0.4 ? 0 : (this.random() < 0.8 ? 1 : 2);
-      
-      // インターネットサービス（0: なし, 1: あり）
-      const internetService = this.random() < 0.8 ? 1 : 0;
-      
-      // オンラインセキュリティ（0: なし, 1: あり）
-      const onlineSecurity = this.random() < 0.5 ? 1 : 0;
-      
-      // テクニカルサポート（0: なし, 1: あり）
-      const techSupport = this.random() < 0.5 ? 1 : 0;
-      
-      // 満足度スコア（1-10点）
-      const satisfactionScore = Math.floor(this.random() * 10) + 1;
-      
-      // 離反確率を計算
-      let churnProbability = 0;
-      churnProbability += tenure < 12 ? 0.3 : 0; // 短期契約
-      churnProbability += monthlyCharges > 80 ? 0.2 : 0; // 高額料金
-      churnProbability += contractType === 0 ? 0.2 : 0; // 月契約
-      churnProbability += internetService === 0 ? 0.1 : 0; // インターネットなし
-      churnProbability += onlineSecurity === 0 ? 0.1 : 0; // セキュリティなし
-      churnProbability += techSupport === 0 ? 0.1 : 0; // サポートなし
-      churnProbability += satisfactionScore < 5 ? 0.3 : 0; // 低満足度
-      
-      // ノイズを追加
-      churnProbability += this.normalRandom(0, 0.05);
-      
-      // ラベルを決定（0: 継続, 1: 離反）
-      const label = churnProbability > 0.4 ? 1 : 0;
-      
-      // 欠損値を追加（4%の確率で）
-      const features = [tenure, monthlyCharges, totalCharges, contractType, internetService, onlineSecurity, techSupport, satisfactionScore];
-      for (let j = 0; j < features.length; j++) {
-        if (this.random() < 0.04) {
-          features[j] = NaN;
-        }
-      }
-      
-      data.push({
-        features,
-        label
-      });
-    }
-
-    return {
-      id: 'customer_churn',
-      name: '顧客離反予測データセット',
-      type: 'classification',
-      description: '顧客の属性から離反を予測する分類問題',
-      data,
-      featureNames,
-      featureTypes,
-      targetName: 'churn',
-      targetValues: ['継続', '離反'],
-      problemDescription: '顧客の契約期間、料金、契約タイプ、サービス利用状況、満足度などの情報から、顧客の離反を予測します。',
-      difficulty: 'medium',
-      sampleCount: data.length,
-      featureCount: featureNames.length,
-      missingValueRate: 0.04
-    };
+  // データセットを取得
+  getDataset(name: string): GeneratedDataset | undefined {
+    return this.datasets.get(name);
   }
 
   // 全データセットを取得
-  getAllDatasets(): RealDataset[] {
-    return [
-      this.generateMedicalDiagnosisDataset(),
-      this.generateHousingPriceDataset(),
-      this.generateFraudDetectionDataset()
-    ];
+  getAllDatasets(): GeneratedDataset[] {
+    return Array.from(this.datasets.values());
   }
 
-  // 特定のデータセットを取得
-  getDataset(datasetId: string): RealDataset | null {
-    const datasets = this.getAllDatasets();
-    return datasets.find(dataset => dataset.id === datasetId) || null;
+  // 設定を取得
+  getConfig(name: string): DatasetConfig | undefined {
+    return this.configs.get(name);
+  }
+
+  // 全設定を取得
+  getAllConfigs(): DatasetConfig[] {
+    return Array.from(this.configs.values());
+  }
+
+  // データセットを削除
+  removeDataset(name: string): boolean {
+    return this.datasets.delete(name);
+  }
+
+  // 全データセットをクリア
+  clear(): void {
+    this.datasets.clear();
+  }
+
+  // データセットをエクスポート
+  exportDataset(name: string): string | null {
+    const dataset = this.datasets.get(name);
+    if (!dataset) return null;
+    
+    return JSON.stringify(dataset);
+  }
+
+  // データセットをインポート
+  importDataset(data: string): boolean {
+    try {
+      const dataset = JSON.parse(data) as GeneratedDataset;
+      this.datasets.set(dataset.config.name, dataset);
+      return true;
+    } catch (error) {
+      console.error('Failed to import dataset:', error);
+      return false;
+    }
   }
 }
 
 // シングルトンインスタンス
 export const realDatasetGenerator = new RealDatasetGenerator();
+

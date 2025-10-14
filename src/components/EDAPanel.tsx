@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart3, Info, Download, RefreshCw } from 'lucide-react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { realDataProcessor, ProcessedData } from '../utils/realDataProcessing';
+import { simpleDataManager } from '../utils/simpleDataManager';
 
 interface EDAPanelProps {
   data: any[];
@@ -54,12 +54,12 @@ const generateBoxPlotData = (data: any[], featureIndex: number) => {
 };
 
 export function EDAPanel({ data, problemType, featureNames: propFeatureNames, displayFeatureTypes: propFeatureTypes, showProcessedData = false, processedDataset, currentDataset }: EDAPanelProps) {
-  const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
+  const [processedData, setProcessedData] = useState<any>(null);
   
   // 処理済みデータを取得（定期的に更新）
   useEffect(() => {
     const updateProcessedData = () => {
-      const currentProcessedData = realDataProcessor.getCurrentProcessedData();
+      const currentProcessedData = simpleDataManager.getProcessedDataset();
       if (currentProcessedData) {
         setProcessedData(currentProcessedData);
         console.log('EDAPanel: Processed data updated', currentProcessedData);
@@ -88,7 +88,21 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
     currentDatasetFeatureNames: currentDataset?.featureNames?.length
   });
 
-  if (showProcessedData && processedDataset) {
+  if (showProcessedData && processedData) {
+    // simpleDataManagerからの処理済みデータ（全てのカラムを含む）
+    displayData = processedData.data.map((row: any[], i: number) => ({
+      features: row,
+      target: processedData.targetValues[i] || 0
+    }));
+    displayFeatureNames = processedData.featureNames;
+    displayFeatureTypes = processedData.featureTypes;
+    console.log('Using processedData from simpleDataManager:', {
+      dataLength: displayData.length,
+      featureNamesLength: displayFeatureNames.length,
+      featureNames: displayFeatureNames,
+      targetValues: processedData.targetValues.slice(0, 5)
+    });
+  } else if (showProcessedData && processedDataset) {
     // 加工済みデータを表示（全てのカラムを含む）
     displayData = processedDataset.data.map((row: any[], i: number) => ({
       features: row,
@@ -101,19 +115,6 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
       featureNamesLength: displayFeatureNames.length,
       featureNames: displayFeatureNames,
       targetValues: processedDataset.targetValues.slice(0, 5)
-    });
-  } else if (showProcessedData && processedData) {
-    // realDataProcessorからの処理済みデータ
-    displayData = processedData.data.map((row: any, i: number) => ({
-      features: Array.isArray(row) ? row : [row],
-      target: (processedData as any).targetValues ? (processedData as any).targetValues[i] || 0 : 0
-    }));
-    displayFeatureNames = processedData.featureNames;
-    displayFeatureTypes = processedData.featureTypes;
-    console.log('Using processedData:', {
-      dataLength: displayData.length,
-      featureNamesLength: displayFeatureNames.length,
-      featureNames: displayFeatureNames
     });
   } else {
     // 生データを表示（リアルタイムで更新されたデータ）
@@ -247,7 +248,7 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
               )}
               <button
                 onClick={() => {
-                  const newProcessedData = realDataProcessor.getCurrentProcessedData();
+                  const newProcessedData = simpleDataManager.getProcessedDataset();
                   if (newProcessedData) {
                     setProcessedData(newProcessedData);
                   }
@@ -634,3 +635,5 @@ export function EDAPanel({ data, problemType, featureNames: propFeatureNames, di
     </div>
   );
 }
+
+

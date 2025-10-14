@@ -136,7 +136,6 @@ export function WelcomeScreen({ onStart }: Props) {
             <p className="text-gray-600">あなたの名前を入力して、天下統一の旅を始めよう</p>
           </div>
 
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="name" className="block text-lg font-bold text-gray-900 mb-3">

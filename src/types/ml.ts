@@ -68,3 +68,56 @@ export interface ModelTrainer {
   predict(features: number[]): number | string;
   evaluate(dataset: Dataset): ModelResult;
 }
+
+  f1_score?: number;
+  mae?: number;
+  mse?: number;
+  rmse?: number;
+  confusion_matrix?: number[][];
+  predictions: (number | string)[];
+  actual: (number | string)[];
+  probabilities?: number[];
+  training_time: number;
+  feature_importance?: FeatureImportance[];
+}
+
+export interface ModelTrainer {
+  train(dataset: Dataset, parameters: ModelParameters, onProgress?: (progress: TrainingProgress) => void): Promise<void>;
+  predict(features: number[]): number | string;
+  evaluate(dataset: Dataset): ModelResult;
+}
+  f1_score?: number;
+  mae?: number;
+  mse?: number;
+  rmse?: number;
+  confusion_matrix?: number[][];
+  predictions: (number | string)[];
+  actual: (number | string)[];
+  probabilities?: number[];
+  training_time: number;
+  feature_importance?: FeatureImportance[];
+}
+
+export interface ModelTrainer {
+  train(dataset: Dataset, parameters: ModelParameters, onProgress?: (progress: TrainingProgress) => void): Promise<void>;
+  predict(features: number[]): number | string;
+  evaluate(dataset: Dataset): ModelResult;
+}
+
+  f1_score?: number;
+  mae?: number;
+  mse?: number;
+  rmse?: number;
+  confusion_matrix?: number[][];
+  predictions: (number | string)[];
+  actual: (number | string)[];
+  probabilities?: number[];
+  training_time: number;
+  feature_importance?: FeatureImportance[];
+}
+
+export interface ModelTrainer {
+  train(dataset: Dataset, parameters: ModelParameters, onProgress?: (progress: TrainingProgress) => void): Promise<void>;
+  predict(features: number[]): number | string;
+  evaluate(dataset: Dataset): ModelResult;
+}

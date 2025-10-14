@@ -1,155 +1,271 @@
 // 動的リーダーボード管理システム
-
 export interface LeaderboardEntry {
   rank: number;
-  playerName: string;
-  modelName: string;
+  userId: string;
+  username: string;
+  score: number;
   accuracy: number;
-  submissionTime: Date;
-  hyperparameters: Record<string, any>;
+  modelName: string;
+  submittedAt: Date;
   isCurrentUser: boolean;
 }
 
 export interface LeaderboardStats {
-  totalParticipants: number;
-  totalSubmissions: number;
-  highestAccuracy: number;
-  averageAccuracy: number;
-  timeRemaining: string;
-  nextUpdate: string;
+  totalEntries: number;
+  averageScore: number;
+  bestScore: number;
+  entriesByModel: Record<string, number>;
+  lastUpdated: Date;
+}
+
+export interface LeaderboardConfig {
+  maxEntries: number;
+  updateInterval: number;
+  enableRealTimeUpdates: boolean;
+  sortBy: 'score' | 'accuracy' | 'submittedAt';
+  sortOrder: 'asc' | 'desc';
 }
 
 export class DynamicLeaderboard {
-  private submissions: LeaderboardEntry[] = [];
-  private currentUser: string = '';
-  private startTime: Date = new Date();
-  private problemDuration: number = 7 * 24 * 60 * 60 * 1000; // 7日間
-  private leaderboardId: string = '';
-  private userId: string = '';
+  private entries: LeaderboardEntry[] = [];
+  private config: LeaderboardConfig;
+  private updateCallbacks: Set<() => void> = new Set();
+  private updateInterval: NodeJS.Timeout | null = null;
 
-  constructor() {
-    // ユーザーIDを生成または取得
-    this.userId = this.getOrCreateUserId();
-    this.currentUser = this.generatePlayerName();
+  constructor(config: LeaderboardConfig = {
+    maxEntries: 100,
+    updateInterval: 5000,
+    enableRealTimeUpdates: true,
+    sortBy: 'score',
+    sortOrder: 'desc'
+  }) {
+    this.config = config;
     
-    // 動的なリーダーボードIDを生成
-    this.leaderboardId = `leaderboard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('Dynamic leaderboard initialized with ID:', this.leaderboardId);
-    console.log('Current user:', this.currentUser, 'User ID:', this.userId);
-    
-    // 初期データを生成
-    this.generateInitialData();
+    if (this.config.enableRealTimeUpdates) {
+      this.startUpdateLoop();
+    }
   }
 
-  // ユーザーIDを取得または生成
-  private getOrCreateUserId(): string {
-    // セッションごとに新しいユーザーIDを生成
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('新しいユーザーIDを生成:', userId);
-    return userId;
+  // エントリを追加
+  addEntry(entry: Omit<LeaderboardEntry, 'rank'>): void {
+    // 既存のエントリを更新または追加
+    const existingIndex = this.entries.findIndex(e => e.userId === entry.userId);
+    
+    if (existingIndex >= 0) {
+      this.entries[existingIndex] = { ...entry, rank: 0 };
+    } else {
+      this.entries.push({ ...entry, rank: 0 });
+    }
+
+    // ソートしてランクを更新
+    this.sortAndUpdateRanks();
+    
+    // 最大エントリ数を超える場合は古いエントリを削除
+    if (this.entries.length > this.config.maxEntries) {
+      this.entries = this.entries.slice(0, this.config.maxEntries);
+    }
+
+    this.notifyUpdate();
   }
 
-  // プレイヤー名を生成
-  private generatePlayerName(): string {
-    const adjectives = ['Swift', 'Bright', 'Sharp', 'Bold', 'Quick', 'Smart', 'Wise', 'Strong', 'Fast', 'Cool'];
-    const nouns = ['Warrior', 'Ninja', 'Master', 'Expert', 'Wizard', 'Hero', 'Champion', 'Legend', 'Pro', 'Ace'];
-    
-    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const number = Math.floor(Math.random() * 999) + 1;
-    
-    return `${adjective}${noun}${number}`;
+  // エントリを更新
+  updateEntry(userId: string, updates: Partial<LeaderboardEntry>): boolean {
+    const index = this.entries.findIndex(e => e.userId === userId);
+    if (index === -1) return false;
+
+    this.entries[index] = { ...this.entries[index], ...updates };
+    this.sortAndUpdateRanks();
+    this.notifyUpdate();
+    return true;
   }
 
-  // 初期データを生成
-  private generateInitialData(): void {
-    // 空の状態で開始
-    this.submissions = [];
+  // エントリを削除
+  removeEntry(userId: string): boolean {
+    const index = this.entries.findIndex(e => e.userId === userId);
+    if (index === -1) return false;
+
+    this.entries.splice(index, 1);
+    this.sortAndUpdateRanks();
+    this.notifyUpdate();
+    return true;
   }
 
-  // 提出を追加
-  addSubmission(modelName: string, accuracy: number, hyperparameters: Record<string, any>): void {
-    const submission: LeaderboardEntry = {
-      rank: 0, // 後で計算
-      playerName: this.currentUser,
-      modelName,
-      accuracy,
-      submissionTime: new Date(),
-      hyperparameters,
-      isCurrentUser: true
-    };
+  // ソートしてランクを更新
+  private sortAndUpdateRanks(): void {
+    // ソート
+    this.entries.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (this.config.sortBy) {
+        case 'score':
+          comparison = a.score - b.score;
+          break;
+        case 'accuracy':
+          comparison = a.accuracy - b.accuracy;
+          break;
+        case 'submittedAt':
+          comparison = a.submittedAt.getTime() - b.submittedAt.getTime();
+          break;
+      }
+      
+      return this.config.sortOrder === 'desc' ? -comparison : comparison;
+    });
 
-    // 既存の現在のユーザーの提出を削除
-    this.submissions = this.submissions.filter(sub => !sub.isCurrentUser);
-    
-    // 新しい提出を追加
-    this.submissions.push(submission);
-    
-    // 精度でソートしてランクを更新
-    this.updateRankings();
-  }
-
-  // ランキングを更新
-  private updateRankings(): void {
-    this.submissions.sort((a, b) => b.accuracy - a.accuracy);
-    this.submissions.forEach((sub, index) => {
-      sub.rank = index + 1;
+    // ランクを更新
+    this.entries.forEach((entry, index) => {
+      entry.rank = index + 1;
     });
   }
 
   // リーダーボードを取得
   getLeaderboard(): LeaderboardEntry[] {
-    return [...this.submissions];
+    return [...this.entries];
   }
 
-  // 現在のユーザーの順位を取得
-  getCurrentUserRank(): number {
-    const currentUserSubmission = this.submissions.find(sub => sub.isCurrentUser);
-    return currentUserSubmission ? currentUserSubmission.rank : 0;
+  // 特定のユーザーのエントリを取得
+  getUserEntry(userId: string): LeaderboardEntry | undefined {
+    return this.entries.find(e => e.userId === userId);
+  }
+
+  // 上位N位を取得
+  getTopEntries(count: number): LeaderboardEntry[] {
+    return this.entries.slice(0, count);
   }
 
   // 統計情報を取得
   getStats(): LeaderboardStats {
-    const totalParticipants = new Set(this.submissions.map(sub => sub.playerName)).size;
-    const totalSubmissions = this.submissions.length;
-    const highestAccuracy = Math.max(...this.submissions.map(sub => sub.accuracy));
-    const averageAccuracy = this.submissions.reduce((sum, sub) => sum + sub.accuracy, 0) / totalSubmissions;
-    
-    // 残り時間を計算
-    const now = new Date();
-    const endTime = new Date(this.startTime.getTime() + this.problemDuration);
-    const timeRemaining = endTime.getTime() - now.getTime();
-    
-    const days = Math.floor(timeRemaining / (24 * 60 * 60 * 1000));
-    const hours = Math.floor((timeRemaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-    
-    // 次の更新時間（月曜日 09:00）
-    const nextMonday = new Date();
-    nextMonday.setDate(nextMonday.getDate() + (1 + 7 - nextMonday.getDay()) % 7);
-    nextMonday.setHours(9, 0, 0, 0);
+    const totalEntries = this.entries.length;
+    const averageScore = totalEntries > 0
+      ? this.entries.reduce((sum, entry) => sum + entry.score, 0) / totalEntries
+      : 0;
+    const bestScore = totalEntries > 0
+      ? Math.max(...this.entries.map(entry => entry.score))
+      : 0;
+
+    const entriesByModel: Record<string, number> = {};
+    this.entries.forEach(entry => {
+      entriesByModel[entry.modelName] = (entriesByModel[entry.modelName] || 0) + 1;
+    });
 
     return {
-      totalParticipants,
-      totalSubmissions,
-      highestAccuracy,
-      averageAccuracy,
-      timeRemaining: `${days}日 ${hours}時間`,
-      nextUpdate: nextMonday.toLocaleString('ja-JP', { 
-        month: 'long', 
-        day: 'numeric', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })
+      totalEntries,
+      averageScore: Math.round(averageScore * 100) / 100,
+      bestScore: Math.round(bestScore * 100) / 100,
+      entriesByModel,
+      lastUpdated: new Date()
     };
   }
 
-  // 問題をリセット（週次更新）
-  resetProblem(): void {
-    this.submissions = [];
-    this.startTime = new Date();
-    this.generateInitialData();
+  // 更新コールバックを追加
+  addUpdateCallback(callback: () => void): void {
+    this.updateCallbacks.add(callback);
+  }
+
+  // 更新コールバックを削除
+  removeUpdateCallback(callback: () => void): void {
+    this.updateCallbacks.delete(callback);
+  }
+
+  // 更新を通知
+  private notifyUpdate(): void {
+    this.updateCallbacks.forEach(callback => {
+      try {
+        callback();
+      } catch (error) {
+        console.error('Update callback error:', error);
+      }
+    });
+  }
+
+  // 更新ループを開始
+  private startUpdateLoop(): void {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+    }
+
+    this.updateInterval = setInterval(() => {
+      this.performPeriodicUpdate();
+    }, this.config.updateInterval);
+  }
+
+  // 定期的な更新を実行
+  private performPeriodicUpdate(): void {
+    // 古いエントリを削除（24時間以上前）
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    this.entries = this.entries.filter(entry => 
+      entry.submittedAt.getTime() > oneDayAgo
+    );
+
+    // ソートしてランクを更新
+    this.sortAndUpdateRanks();
+    
+    this.notifyUpdate();
+  }
+
+  // 設定を更新
+  updateConfig(newConfig: Partial<LeaderboardConfig>): void {
+    this.config = { ...this.config, ...newConfig };
+    
+    // 更新ループを再開
+    if (this.config.enableRealTimeUpdates) {
+      this.startUpdateLoop();
+    } else if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+  }
+
+  // 設定を取得
+  getConfig(): LeaderboardConfig {
+    return { ...this.config };
+  }
+
+  // データをクリア
+  clear(): void {
+    this.entries = [];
+    this.notifyUpdate();
+  }
+
+  // データをエクスポート
+  exportData(): string {
+    return JSON.stringify({
+      entries: this.entries,
+      config: this.config
+    });
+  }
+
+  // データをインポート
+  importData(data: string): boolean {
+    try {
+      const parsed = JSON.parse(data);
+      
+      if (parsed.entries) {
+        this.entries = parsed.entries;
+        this.sortAndUpdateRanks();
+      }
+      
+      if (parsed.config) {
+        this.config = { ...this.config, ...parsed.config };
+      }
+      
+      this.notifyUpdate();
+      return true;
+    } catch (error) {
+      console.error('Failed to import data:', error);
+      return false;
+    }
+  }
+
+  // 破棄
+  destroy(): void {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+    this.updateCallbacks.clear();
   }
 }
 
 // シングルトンインスタンス
 export const dynamicLeaderboard = new DynamicLeaderboard();
+

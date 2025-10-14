@@ -661,3 +661,5 @@ export class WeeklyProblemSystem {
 
 // シングルトンインスタンス
 export const weeklyProblemSystem = new WeeklyProblemSystem();
+
+

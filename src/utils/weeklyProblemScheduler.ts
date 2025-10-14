@@ -1,454 +1,383 @@
-import { CompetitionProblemManager } from './competitionProblemManager';
-import { realtimeManager } from './realtimeManager';
-import type { CompetitionProblem } from '../types/competition';
+// 週次問題スケジューラー
+export interface WeeklyProblem {
+  id: string;
+  title: string;
+  description: string;
+  type: 'classification' | 'regression';
+  difficulty: 'easy' | 'medium' | 'hard';
+  startTime: number;
+  endTime: number;
+  maxSubmissions: number;
+  isActive: boolean;
+  dataset: {
+    type: string;
+    size: number;
+    features: number;
+  };
+}
+
+export interface ScheduleConfig {
+  problemDuration: number; // ミリ秒
+  breakDuration: number; // ミリ秒
+  enableAutoStart: boolean;
+  enableNotifications: boolean;
+  timezone: string;
+}
+
+export interface ScheduleEvent {
+  id: string;
+  type: 'problem_start' | 'problem_end' | 'break_start' | 'break_end';
+  problemId?: string;
+  timestamp: number;
+  message: string;
+}
 
 export class WeeklyProblemScheduler {
-  private static currentWeek = 0;
-  private static problemRotationInterval: NodeJS.Timeout | null = null;
-  private static readonly WEEK_DURATION = 7 * 24 * 60 * 60 * 1000; // 7日
-  private static isInitialized = false;
-  private static readonly JST_OFFSET = 9 * 60 * 60 * 1000; // JST (UTC+9) のミリ秒オフセット
-  private static readonly START_TIME = new Date('2024-01-01T00:00:00+09:00'); // 日本時間基準の開始時刻
+  private problems: Map<string, WeeklyProblem> = new Map();
+  private currentProblem: WeeklyProblem | null = null;
+  private schedule: ScheduleEvent[] = [];
+  private config: ScheduleConfig;
+  private scheduler: NodeJS.Timeout | null = null;
+  private listeners: Set<(event: ScheduleEvent) => void> = new Set();
 
-  /**
-   * 週次問題切り替えシステムを開始
-   */
-  static startWeeklyRotation(): void {
-    if (this.isInitialized) {
-      console.log('週次問題切り替えシステムは既に開始されています');
+  constructor(config: ScheduleConfig = {
+    problemDuration: 7 * 24 * 60 * 60 * 1000, // 7日
+    breakDuration: 24 * 60 * 60 * 1000, // 1日
+    enableAutoStart: true,
+    enableNotifications: true,
+    timezone: 'Asia/Tokyo'
+  }) {
+    this.config = config;
+    this.initializeProblems();
+    this.startScheduler();
+  }
+
+  // 問題を初期化
+  private initializeProblems(): void {
+    const problems: WeeklyProblem[] = [
+      {
+        id: 'weekly_001',
+        title: '売上予測チャレンジ',
+        description: '店舗の売上を予測する回帰問題',
+        type: 'regression',
+        difficulty: 'easy',
+        startTime: Date.now(),
+        endTime: Date.now() + this.config.problemDuration,
+        maxSubmissions: 5,
+        isActive: true,
+        dataset: {
+          type: 'sales',
+          size: 1000,
+          features: 8
+        }
+      },
+      {
+        id: 'weekly_002',
+        title: '顧客分類チャレンジ',
+        description: '顧客を分類する分類問題',
+        type: 'classification',
+        difficulty: 'medium',
+        startTime: 0,
+        endTime: 0,
+        maxSubmissions: 3,
+        isActive: false,
+        dataset: {
+          type: 'customer',
+          size: 800,
+          features: 6
+        }
+      },
+      {
+        id: 'weekly_003',
+        title: '不正検出チャレンジ',
+        description: '不正な取引を検出する分類問題',
+        type: 'classification',
+        difficulty: 'hard',
+        startTime: 0,
+        endTime: 0,
+        maxSubmissions: 2,
+        isActive: false,
+        dataset: {
+          type: 'fraud',
+          size: 1500,
+          features: 12
+        }
+      }
+    ];
+
+    problems.forEach(problem => {
+      this.problems.set(problem.id, problem);
+    });
+
+    this.currentProblem = problems.find(p => p.isActive) || null;
+  }
+
+  // スケジューラーを開始
+  private startScheduler(): void {
+    if (!this.config.enableAutoStart) return;
+
+    this.scheduler = setInterval(() => {
+      this.checkSchedule();
+    }, 60000); // 1分ごとにチェック
+  }
+
+  // スケジュールをチェック
+  private checkSchedule(): void {
+    const now = Date.now();
+
+    if (this.currentProblem) {
+      if (now >= this.currentProblem.endTime) {
+        this.endCurrentProblem();
+      }
+    } else {
+      this.startNextProblem();
+    }
+  }
+
+  // 現在の問題を終了
+  private endCurrentProblem(): void {
+    if (!this.currentProblem) return;
+
+    this.currentProblem.isActive = false;
+    
+    const event: ScheduleEvent = {
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'problem_end',
+      problemId: this.currentProblem.id,
+      timestamp: Date.now(),
+      message: `問題「${this.currentProblem.title}」が終了しました`
+    };
+
+    this.schedule.push(event);
+    this.notifyListeners(event);
+
+    this.currentProblem = null;
+
+    // 休憩期間を設定
+    setTimeout(() => {
+      this.startNextProblem();
+    }, this.config.breakDuration);
+  }
+
+  // 次の問題を開始
+  private startNextProblem(): void {
+    const availableProblems = Array.from(this.problems.values())
+      .filter(p => !p.isActive && p.startTime === 0);
+
+    if (availableProblems.length === 0) {
+      // 全ての問題が終了した場合、最初の問題を再開
+      this.resetProblems();
       return;
     }
 
-    console.log('週次問題切り替えシステムを開始します');
-    this.isInitialized = true;
-    
-    // 日本時間基準で現在の週を計算
-    this.currentWeek = this.getCurrentWeekFromStart();
-    console.log(`現在の週: ${this.currentWeek} (日本時間基準)`);
+    const nextProblem = availableProblems[0];
+    nextProblem.isActive = true;
+    nextProblem.startTime = Date.now();
+    nextProblem.endTime = Date.now() + this.config.problemDuration;
 
-    // 現在の週の問題を生成
-    this.generateWeeklyProblems();
+    this.currentProblem = nextProblem;
 
-    // 週次切り替えのタイマーを設定（1週間ごと）
-    this.scheduleWeeklyRotation();
+    const event: ScheduleEvent = {
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'problem_start',
+      problemId: nextProblem.id,
+      timestamp: Date.now(),
+      message: `問題「${nextProblem.title}」が開始されました`
+    };
 
-    console.log(`週次問題切り替えシステム開始 - 現在の週: ${this.currentWeek}`);
+    this.schedule.push(event);
+    this.notifyListeners(event);
   }
 
-  /**
-   * 次の週に切り替え
-   */
-  static rotateToNextWeek(): void {
-    this.currentWeek = this.getCurrentWeekFromStart();
-    console.log(`週次問題切り替え: 第${this.currentWeek}週開始 (日本時間基準)`);
-    
-    // 新しい週の問題を生成
-    this.generateWeeklyProblems();
-    
-    // 前週の問題をアーカイブ
-    this.archivePreviousWeekProblems();
-    
-    // リアルタイムで週次問題切り替えを通知
-    this.notifyWeeklyProblemChange();
-    
-    // 次の週次切り替えをスケジュール
-    this.scheduleWeeklyRotation();
-  }
+  // 問題をリセット
+  private resetProblems(): void {
+    this.problems.forEach(problem => {
+      problem.isActive = false;
+      problem.startTime = 0;
+      problem.endTime = 0;
+    });
 
-  /**
-   * 現在の週を取得
-   */
-  static getCurrentWeek(): number {
-    return this.currentWeek;
-  }
-
-  /**
-   * 開始時刻からの現在の週を取得（日本時間基準）
-   */
-  private static getCurrentWeekFromStart(): number {
-    const now = new Date();
-    const jstNow = new Date(now.getTime() + this.JST_OFFSET);
-    
-    // 開始時刻からの経過時間を計算
-    const elapsedTime = jstNow.getTime() - this.START_TIME.getTime();
-    
-    // 週数を計算（1から開始）
-    const weekNumber = Math.floor(elapsedTime / this.WEEK_DURATION) + 1;
-    
-    return Math.max(1, weekNumber);
-  }
-
-  /**
-   * 週次切り替えをスケジュール（1週間ごと）
-   */
-  private static scheduleWeeklyRotation(): void {
-    // 既存のタイマーをクリア
-    if (this.problemRotationInterval) {
-      clearTimeout(this.problemRotationInterval);
-    }
-
-    const now = new Date();
-    const jstNow = new Date(now.getTime() + this.JST_OFFSET);
-    
-    // 次の週の開始時刻を計算
-    const currentWeekStart = new Date(this.START_TIME.getTime() + (this.currentWeek - 1) * this.WEEK_DURATION);
-    const nextWeekStart = new Date(currentWeekStart.getTime() + this.WEEK_DURATION);
-    
-    // UTC時間に変換
-    const nextWeekStartUTC = new Date(nextWeekStart.getTime() - this.JST_OFFSET);
-    
-    const timeUntilNextWeek = nextWeekStartUTC.getTime() - now.getTime();
-    
-    console.log(`次の週次切り替え: ${nextWeekStart.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`);
-    
-    this.problemRotationInterval = setTimeout(() => {
-      this.rotateToNextWeek();
-    }, timeUntilNextWeek);
-  }
-
-  /**
-   * 現在の週の問題を取得
-   */
-  static getCurrentWeekProblem(): CompetitionProblem | null {
-    const weekId = `week_${this.currentWeek}`;
-    return CompetitionProblemManager.getProblem(weekId);
-  }
-
-  /**
-   * 週次問題を生成
-   */
-  private static async generateWeeklyProblems(): Promise<void> {
-    const weekId = `week_${this.currentWeek}`;
-    const problemTypes = ['classification', 'regression'];
-    const selectedType = problemTypes[this.currentWeek % problemTypes.length];
-    
-    console.log(`第${this.currentWeek}週の問題を生成中: ${selectedType}`);
-    
-    try {
-      // 週次問題を生成
-      await CompetitionProblemManager.createProblem(
-        weekId,
-        `第${this.currentWeek}週 ${selectedType === 'classification' ? '分類' : '回帰'}問題`,
-        `週次コンペティション問題 - ${selectedType}。今週は${selectedType === 'classification' ? '分類' : '回帰'}問題に挑戦してください。`,
-        this.generateWeeklyData(selectedType),
-        this.getWeeklyFeatureNames(selectedType),
-        'target',
-        selectedType,
-        selectedType === 'classification' ? ['クラスA', 'クラスB', 'クラスC', 'クラスD'] : undefined
-      );
-      
-      console.log(`第${this.currentWeek}週の問題生成完了: ${weekId}`);
-    } catch (error) {
-      console.error(`第${this.currentWeek}週の問題生成エラー:`, error);
+    // 最初の問題を開始
+    const firstProblem = Array.from(this.problems.values())[0];
+    if (firstProblem) {
+      firstProblem.isActive = true;
+      firstProblem.startTime = Date.now();
+      firstProblem.endTime = Date.now() + this.config.problemDuration;
+      this.currentProblem = firstProblem;
     }
   }
 
-  /**
-   * 前週の問題をアーカイブ
-   */
-  private static archivePreviousWeekProblems(): void {
-    const previousWeekId = `week_${this.currentWeek - 1}`;
-    const problem = CompetitionProblemManager.getProblem(previousWeekId);
-    
-    if (problem) {
-      // 問題の終了時間を現在時刻に設定（アーカイブ）
-      problem.endTime = new Date();
-      console.log(`前週の問題をアーカイブしました: ${previousWeekId}`);
+  // 問題を手動で開始
+  startProblem(problemId: string): boolean {
+    const problem = this.problems.get(problemId);
+    if (!problem) return false;
+
+    // 現在の問題を終了
+    if (this.currentProblem) {
+      this.endCurrentProblem();
     }
+
+    // 新しい問題を開始
+    problem.isActive = true;
+    problem.startTime = Date.now();
+    problem.endTime = Date.now() + this.config.problemDuration;
+    this.currentProblem = problem;
+
+    const event: ScheduleEvent = {
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'problem_start',
+      problemId: problem.id,
+      timestamp: Date.now(),
+      message: `問題「${problem.title}」が手動で開始されました`
+    };
+
+    this.schedule.push(event);
+    this.notifyListeners(event);
+    return true;
   }
 
-  /**
-   * 週次データを生成
-   */
-  private static generateWeeklyData(problemType: 'classification' | 'regression'): any[] {
-    const dataCount = 5000 + Math.random() * 3000; // 5000-8000件のランダムなデータ数
+  // 問題を手動で終了
+  endProblem(problemId: string): boolean {
+    const problem = this.problems.get(problemId);
+    if (!problem || !problem.isActive) return false;
+
+    problem.isActive = false;
     
-    if (problemType === 'classification') {
-      return this.generateClassificationWeeklyData(Math.floor(dataCount));
-    } else {
-      return this.generateRegressionWeeklyData(Math.floor(dataCount));
+    if (this.currentProblem?.id === problemId) {
+      this.currentProblem = null;
     }
+
+    const event: ScheduleEvent = {
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'problem_end',
+      problemId: problem.id,
+      timestamp: Date.now(),
+      message: `問題「${problem.title}」が手動で終了されました`
+    };
+
+    this.schedule.push(event);
+    this.notifyListeners(event);
+    return true;
   }
 
-  /**
-   * 分類問題用の週次データを生成
-   */
-  private static generateClassificationWeeklyData(count: number): any[] {
-    const data = [];
-    const classes = ['クラスA', 'クラスB', 'クラスC', 'クラスD'];
-    
-    for (let i = 0; i < count; i++) {
-      const classIndex = Math.floor(Math.random() * classes.length);
-      
-      // 週次バリエーション（週によって異なるパターン）
-      const weekPattern = Math.sin(this.currentWeek * 0.5) * 0.3 + 0.7;
-      
-      const features = [
-        Math.random() * 100 * weekPattern,
-        Math.random() * 100 * weekPattern,
-        Math.random() * 100 * weekPattern,
-        Math.random() * 100 * weekPattern,
-        Math.random() * 100 * weekPattern,
-        Math.random() * 100 * weekPattern,
-        Math.random() * 100 * weekPattern,
-        Math.random() * 100 * weekPattern,
-        Math.random() * 100 * weekPattern,
-        Math.random() * 100 * weekPattern
-      ];
-      
-      // クラスに応じた特徴パターン
-      if (classIndex > 0) {
-        features[classIndex - 1] += 50 + Math.random() * 50;
-        features[7] += 30;
-      }
-      
-      data.push({
-        features,
-        label: classes[classIndex]
-      });
-    }
-    
-    return data;
+  // 現在の問題を取得
+  getCurrentProblem(): WeeklyProblem | null {
+    return this.currentProblem;
   }
 
-  /**
-   * 回帰問題用の週次データを生成
-   */
-  private static generateRegressionWeeklyData(count: number): any[] {
-    const data = [];
-    
-    for (let i = 0; i < count; i++) {
-      // 週次バリエーション（週によって異なる複雑さ）
-      const weekComplexity = 1 + Math.sin(this.currentWeek * 0.3) * 0.5;
-      
-      const features = [
-        Math.random() * 100 * weekComplexity,
-        Math.random() * 100 * weekComplexity,
-        Math.random() * 100 * weekComplexity,
-        Math.random() * 100 * weekComplexity,
-        Math.random() * 100 * weekComplexity,
-        Math.random() * 100 * weekComplexity,
-        Math.random() * 100 * weekComplexity,
-        Math.random() * 100 * weekComplexity,
-        Math.random() * 100 * weekComplexity,
-        Math.random() * 100 * weekComplexity
-      ];
-      
-      // 複雑な予測式（週によって変化）
-      const predictedValue = features.reduce((sum, feature, index) => {
-        const weight = (index + 1) * 0.1 * weekComplexity;
-        return sum + feature * weight;
-      }, 0) + (Math.random() - 0.5) * 50;
-      
-      data.push({
-        features,
-        label: Math.max(0, predictedValue)
-      });
-    }
-    
-    return data;
+  // 全問題を取得
+  getAllProblems(): WeeklyProblem[] {
+    return Array.from(this.problems.values());
   }
 
-  /**
-   * 週次特徴量名を取得
-   */
-  private static getWeeklyFeatureNames(problemType: 'classification' | 'regression'): string[] {
-    if (problemType === 'classification') {
-      return [
-        '特徴量1', '特徴量2', '特徴量3', '特徴量4', '特徴量5',
-        '特徴量6', '特徴量7', '特徴量8', '特徴量9', '特徴量10'
-      ];
-    } else {
-      return [
-        '入力変数1', '入力変数2', '入力変数3', '入力変数4', '入力変数5',
-        '入力変数6', '入力変数7', '入力変数8', '入力変数9', '入力変数10'
-      ];
-    }
+  // アクティブな問題を取得
+  getActiveProblems(): WeeklyProblem[] {
+    return this.getAllProblems().filter(p => p.isActive);
   }
 
-  /**
-   * 週次問題切り替えシステムを停止
-   */
-  static stopWeeklyRotation(): void {
-    if (this.problemRotationInterval) {
-      clearTimeout(this.problemRotationInterval);
-      this.problemRotationInterval = null;
-    }
-    this.isInitialized = false;
-    console.log('週次問題切り替えシステムを停止しました');
+  // スケジュール履歴を取得
+  getScheduleHistory(): ScheduleEvent[] {
+    return [...this.schedule];
   }
 
-  /**
-   * 次の問題切り替えまでの残り時間を取得（ミリ秒）
-   */
-  static getTimeUntilNextRotation(): number {
-    const now = new Date();
-    const jstNow = new Date(now.getTime() + this.JST_OFFSET);
-    
-    // 現在の週の開始時刻を計算
-    const currentWeekStart = new Date(this.START_TIME.getTime() + (this.currentWeek - 1) * this.WEEK_DURATION);
-    const nextWeekStart = new Date(currentWeekStart.getTime() + this.WEEK_DURATION);
-    
-    // UTC時間に変換
-    const nextWeekStartUTC = new Date(nextWeekStart.getTime() - this.JST_OFFSET);
-    
-    return nextWeekStartUTC.getTime() - now.getTime();
+  // 次の問題を取得
+  getNextProblem(): WeeklyProblem | null {
+    const availableProblems = Array.from(this.problems.values())
+      .filter(p => !p.isActive && p.startTime === 0);
+    return availableProblems[0] || null;
   }
 
-  /**
-   * 現在の週の進捗を取得（0-1）
-   */
-  static getCurrentWeekProgress(): number {
-    const now = new Date();
-    const jstNow = new Date(now.getTime() + this.JST_OFFSET);
-    
-    // 現在の週の開始時刻を計算
-    const currentWeekStart = new Date(this.START_TIME.getTime() + (this.currentWeek - 1) * this.WEEK_DURATION);
-    
-    // 現在の週内での経過時間を計算
-    const elapsed = jstNow.getTime() - currentWeekStart.getTime();
-    
-    return Math.min(1, Math.max(0, elapsed / this.WEEK_DURATION));
+  // 残り時間を取得
+  getRemainingTime(): number {
+    if (!this.currentProblem) return 0;
+    return Math.max(0, this.currentProblem.endTime - Date.now());
   }
 
-  /**
-   * 現在の日本時間を取得
-   */
-  static getCurrentJSTTime(): Date {
-    const now = new Date();
-    return new Date(now.getTime() + this.JST_OFFSET);
+  // 進捗率を取得
+  getProgressPercentage(): number {
+    if (!this.currentProblem) return 0;
+    const total = this.currentProblem.endTime - this.currentProblem.startTime;
+    const elapsed = Date.now() - this.currentProblem.startTime;
+    return Math.min(100, Math.max(0, (elapsed / total) * 100));
   }
 
-  /**
-   * 週の開始時刻を取得（日本時間）
-   */
-  static getWeekStartTime(weekNumber: number): Date {
-    const weekStart = new Date(this.START_TIME.getTime() + (weekNumber - 1) * this.WEEK_DURATION);
-    return weekStart;
-  }
-
-  /**
-   * 週の終了時刻を取得（日本時間）
-   */
-  static getWeekEndTime(weekNumber: number): Date {
-    const weekStart = this.getWeekStartTime(weekNumber);
-    return new Date(weekStart.getTime() + this.WEEK_DURATION);
-  }
-
-  /**
-   * 週次問題切り替えをリアルタイムで通知
-   */
-  private static notifyWeeklyProblemChange(): void {
-    try {
-      const currentProblem = this.getCurrentWeekProblem();
-      if (currentProblem) {
-        // リアルタイム更新を送信
-        realtimeManager.broadcastUpdate({
-          type: 'weekly_problem_change',
-          data: {
-            week: this.currentWeek,
-            problem: {
-              id: currentProblem.id,
-              title: currentProblem.title,
-              description: currentProblem.description,
-              difficulty: currentProblem.difficulty,
-              timeLimit: currentProblem.timeLimit,
-              participantCount: currentProblem.participantCount || 0
-            },
-            nextRotation: this.getTimeUntilNextRotation(),
-            progress: this.getCurrentWeekProgress()
-          },
-          timestamp: new Date().toISOString(),
-          userId: 'system',
-          roomId: 'global'
-        });
-
-        console.log(`週次問題切り替え通知送信: 第${this.currentWeek}週`);
-      }
-    } catch (error) {
-      console.error('週次問題切り替え通知エラー:', error);
-    }
-  }
-
-  /**
-   * 参加者数をリアルタイムで更新
-   */
-  static updateParticipantCount(problemId: string, delta: number): void {
-    try {
-      const problem = CompetitionProblemManager.getProblem(problemId);
-      if (problem) {
-        // 参加者数を更新
-        problem.participantCount = (problem.participantCount || 0) + delta;
-        
-        // リアルタイムで参加者数更新を通知
-        realtimeManager.broadcastUpdate({
-          type: 'participant_count_update',
-          data: {
-            problemId,
-            participantCount: problem.participantCount,
-            week: this.currentWeek
-          },
-          timestamp: new Date().toISOString(),
-          userId: 'system',
-          roomId: 'global'
-        });
-
-        console.log(`参加者数更新: ${problemId} - ${problem.participantCount}人`);
-      }
-    } catch (error) {
-      console.error('参加者数更新エラー:', error);
-    }
-  }
-
-  /**
-   * 提出数をリアルタイムで更新
-   */
-  static updateSubmissionCount(problemId: string, delta: number): void {
-    try {
-      const problem = CompetitionProblemManager.getProblem(problemId);
-      if (problem) {
-        // 提出数を更新
-        problem.submissionCount = (problem.submissionCount || 0) + delta;
-        
-        // リアルタイムで提出数更新を通知
-        realtimeManager.broadcastUpdate({
-          type: 'submission_count_update',
-          data: {
-            problemId,
-            submissionCount: problem.submissionCount,
-            week: this.currentWeek
-          },
-          timestamp: new Date().toISOString(),
-          userId: 'system',
-          roomId: 'global'
-        });
-
-        console.log(`提出数更新: ${problemId} - ${problem.submissionCount}件`);
-      }
-    } catch (error) {
-      console.error('提出数更新エラー:', error);
-    }
-  }
-
-  /**
-   * 週次問題の統計情報をリアルタイムで取得
-   */
-  static getWeeklyStats(): {
-    week: number;
-    problem: CompetitionProblem | null;
-    participantCount: number;
-    submissionCount: number;
-    timeUntilNext: number;
-    progress: number;
+  // 統計情報を取得
+  getStats(): {
+    totalProblems: number;
+    activeProblems: number;
+    completedProblems: number;
+    totalEvents: number;
+    averageProblemDuration: number;
   } {
-    const problem = this.getCurrentWeekProblem();
+    const allProblems = this.getAllProblems();
+    const activeProblems = allProblems.filter(p => p.isActive);
+    const completedProblems = allProblems.filter(p => !p.isActive && p.startTime > 0);
+    
+    const totalDuration = completedProblems.reduce((sum, p) => 
+      sum + (p.endTime - p.startTime), 0);
+    const averageDuration = completedProblems.length > 0 
+      ? totalDuration / completedProblems.length 
+      : 0;
+
     return {
-      week: this.currentWeek,
-      problem,
-      participantCount: problem?.participantCount || 0,
-      submissionCount: problem?.submissionCount || 0,
-      timeUntilNext: this.getTimeUntilNextRotation(),
-      progress: this.getCurrentWeekProgress()
+      totalProblems: allProblems.length,
+      activeProblems: activeProblems.length,
+      completedProblems: completedProblems.length,
+      totalEvents: this.schedule.length,
+      averageProblemDuration: averageDuration
     };
   }
+
+  // リスナーを追加
+  addListener(listener: (event: ScheduleEvent) => void): void {
+    this.listeners.add(listener);
+  }
+
+  // リスナーを削除
+  removeListener(listener: (event: ScheduleEvent) => void): void {
+    this.listeners.delete(listener);
+  }
+
+  // リスナーに通知
+  private notifyListeners(event: ScheduleEvent): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(event);
+      } catch (error) {
+        console.error('Schedule listener error:', error);
+      }
+    });
+  }
+
+  // 設定を更新
+  updateConfig(newConfig: Partial<ScheduleConfig>): void {
+    this.config = { ...this.config, ...newConfig };
+    
+    if (newConfig.enableAutoStart !== undefined) {
+      if (newConfig.enableAutoStart && !this.scheduler) {
+        this.startScheduler();
+      } else if (!newConfig.enableAutoStart && this.scheduler) {
+        clearInterval(this.scheduler);
+        this.scheduler = null;
+      }
+    }
+  }
+
+  // 設定を取得
+  getConfig(): ScheduleConfig {
+    return { ...this.config };
+  }
+
+  // 破棄
+  destroy(): void {
+    if (this.scheduler) {
+      clearInterval(this.scheduler);
+      this.scheduler = null;
+    }
+    this.listeners.clear();
+  }
 }
+
+// シングルトンインスタンス
+export const weeklyProblemScheduler = new WeeklyProblemScheduler();
+

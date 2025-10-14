@@ -2,121 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 紺・金・銀の統一カラーパレット */
-@layer base {
+/* カスタムCSS変数 */
+:root {
+  /* 戦国時代テーマの色 */
+  --ink: #0a192f;
+  --ink-white: #f8fafc;
+  --ink-light: #64748b;
+  --paper: #f1f5f9;
+  --gold: #d4af37;
+  --gold-light: #f4e4a6;
+  --accent: #3b82f6;
+  --accent-strong: #1e40af;
+  --accent-light: #dbeafe;
+  --silver: #c0c0c0;
+  --silver-light: #e5e7eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  
+  /* グラデーション */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --gradient-warning: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  
+  /* 影 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* ボーダー */
+  --border-radius: 0.5rem;
+  --border-radius-lg: 0.75rem;
+  --border-radius-xl: 1rem;
+  --border-radius-2xl: 1.5rem;
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
   :root {
-    /* 紺・金・銀の統一テーマ - 濃淡で統一感を演出 */
-    --paper: #f8fafc;          /* 明るい背景 */
-    --paper-dark: #0f172a;     /* 暗い背景 */
-    --ink: #1e293b;            /* 濃い文字色 */
-    --ink-light: #64748b;      /* 薄い文字色 */
-    --ink-white: #ffffff;      /* 白文字 */
-    --land-light: #e2e8f0;     /* 地図補助色（淡青） */
-    --land-dark: #1e40af;      /* アクセント青（紺系に統一） */
-    --accent: #1e40af;         /* メイン紺 */
-    --accent-strong: #1e3a8a;  /* 濃紺 */
-    --accent-light: #3b82f6;   /* 薄紺 */
-    --accent-lighter: #60a5fa; /* さらに薄い紺 */
-    --accent-dark: #1e3a8a;    /* 濃い紺 */
-    --accent-darker: #1e293b;  /* さらに濃い紺 */
-    --gold: #d4af37;           /* より金色っぽい金 */
-    --gold-light: #f4d03f;     /* 薄金 */
-    --gold-dark: #b8860b;      /* 濃金 */
-    --gold-darker: #8b6914;    /* さらに濃い金 */
-    --silver: #c0c0c0;         /* より銀色っぽい銀 */
-    --silver-light: #e5e7eb;   /* 薄銀 */
-    --silver-dark: #6b7280;    /* 濃銀 */
-    --silver-darker: #374151;  /* さらに濃い銀 */
-    --success: #d4af37;        /* 成功色（金に統一） */
-    --warning: #d4af37;        /* 警告色（金に統一） */
-    --error: #ef4444;          /* エラー色（赤のみ保持） */
-    --info: #1e40af;           /* 情報色（紺に統一） */
+    --ink: #f8fafc;
+    --ink-white: #0a192f;
+    --paper: #1e293b;
   }
 }
 
-/* カスタムアニメーション */
-@layer utilities {
-  .animate-fadeIn {
-    animation: fadeIn 0.3s ease-out;
-  }
-  
-  .animate-slideInUp {
-    animation: slideInUp 0.5s ease-out;
-  }
-  
-  .animate-bounceIn {
-    animation: bounceIn 0.6s ease-out;
-  }
-  
-  .animate-pulse-glow {
-    animation: pulseGlow 2s ease-in-out infinite;
-  }
-  
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
-  
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite alternate;
-  }
-  
-  .animate-scanlines {
-    animation: scanlines 0.1s linear infinite;
-  }
-  
-  .animate-noise {
-    animation: noise 0.2s steps(8) infinite;
-  }
-  
-  .animate-tvNoise {
-    animation: tvNoise 0.005s steps(1) infinite;
-  }
+/* ベーススタイル */
+body {
+  font-family: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', 'MS Gothic', sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  line-height: 1.6;
 }
 
-/* 桜の花びらアニメーション - 6秒完結版 */
-@keyframes sakura6Sec {
-  0% {
-    transform: translateX(-30px) translateY(-30px) rotate(0deg) scale(0.8);
-    opacity: 0;
-  }
-  8% {
-    opacity: 0.8;
-    transform: translateX(-20px) translateY(-20px) rotate(45deg) scale(1);
-  }
-  25% {
-    transform: translateX(20px) translateY(40px) rotate(90deg) scale(1.1);
-  }
-  42% {
-    transform: translateX(60px) translateY(100px) rotate(135deg) scale(0.9);
-  }
-  58% {
-    transform: translateX(100px) translateY(160px) rotate(180deg) scale(0.8);
-  }
-  75% {
-    transform: translateX(140px) translateY(220px) rotate(225deg) scale(0.6);
-    opacity: 0.6;
-  }
-  92% {
-    transform: translateX(180px) translateY(280px) rotate(270deg) scale(0.4);
-    opacity: 0.3;
-  }
-  100% {
-    transform: translateX(calc(100vw + 30px)) translateY(calc(100vh + 30px)) rotate(360deg) scale(0.2);
-    opacity: 0;
-  }
+/* カスタムコンポーネント */
+.btn-primary {
+  @apply px-6 py-3 rounded-lg font-medium transition-all duration-200;
+  background: var(--gradient-primary);
+  color: white;
+  box-shadow: var(--shadow-md);
 }
 
-/* 基本アニメーション */
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-secondary {
+  @apply px-6 py-3 rounded-lg font-medium transition-all duration-200;
+  background: var(--gradient-secondary);
+  color: white;
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.card {
+  @apply rounded-xl p-6;
+  background: var(--ink-white);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.card-gold {
+  @apply rounded-xl p-6;
+  background: var(--ink-white);
+  box-shadow: var(--shadow-lg);
+  border: 2px solid var(--gold);
+}
+
+/* アニメーション */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideInUp {
   from {
     opacity: 0;
     transform: translateY(20px);
@@ -127,150 +108,157 @@
   }
 }
 
-@keyframes bounceIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.3);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-  70% {
-    transform: scale(0.9);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(212, 175, 55, 0.8), 0 0 30px rgba(212, 175, 55, 0.6);
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes glow {
+@keyframes slideIn {
   from {
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    opacity: 0;
+    transform: translateX(-20px);
   }
   to {
-    text-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 30px rgba(255, 255, 255, 0.6);
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
-@keyframes scanlines {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 0 4px;
-  }
-}
-
-@keyframes noise {
-  0% {
-    background-position: 0 0;
-  }
-  10% {
-    background-position: -5% -10%;
-  }
-  20% {
-    background-position: -15% 5%;
-  }
-  30% {
-    background-position: 7% -25%;
-  }
-  40% {
-    background-position: -5% 25%;
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
   }
   50% {
-    background-position: -15% 10%;
-  }
-  60% {
-    background-position: 15% 0%;
-  }
-  70% {
-    background-position: 0% 15%;
-  }
-  80% {
-    background-position: 3% 35%;
-  }
-  90% {
-    background-position: -10% 10%;
-  }
-  100% {
-    background-position: 5% 5%;
+    opacity: 0.5;
   }
 }
 
-@keyframes tvNoise {
-  0% { 
-    background-position: 0% 0%, 50% 50%, 50% 50%, 50% 50%, 50% 50%, 10% 10%, 10% 10%;
-    opacity: 0.5;
-    transform: translateX(0px) translateY(0px);
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.6s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* スクロールバーのカスタマイズ */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-strong);
+}
+
+/* フォーカススタイル */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+}
+
+/* レスポンシブテキスト */
+.text-responsive {
+  @apply text-sm md:text-base lg:text-lg;
+}
+
+.heading-responsive {
+  @apply text-xl md:text-2xl lg:text-3xl;
+}
+
+/* グラデーションテキスト */
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* グラスモーフィズム効果 */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 戦国時代風の装飾 */
+.samurai-border {
+  position: relative;
+}
+
+.samurai-border::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: var(--gradient-primary);
+  border-radius: inherit;
+  z-index: -1;
+}
+
+/* 日本地図のスタイル */
+.japan-map-container {
+  background: var(--ink-white);
+  border: 4px solid var(--gold);
+  border-radius: var(--border-radius-2xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+}
+
+.japan-map-header {
+  background: linear-gradient(to right, var(--accent-strong), var(--accent));
+  padding: 1.5rem;
+}
+
+.japan-map-content {
+  padding: 1.5rem;
+}
+
+/* 地域ピンのスタイル */
+.region-pin {
+  position: absolute;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.region-pin:hover {
+  transform: scale(1.1);
+}
+
+.region-pin.unlocked {
+  background: linear-gradient(135deg, #3a8fb7, #4fa3c3, #6bb7d1);
+  border: 2px solid #e7f0f3;
+}
+
+.region-pin.completed {
+  background: linear-gradient(135deg, #5fbad1, #6ad6e2, #7fe0da);
+  border: 2px solid #e7f0f3;
+}
+
+.region-pin.locked {
+  background: linear-gradient(135deg, #9aa7b1, #8d99a6, #7c8794);
+  border: 2px solid #e7f0f3;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .japan-map-content {
+    padding: 1rem;
   }
-  10% { 
-    background-position: 5% 5%, 55% 55%, 55% 55%, 55% 55%, 55% 55%, 12% 12%, 12% 12%;
-    opacity: 0.6;
-    transform: translateX(-1px) translateY(1px);
+  
+  .region-pin {
+    transform: scale(0.8);
   }
-  20% { 
-    background-position: 10% 10%, 60% 60%, 60% 60%, 60% 60%, 60% 60%, 14% 14%, 14% 14%;
-    opacity: 0.7;
-    transform: translateX(1px) translateY(-1px);
-  }
-  30% { 
-    background-position: 15% 15%, 65% 65%, 65% 65%, 65% 65%, 65% 65%, 16% 16%, 16% 16%;
-    opacity: 0.6;
-    transform: translateX(-1px) translateY(1px);
-  }
-  40% { 
-    background-position: 20% 20%, 70% 70%, 70% 70%, 70% 70%, 70% 70%, 18% 18%, 18% 18%;
-    opacity: 0.8;
-    transform: translateX(1px) translateY(-1px);
-  }
-  50% { 
-    background-position: 25% 25%, 75% 75%, 75% 75%, 75% 75%, 75% 75%, 20% 20%, 20% 20%;
-    opacity: 0.7;
-    transform: translateX(-1px) translateY(1px);
-  }
-  60% { 
-    background-position: 30% 30%, 80% 80%, 80% 80%, 80% 80%, 80% 80%, 22% 22%, 22% 22%;
-    opacity: 0.6;
-    transform: translateX(1px) translateY(-1px);
-  }
-  70% { 
-    background-position: 35% 35%, 85% 85%, 85% 85%, 85% 85%, 85% 85%, 24% 24%, 24% 24%;
-    opacity: 0.8;
-    transform: translateX(-1px) translateY(1px);
-  }
-  80% { 
-    background-position: 40% 40%, 90% 90%, 90% 90%, 90% 90%, 90% 90%, 26% 26%, 26% 26%;
-    opacity: 0.7;
-    transform: translateX(1px) translateY(-1px);
-  }
-  90% { 
-    background-position: 45% 45%, 55% 65%, 50% 60%, 60% 70%, 44% 54%, 18% 18%, 18% 18%;
-    opacity: 0.7;
-    transform: translateX(1px) translateY(-1px);
-  }
-  100% { 
-    background-position: 50% 50%, 60% 70%, 55% 65%, 65% 75%, 48% 58%, 20% 20%, 20% 20%;
-    opacity: 0.8;
-    transform: translateX(0px) translateY(0px);
+  
+  .region-pin:hover {
+    transform: scale(0.9);
   }
 }

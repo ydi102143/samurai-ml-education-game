@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Users, MessageCircle, Send, Trophy, Target, Sword } from 'lucide-react';
-import { EnhancedOnlineBattle } from './EnhancedOnlineBattle';
+import { SimpleMLWorkflow } from './SimpleMLWorkflow';
 import { realtimeManager } from '../utils/realtimeManager';
 import { userManager } from '../utils/userManager';
-import { getRandomAdvancedProblemDataset, type AdvancedProblemDataset } from '../data/advancedProblemDatasets';
 
 interface MultiplayerBattleProps {
   onBack: () => void;
@@ -27,7 +26,6 @@ interface ChatMessage {
 }
 
 export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
-  const [currentProblem, setCurrentProblem] = useState<AdvancedProblemDataset | null>(null);
   const [showBattle, setShowBattle] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,12 +38,15 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
   const [participants, setParticipants] = useState<Map<string, Participant>>(new Map());
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
 
   const user = userManager.getCurrentUser();
 
   useEffect(() => {
-    loadCurrentProblem();
-  }, []);
+    if (user) {
+      setLoading(false);
+    }
+  }, [user]);
 
   // リアルタイム接続の管理
   useEffect(() => {
@@ -61,120 +62,142 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
       setIsConnected(false);
     };
 
-    const handleParticipantUpdate = (data: any) => {
-      const participant = data.data;
-      setParticipants(prev => {
-        const newMap = new Map(prev);
-        newMap.set(participant.userId, participant);
-        return newMap;
-      });
+    const handleError = (error: any) => {
+      console.error('リアルタイム接続エラー:', error);
+      setError(error.message || '接続エラーが発生しました');
     };
 
-    const handleChatMessage = (data: any) => {
-      const message = data.data;
-      setChatMessages(prev => [...prev, message]);
-    };
+    // イベントリスナーを登録
+    realtimeManager.subscribe('connected', handleConnected);
+    realtimeManager.subscribe('disconnected', handleDisconnected);
+    realtimeManager.subscribe('error', handleError);
 
-    realtimeManager.on('connected', handleConnected);
-    realtimeManager.on('disconnected', handleDisconnected);
-    realtimeManager.on('participant_update', handleParticipantUpdate);
-    realtimeManager.on('chat_message', handleChatMessage);
-
-    // 接続開始
-    realtimeManager.connect(user.id, 'multiplayer_room');
+    // 接続状態を設定
+    setIsConnected(true);
 
     return () => {
-      realtimeManager.off('connected', handleConnected);
-      realtimeManager.off('disconnected', handleDisconnected);
-      realtimeManager.off('participant_update', handleParticipantUpdate);
-      realtimeManager.off('chat_message', handleChatMessage);
-      realtimeManager.disconnect();
+      realtimeManager.unsubscribe('connected', handleConnected);
+      realtimeManager.unsubscribe('disconnected', handleDisconnected);
+      realtimeManager.unsubscribe('error', handleError);
     };
   }, [user]);
 
-  // リアルタイムタイマー（バトル進行時間）
+  // 参加者更新の処理
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isBattleActive && battleStartTime) {
-      interval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - battleStartTime) / 1000);
-        setTimeRemaining(elapsed);
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
+    const handleParticipantUpdate = (data: any) => {
+      if (data.type === 'participant_update') {
+        const update = data.data;
+        setParticipants(prev => {
+          const newMap = new Map(prev);
+          newMap.set(update.userId, {
+            userId: update.userId,
+            username: update.username,
+            isReady: update.progress > 0,
+            progress: update.progress,
+            currentStep: update.currentStep,
+            lastActivity: update.lastUpdate
+          });
+          return newMap;
+        });
+      }
     };
-  }, [isBattleActive, battleStartTime]);
 
-  const loadCurrentProblem = async () => {
-    try {
-      setLoading(true);
-      const problem = getRandomAdvancedProblemDataset();
-      setCurrentProblem(problem);
-    } catch (error) {
-      console.error('問題読み込みエラー:', error);
-      setError(`問題の読み込みに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+    realtimeManager.subscribe('participant_update', handleParticipantUpdate);
 
-  const handleStartBattle = () => {
-    if (!currentProblem || !user) return;
-    
+    return () => {
+      realtimeManager.unsubscribe('participant_update', handleParticipantUpdate);
+    };
+  }, []);
+
+  // チャットメッセージの処理
+  useEffect(() => {
+    const handleChatMessage = (data: any) => {
+      if (data.type === 'chat_message') {
+        const message = data.data;
+        setChatMessages(prev => [...prev, message]);
+      }
+    };
+
+    realtimeManager.subscribe('chat_message', handleChatMessage);
+
+    return () => {
+      realtimeManager.unsubscribe('chat_message', handleChatMessage);
+    };
+  }, []);
+
+  // バトル開始の処理
+  const startBattle = () => {
+    console.log('バトル開始');
     setBattleStartTime(Date.now());
     setIsBattleActive(true);
-    setTimeRemaining(0);
-    setMyProgress(0);
-    setBattleResults([]);
-    setShowBattle(true);
+    setTimeRemaining(3600); // 1時間
+    realtimeManager.startBattle('battle_room');
   };
 
-
-  const sendChatMessage = (message: string) => {
-    if (!user) return;
-    
-    const chatMessage: ChatMessage = {
-      id: `msg_${Date.now()}`,
-      userId: user.id,
-      username: user.username,
-      message,
-      timestamp: new Date().toISOString()
-    };
-    
-    setChatMessages(prev => [...prev, chatMessage]);
-    realtimeManager.broadcast('chat_message', chatMessage);
-  };
-
-  const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleBattleEnd = () => {
-    setShowBattle(false);
+  // バトル終了の処理
+  const endBattle = () => {
+    console.log('バトル終了');
     setIsBattleActive(false);
     setBattleStartTime(null);
+    setTimeRemaining(0);
+    realtimeManager.endBattle('battle_room', { results: battleResults });
   };
 
-  if (showBattle && currentProblem && user) {
-    return (
-      <EnhancedOnlineBattle
-        onBack={handleBattleEnd}
-      />
-    );
-  }
+  // チャットメッセージ送信
+  const sendMessage = () => {
+    if (!newMessage.trim() || !user) return;
+
+    const message: ChatMessage = {
+      id: Date.now().toString(),
+      userId: user.id,
+      username: user.username || 'Unknown',
+      message: newMessage,
+      timestamp: new Date().toISOString()
+    };
+
+    realtimeManager.sendChatMessage(user.id, user.username || 'Unknown', newMessage);
+    setNewMessage('');
+  };
+
+  // 進捗更新
+  const updateProgress = (progress: number, step: string) => {
+    setMyProgress(progress);
+    // 参加者として自分を更新
+    if (user) {
+      const selfUpdate = {
+        userId: user.id,
+        username: user.username || 'Unknown',
+        progress,
+        currentStep: step,
+        lastUpdate: new Date().toISOString()
+      };
+      realtimeManager.subscribe('participant_update', () => {});
+    }
+  };
+
+  // 時間更新
+  useEffect(() => {
+    if (!isBattleActive || !battleStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - battleStartTime;
+      const remaining = Math.max(0, 3600000 - elapsed); // 1時間 - 経過時間
+      setTimeRemaining(Math.floor(remaining / 1000));
+      
+      if (remaining <= 0) {
+        endBattle();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isBattleActive, battleStartTime]);
 
   if (loading) {
     return (
-      <div className="min-h-screen p-4 md:p-8" style={{ background: 'var(--paper)' }}>
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-yellow-400 mx-auto mb-4" />
-            <p className="text-2xl text-yellow-100 font-bold">読み込み中...</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-blue-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-purple-400 mx-auto mb-4" />
+          <p className="text-2xl text-purple-100 font-bold">読み込み中...</p>
         </div>
       </div>
     );
@@ -182,328 +205,642 @@ export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen p-4 md:p-8" style={{ background: 'var(--paper)' }}>
-        <div className="max-w-7xl mx-auto">
-          <div className="rounded-2xl shadow-xl overflow-hidden border-4" style={{ borderColor: 'var(--gold)', background: 'var(--ink-white)' }}>
-            <div className="p-8 text-center">
-              <h2 className="text-3xl font-bold text-red-900 mb-4">エラーが発生しました</h2>
-              <p className="text-lg text-red-700 mb-6">{error}</p>
-              <button
-                onClick={onBack}
-                className="bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                ホームに戻る
-              </button>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-red-900 to-orange-900 flex items-center justify-center p-4">
+        <div className="max-w-md bg-white/95 rounded-lg shadow-2xl p-8 text-center">
+          <h2 className="text-2xl font-bold text-red-900 mb-4">エラーが発生しました</h2>
+          <p className="text-red-800 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-red-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors"
+          >
+            ページを再読み込み
+          </button>
         </div>
       </div>
     );
   }
 
-  if (!currentProblem) {
+  if (showBattle) {
     return (
-      <div className="min-h-screen p-4 md:p-8" style={{ background: 'var(--paper)' }}>
-        <div className="max-w-7xl mx-auto">
-          <div className="rounded-2xl shadow-xl overflow-hidden border-4" style={{ borderColor: 'var(--gold)', background: 'var(--ink-white)' }}>
-            <div className="p-8 text-center">
-              <h2 className="text-3xl font-bold text-blue-900 mb-4">問題が見つかりません</h2>
-              <p className="text-lg text-blue-700 mb-6">利用可能な問題がありません。</p>
-              <button
-                onClick={onBack}
-                className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                ホームに戻る
-              </button>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-blue-900">
+        <div className="p-6">
+          <button
+            onClick={() => setShowBattle(false)}
+            className="mb-4 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors"
+          >
+            ← バトル一覧に戻る
+          </button>
+          <SimpleMLWorkflow onBack={() => setShowBattle(false)} />
         </div>
       </div>
     );
-  }
-
-  const participantsList = Array.from(participants.values());
-  
-  // 現在のユーザーを参加者リストに追加（まだ参加していない場合）
-  if (user && !participantsList.find(p => p.userId === user.id)) {
-    participantsList.push({
-      userId: user.id,
-      username: user.username,
-      isReady: true,
-      progress: myProgress,
-      currentStep: 'data',
-      lastActivity: new Date().toISOString()
-    });
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="max-w-7xl mx-auto p-4 md:p-8">
-        <div className="bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
-          {/* ヘッダー */}
-          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <button
-                onClick={onBack}
-                className="flex items-center space-x-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-                <Sword className="w-5 h-5" />
-                <span>ホームに戻る</span>
-              </button>
-              <div className="text-center">
-                <h1 className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
-                  マルチプレイヤー戦
-                </h1>
-                <p className="text-white/80 text-lg">他のプレイヤーと協力して問題を解決</p>
-              </div>
-              <div className="text-right">
-                <div className="text-white/80 font-bold text-lg">接続状態</div>
-                <div className="text-white text-2xl font-mono">
-                  {isConnected ? '🟢 接続中' : '🔴 切断中'}
-                </div>
-                {isBattleActive && (
-                  <div className="text-green-300 text-sm font-bold">
-                    ⚡ バトル進行中 ({formatTime(timeRemaining)})
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 to-blue-900">
+      <div className="container mx-auto px-4 py-8">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={onBack}
+              className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors"
+            >
+              ←
+            </button>
+            <h1 className="text-3xl font-bold text-white flex items-center">
+              <Sword className="w-8 h-8 mr-3" />
+              マルチプレイヤーバトル
+            </h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+              isConnected 
+                ? 'bg-green-500/20 text-green-400' 
+                : 'bg-red-500/20 text-red-400'
+            }`}>
+              {isConnected ? '接続中' : '切断中'}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* メインコンテンツ */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* バトル情報 */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <Target className="w-6 h-6 mr-2" />
+                バトル情報
+              </h2>
+              
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="text-center p-4 bg-white/5 rounded-xl">
+                  <div className="text-2xl font-bold text-blue-300 mb-1">
+                    {isBattleActive ? Math.floor(timeRemaining / 60) : 0}
                   </div>
+                  <div className="text-sm text-white/70">残り時間（分）</div>
+                </div>
+                <div className="text-center p-4 bg-white/5 rounded-xl">
+                  <div className="text-2xl font-bold text-green-300 mb-1">
+                    {participants.size}
+                  </div>
+                  <div className="text-sm text-white/70">参加者数</div>
+                </div>
+              </div>
+
+              <div className="flex space-x-4">
+                {!isBattleActive ? (
+                  <button
+                    onClick={startBattle}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    バトル開始
+                  </button>
+                ) : (
+                  <button
+                    onClick={endBattle}
+                    className="flex-1 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    バトル終了
+                  </button>
                 )}
+                <button
+                  onClick={() => setShowBattle(true)}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
+                >
+                  機械学習開始
+                </button>
+              </div>
+            </div>
+
+            {/* 参加者一覧 */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <Users className="w-6 h-6 mr-2" />
+                参加者 ({participants.size}人)
+              </h2>
+              
+              <div className="space-y-3">
+                {Array.from(participants.values()).map((participant) => (
+                  <div
+                    key={participant.userId}
+                    className="flex items-center justify-between p-4 bg-white/5 rounded-xl"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full ${
+                        participant.isReady ? 'bg-green-400' : 'bg-yellow-400'
+                      }`} />
+                      <div>
+                        <div className="font-medium text-white">{participant.username}</div>
+                        <div className="text-sm text-white/70">{participant.currentStep}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-white/70">進捗</div>
+                      <div className="text-lg font-bold text-blue-300">{participant.progress}%</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
-            {/* メインコンテンツ */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* 現在の問題 */}
-              <div className="bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/30 shadow-xl">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl shadow-lg">
-                      <Target className="w-8 h-8 text-white" />
+          {/* サイドバー */}
+          <div className="space-y-6">
+            {/* チャット */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <MessageCircle className="w-6 h-6 mr-2" />
+                チャット
+              </h2>
+              
+              <div className="space-y-3 mb-4 h-64 overflow-y-auto">
+                {chatMessages.map((message) => (
+                  <div key={message.id} className="p-3 bg-white/5 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className="font-medium text-white text-sm">{message.username}</span>
+                      <span className="text-xs text-white/50">{new Date(message.timestamp).toLocaleTimeString()}</span>
                     </div>
-                    <div>
-                      <h2 className="text-3xl font-bold text-white mb-2">{currentProblem.name}</h2>
-                      <div className="flex items-center space-x-3">
-                        <span className="bg-blue-500/20 text-blue-200 px-4 py-2 rounded-full text-sm font-bold border border-blue-400/30">
-                          {currentProblem.domain}
-                        </span>
-                        <span className="bg-green-500/20 text-green-200 px-4 py-2 rounded-full text-sm font-bold border border-green-400/30">
-                          {currentProblem.difficulty}
-                        </span>
-                        <span className="bg-purple-500/20 text-purple-200 px-4 py-2 rounded-full text-sm font-bold border border-purple-400/30">
-                          {currentProblem.problemType}
-                        </span>
-                      </div>
-                    </div>
+                    <p className="text-white/80 text-sm">{message.message}</p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm text-white/70 font-medium">ステータス</div>
-                    <div className="font-bold text-lg text-green-400">
-                      🟢 アクティブ
-                    </div>
-                  </div>
-                </div>
-                <p className="text-white/90 text-lg mb-6 leading-relaxed">{currentProblem.description}</p>
-                
-                {/* データセット詳細情報 */}
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-6 border border-white/20">
-                  <h4 className="font-bold text-white text-lg mb-4 flex items-center">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full mr-3"></div>
-                    データセット情報
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-300">{currentProblem.featureNames?.length || 0}</div>
-                      <div className="text-sm text-white/70">特徴量数</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-300">{currentProblem.data?.length || 0}</div>
-                      <div className="text-sm text-white/70">サンプル数</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-purple-300">{currentProblem.problemType || 'Unknown'}</div>
-                      <div className="text-sm text-white/70">問題タイプ</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-orange-300">{currentProblem.difficulty || 'Unknown'}</div>
-                      <div className="text-sm text-white/70">難易度</div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* 参加モード選択 */}
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full mr-3"></div>
-                    参加モードを選択
-                  </h3>
-                  <div className="flex space-x-4">
-                    <button
-                      onClick={() => setBattleMode('individual')}
-                      className={`px-8 py-4 rounded-xl font-bold transition-all duration-300 flex items-center space-x-3 ${
-                        battleMode === 'individual'
-                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg transform scale-105'
-                          : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
-                      }`}
-                    >
-                      <Users className="w-6 h-6" />
-                      <span>個人で参加</span>
-                    </button>
-                    <button
-                      onClick={() => setBattleMode('team')}
-                      className={`px-8 py-4 rounded-xl font-bold transition-all duration-300 flex items-center space-x-3 ${
-                        battleMode === 'team'
-                          ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg transform scale-105'
-                          : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
-                      }`}
-                    >
-                      <Users className="w-6 h-6" />
-                      <span>チームで参加</span>
-                    </button>
-                  </div>
-                </div>
-                
-                {/* 進捗表示 */}
-                {isBattleActive && (
-                  <div className="mb-6">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-lg font-bold text-white">進捗</span>
-                      <span className="text-xl font-bold text-yellow-300">{myProgress}%</span>
-                    </div>
-                    <div className="w-full bg-white/20 rounded-full h-4 overflow-hidden">
-                      <div 
-                        className="bg-gradient-to-r from-yellow-400 to-orange-500 h-4 rounded-full transition-all duration-500 shadow-lg"
-                        style={{ width: `${myProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
+                ))}
+              </div>
+              
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  placeholder="メッセージを入力..."
+                  className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
                 <button
-                  onClick={handleStartBattle}
-                  disabled={isBattleActive}
-                  className={`w-full py-4 px-8 rounded-xl font-bold text-lg transition-all duration-300 ${
-                    !isBattleActive
-                      ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105' 
-                      : 'bg-gray-500/50 text-gray-300 cursor-not-allowed'
-                  }`}
+                  onClick={sendMessage}
+                  className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
                 >
-                  {isBattleActive ? '⚡ バトル進行中...' : '🚀 マルチプレイヤー戦を開始'}
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
+            </div>
 
-              {/* バトル結果 */}
-              {battleResults.length > 0 && (
-                <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-sm rounded-2xl p-6 border border-green-400/30 mb-6 shadow-xl">
-                  <div className="flex items-center space-x-3 mb-6">
-                    <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl shadow-lg">
-                      <Trophy className="w-6 h-6 text-white" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-white">🏆 バトル結果</h3>
-                  </div>
-                  <div className="space-y-4">
-                    {battleResults.map((result, index) => (
-                      <div key={index} className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-white font-bold text-lg">提出 #{index + 1}</span>
-                          <span className="text-yellow-300 font-bold text-xl">
-                            {result.score ? Math.min(100, Math.max(0, result.score)).toFixed(1) : 'N/A'}%
-                          </span>
-                        </div>
-                        <div className="text-sm text-white/80 flex space-x-4">
-                          <span>🤖 モデル: {result.modelType || 'Unknown'}</span>
-                          <span>⏱️ 時間: {result.trainingTime ? `${(result.trainingTime / 1000).toFixed(2)}s` : 'N/A'}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 参加者リスト */}
-              <div className="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur-sm rounded-2xl p-6 border border-blue-400/30 shadow-xl">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl shadow-lg">
-                    <Users className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">👥 参加者 ({Math.max(1, participantsList.length)}人)</h3>
-                </div>
+            {/* 結果 */}
+            {battleResults.length > 0 && (
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+                <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                  <Trophy className="w-6 h-6 mr-2" />
+                  結果
+                </h2>
+                
                 <div className="space-y-3">
-                  {participantsList.map((participant) => (
-                    <div key={participant.userId} className="flex items-center justify-between p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                          {participant.username.charAt(0).toUpperCase()}
+                  {battleResults.map((result, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-sm">
+                          {index + 1}
                         </div>
-                        <span className="font-bold text-white text-lg">{participant.username}</span>
+                        <div>
+                          <div className="font-medium text-white">{result.username}</div>
+                          <div className="text-sm text-white/70">{result.modelType}</div>
+                        </div>
                       </div>
-                      <div className="text-sm text-white/80 font-medium">
-                        {participant.isReady ? '✅ 準備完了' : '⏳ 準備中'}
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-green-300">{result.accuracy.toFixed(2)}%</div>
+                        <div className="text-sm text-white/70">{result.trainingTime}s</div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
-
-            {/* サイドバー */}
-            <div className="space-y-6">
-              {/* チャット */}
-              <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-400/30 shadow-xl">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg">
-                    <MessageCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">💬 チャット</h3>
-                </div>
-                <div className="h-64 overflow-y-auto border border-white/20 rounded-xl p-4 mb-4 bg-white/5 backdrop-blur-sm">
-                  {chatMessages.length === 0 ? (
-                    <p className="text-white/60 text-center py-8">
-                      まだメッセージはありません
-                    </p>
-                  ) : (
-                    chatMessages.map((message, index) => (
-                      <div key={index} className="mb-3 p-3 bg-white/10 rounded-lg border border-white/20">
-                        <div className="font-bold text-blue-300 text-sm">
-                          {message.username}
-                        </div>
-                        <div className="text-white/90">{message.message}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="flex space-x-3">
-                  <input
-                    type="text"
-                    placeholder="メッセージを入力..."
-                    className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white/20 transition-all duration-300"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        const input = e.target as HTMLInputElement;
-                        if (input.value.trim()) {
-                          sendChatMessage(input.value.trim());
-                          input.value = '';
-                        }
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-                      if (input.value.trim()) {
-                        sendChatMessage(input.value.trim());
-                        input.value = '';
-                      }
-                    }}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+import { Users, MessageCircle, Send, Trophy, Target, Sword } from 'lucide-react';
+import { SimpleMLWorkflow } from './SimpleMLWorkflow';
+import { realtimeManager } from '../utils/realtimeManager';
+import { userManager } from '../utils/userManager';
+
+interface MultiplayerBattleProps {
+  onBack: () => void;
+}
+
+interface Participant {
+  userId: string;
+  username: string;
+  isReady: boolean;
+  progress: number;
+  currentStep: string;
+  lastActivity: string;
+}
+
+interface ChatMessage {
+  id: string;
+  userId: string;
+  username: string;
+  message: string;
+  timestamp: string;
+}
+
+export function MultiplayerBattle({ onBack }: MultiplayerBattleProps) {
+  const [showBattle, setShowBattle] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [battleMode, setBattleMode] = useState<'individual' | 'team'>('individual');
+  const [battleStartTime, setBattleStartTime] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [isBattleActive, setIsBattleActive] = useState(false);
+  const [battleResults, setBattleResults] = useState<any[]>([]);
+  const [myProgress, setMyProgress] = useState<number>(0);
+  const [participants, setParticipants] = useState<Map<string, Participant>>(new Map());
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
+
+  const user = userManager.getCurrentUser();
+
+  useEffect(() => {
+    if (user) {
+      setLoading(false);
+    }
+  }, [user]);
+
+  // リアルタイム接続の管理
+  useEffect(() => {
+    if (!user) return;
+
+    const handleConnected = () => {
+      console.log('リアルタイム接続完了');
+      setIsConnected(true);
+    };
+
+    const handleDisconnected = () => {
+      console.log('リアルタイム接続切断');
+      setIsConnected(false);
+    };
+
+    const handleError = (error: any) => {
+      console.error('リアルタイム接続エラー:', error);
+      setError(error.message || '接続エラーが発生しました');
+    };
+
+    // イベントリスナーを登録
+    realtimeManager.subscribe('connected', handleConnected);
+    realtimeManager.subscribe('disconnected', handleDisconnected);
+    realtimeManager.subscribe('error', handleError);
+
+    // 接続状態を設定
+    setIsConnected(true);
+
+    return () => {
+      realtimeManager.unsubscribe('connected', handleConnected);
+      realtimeManager.unsubscribe('disconnected', handleDisconnected);
+      realtimeManager.unsubscribe('error', handleError);
+    };
+  }, [user]);
+
+  // 参加者更新の処理
+  useEffect(() => {
+    const handleParticipantUpdate = (data: any) => {
+      if (data.type === 'participant_update') {
+        const update = data.data;
+        setParticipants(prev => {
+          const newMap = new Map(prev);
+          newMap.set(update.userId, {
+            userId: update.userId,
+            username: update.username,
+            isReady: update.progress > 0,
+            progress: update.progress,
+            currentStep: update.currentStep,
+            lastActivity: update.lastUpdate
+          });
+          return newMap;
+        });
+      }
+    };
+
+    realtimeManager.subscribe('participant_update', handleParticipantUpdate);
+
+    return () => {
+      realtimeManager.unsubscribe('participant_update', handleParticipantUpdate);
+    };
+  }, []);
+
+  // チャットメッセージの処理
+  useEffect(() => {
+    const handleChatMessage = (data: any) => {
+      if (data.type === 'chat_message') {
+        const message = data.data;
+        setChatMessages(prev => [...prev, message]);
+      }
+    };
+
+    realtimeManager.subscribe('chat_message', handleChatMessage);
+
+    return () => {
+      realtimeManager.unsubscribe('chat_message', handleChatMessage);
+    };
+  }, []);
+
+  // バトル開始の処理
+  const startBattle = () => {
+    console.log('バトル開始');
+    setBattleStartTime(Date.now());
+    setIsBattleActive(true);
+    setTimeRemaining(3600); // 1時間
+    realtimeManager.startBattle('battle_room');
+  };
+
+  // バトル終了の処理
+  const endBattle = () => {
+    console.log('バトル終了');
+    setIsBattleActive(false);
+    setBattleStartTime(null);
+    setTimeRemaining(0);
+    realtimeManager.endBattle('battle_room', { results: battleResults });
+  };
+
+  // チャットメッセージ送信
+  const sendMessage = () => {
+    if (!newMessage.trim() || !user) return;
+
+    const message: ChatMessage = {
+      id: Date.now().toString(),
+      userId: user.id,
+      username: user.username || 'Unknown',
+      message: newMessage,
+      timestamp: new Date().toISOString()
+    };
+
+    realtimeManager.sendChatMessage(user.id, user.username || 'Unknown', newMessage);
+    setNewMessage('');
+  };
+
+  // 進捗更新
+  const updateProgress = (progress: number, step: string) => {
+    setMyProgress(progress);
+    // 参加者として自分を更新
+    if (user) {
+      const selfUpdate = {
+        userId: user.id,
+        username: user.username || 'Unknown',
+        progress,
+        currentStep: step,
+        lastUpdate: new Date().toISOString()
+      };
+      realtimeManager.subscribe('participant_update', () => {});
+    }
+  };
+
+  // 時間更新
+  useEffect(() => {
+    if (!isBattleActive || !battleStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - battleStartTime;
+      const remaining = Math.max(0, 3600000 - elapsed); // 1時間 - 経過時間
+      setTimeRemaining(Math.floor(remaining / 1000));
+      
+      if (remaining <= 0) {
+        endBattle();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isBattleActive, battleStartTime]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-blue-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-purple-400 mx-auto mb-4" />
+          <p className="text-2xl text-purple-100 font-bold">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-900 to-orange-900 flex items-center justify-center p-4">
+        <div className="max-w-md bg-white/95 rounded-lg shadow-2xl p-8 text-center">
+          <h2 className="text-2xl font-bold text-red-900 mb-4">エラーが発生しました</h2>
+          <p className="text-red-800 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-red-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors"
+          >
+            ページを再読み込み
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showBattle) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-blue-900">
+        <div className="p-6">
+          <button
+            onClick={() => setShowBattle(false)}
+            className="mb-4 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors"
+          >
+            ← バトル一覧に戻る
+          </button>
+          <SimpleMLWorkflow onBack={() => setShowBattle(false)} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 to-blue-900">
+      <div className="container mx-auto px-4 py-8">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={onBack}
+              className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors"
+            >
+              ←
+            </button>
+            <h1 className="text-3xl font-bold text-white flex items-center">
+              <Sword className="w-8 h-8 mr-3" />
+              マルチプレイヤーバトル
+            </h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+              isConnected 
+                ? 'bg-green-500/20 text-green-400' 
+                : 'bg-red-500/20 text-red-400'
+            }`}>
+              {isConnected ? '接続中' : '切断中'}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* メインコンテンツ */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* バトル情報 */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <Target className="w-6 h-6 mr-2" />
+                バトル情報
+              </h2>
+              
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="text-center p-4 bg-white/5 rounded-xl">
+                  <div className="text-2xl font-bold text-blue-300 mb-1">
+                    {isBattleActive ? Math.floor(timeRemaining / 60) : 0}
+                  </div>
+                  <div className="text-sm text-white/70">残り時間（分）</div>
+                </div>
+                <div className="text-center p-4 bg-white/5 rounded-xl">
+                  <div className="text-2xl font-bold text-green-300 mb-1">
+                    {participants.size}
+                  </div>
+                  <div className="text-sm text-white/70">参加者数</div>
+                </div>
+              </div>
+
+              <div className="flex space-x-4">
+                {!isBattleActive ? (
+                  <button
+                    onClick={startBattle}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    バトル開始
+                  </button>
+                ) : (
+                  <button
+                    onClick={endBattle}
+                    className="flex-1 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    バトル終了
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowBattle(true)}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
+                >
+                  機械学習開始
+                </button>
+              </div>
+            </div>
+
+            {/* 参加者一覧 */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <Users className="w-6 h-6 mr-2" />
+                参加者 ({participants.size}人)
+              </h2>
+              
+              <div className="space-y-3">
+                {Array.from(participants.values()).map((participant) => (
+                  <div
+                    key={participant.userId}
+                    className="flex items-center justify-between p-4 bg-white/5 rounded-xl"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full ${
+                        participant.isReady ? 'bg-green-400' : 'bg-yellow-400'
+                      }`} />
+                      <div>
+                        <div className="font-medium text-white">{participant.username}</div>
+                        <div className="text-sm text-white/70">{participant.currentStep}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-white/70">進捗</div>
+                      <div className="text-lg font-bold text-blue-300">{participant.progress}%</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* サイドバー */}
+          <div className="space-y-6">
+            {/* チャット */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <MessageCircle className="w-6 h-6 mr-2" />
+                チャット
+              </h2>
+              
+              <div className="space-y-3 mb-4 h-64 overflow-y-auto">
+                {chatMessages.map((message) => (
+                  <div key={message.id} className="p-3 bg-white/5 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className="font-medium text-white text-sm">{message.username}</span>
+                      <span className="text-xs text-white/50">{new Date(message.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <p className="text-white/80 text-sm">{message.message}</p>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  placeholder="メッセージを入力..."
+                  className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <button
+                  onClick={sendMessage}
+                  className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* 結果 */}
+            {battleResults.length > 0 && (
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+                <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                  <Trophy className="w-6 h-6 mr-2" />
+                  結果
+                </h2>
+                
+                <div className="space-y-3">
+                  {battleResults.map((result, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-sm">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <div className="font-medium text-white">{result.username}</div>
+                          <div className="text-sm text-white/70">{result.modelType}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-green-300">{result.accuracy.toFixed(2)}%</div>
+                        <div className="text-sm text-white/70">{result.trainingTime}s</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

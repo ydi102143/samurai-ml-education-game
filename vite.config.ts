@@ -15,9 +15,9 @@ export default defineConfig({
           ui: ['lucide-react'],
           ml: ['@tensorflow/tfjs'],
         },
-                 entryFileNames: `assets/[name]-${Date.now()}-${Math.floor(Math.random() * 100000)}.js`,
-                 chunkFileNames: `assets/[name]-${Date.now()}-${Math.floor(Math.random() * 100000)}.js`,
-                 assetFileNames: `assets/[name]-${Date.now()}-${Math.floor(Math.random() * 100000)}.[ext]`
+        entryFileNames: `assets/[name]-${Date.now()}-${Math.floor(Math.random() * 100000)}.js`,
+        chunkFileNames: `assets/[name]-${Date.now()}-${Math.floor(Math.random() * 100000)}.js`,
+        assetFileNames: `assets/[name]-${Date.now()}-${Math.floor(Math.random() * 100000)}.[ext]`
       },
     },
     chunkSizeWarningLimit: 1000,
