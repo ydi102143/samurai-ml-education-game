@@ -2,35 +2,48 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/samurai-ml-education-game/samurai-helmet.svg" />
+    <link rel="icon" type="image/svg+xml" href="./samurai-helmet.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>侍機械学習教育ゲーム</title>
-    <script type="module" crossorigin src="/samurai-ml-education-game/assets/index-svjmjdui9-1760064441037-4435.js"></script>
-    <link rel="modulepreload" crossorigin href="/samurai-ml-education-game/assets/vendor-dc18nmyf9-1760064441037-8718.js">
-    <link rel="modulepreload" crossorigin href="/samurai-ml-education-game/assets/ui-dc18nmyf9-1760064441037-8718.js">
-    <link rel="stylesheet" crossorigin href="/samurai-ml-education-game/assets/index-cq5yhgfp6-1760064441037-8857.css">
+    <script type="module" crossorigin src="/samurai-ml-education-game/assets/index-1760488925230-36590.js"></script>
+    <link rel="modulepreload" crossorigin href="/samurai-ml-education-game/assets/vendor-1760488925230-17580.js">
+    <link rel="modulepreload" crossorigin href="/samurai-ml-education-game/assets/ui-1760488925230-17580.js">
+    <link rel="stylesheet" crossorigin href="/samurai-ml-education-game/assets/index-1760488925230-83188.css">
   </head>
   <body>
     <div id="root"></div>
     <script>
-      // Force environment variables directly in HTML
+      // Force environment variables directly in HTML with cache busting
+      console.log('Environment variables loading at:', new Date().toISOString());
+      
+      // ベースパスを動的に取得
+      const basePath = window.location.pathname.includes('/samurai-ml-education-game/') 
+        ? '/samurai-ml-education-game/' 
+        : '/';
+      
       window.ENV = {
         VITE_SUPABASE_URL: 'https://ovghanpxibparkuyxxdh.supabase.co',
-        VITE_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2hhbnB4aWJwYXJrdXl4eGRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU4NDQ5NzQsImV4cCI6MjA1MTQyMDk3NH0.placeholder'
+        VITE_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Z2hhbnB4aWJwYXJrdXl4eGRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ3MjksImV4cCI6MjA3NTQ4MDcyOX0.56Caf4btExzGvizmzJwZZA8KZIh81axQVcds8eXlq_Y',
+        BASE_PATH: basePath,
+        CACHE_BUST: Date.now()
       };
+      console.log('Environment variables loaded:', window.ENV);
+      console.log('Base path detected:', basePath);
       
-      // Register service worker to disable caching
+      // Register service worker to disable caching (temporarily disabled for debugging)
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/samurai-ml-education-game/sw.js', { scope: '/samurai-ml-education-game/' })
-          .then(function(registration) {
-            console.log('Service Worker registered with scope:', registration.scope);
-          })
-          .catch(function(error) {
-            console.log('Service Worker registration failed:', error);
-          });
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+            console.log('Service Worker unregistered');
+          }
+        });
+        
+        // Temporarily disable service worker registration
+        console.log('Service Worker registration temporarily disabled for debugging');
       }
     </script>
   </body>
